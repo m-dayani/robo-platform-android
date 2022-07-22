@@ -5,7 +5,7 @@ package com.dayani.m.roboplatform.managers;
  * code in each utility class.
  * Each utility class needs to extend or return this.
  * If needed, extend & override for customizations.
- * Mored control for individual util class over permissions
+ * More control for individual util class over permissions
  * Simple but might use more memory??
  *
  * Note1: We can use facilities to make permission handling faster:
@@ -18,8 +18,7 @@ package com.dayani.m.roboplatform.managers;
  *      and check it with package manager (instead of relying on
  *      last saved prefs).
  *
- * Note2: It might be a good idea to implement these for
- *      future work.
+ * Note2: It might be a good idea to implement these for future work.
  *
  * Note3: There are 2 methods for checking all permissions:
  *      1. set/get key/val pairs

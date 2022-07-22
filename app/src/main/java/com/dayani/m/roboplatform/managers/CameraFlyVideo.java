@@ -2,8 +2,7 @@ package com.dayani.m.roboplatform.managers;
 
 /**
  *
- * Note1: Why we don't have file object in sensors class but we
- *      have it here? Because we need to set it in MediaRecorder.
+ * Note1: We have a file object here because we need to set it in MediaRecorder.
  *
  * ** Availability:
  *      1. Easy: Camera & Microphone permissions

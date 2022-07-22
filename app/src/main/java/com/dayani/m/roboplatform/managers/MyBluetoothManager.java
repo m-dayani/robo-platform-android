@@ -5,7 +5,7 @@ package com.dayani.m.roboplatform.managers;
 
 /*
     1. TODO: This class can't recognize some events (like blth enabled)
-    automatically because we don't register br receivers -> can fix this.
+    automatically because we don't register br receivers -> fix this.
     2. TODO: Use BufferedReader and ... instead of what currently is used.
  */
 
@@ -61,7 +61,7 @@ public class MyBluetoothManager {
         public static final int MESSAGE_WRITE = 1;
         public static final int MESSAGE_TOAST = 2;
 
-        // ... (Add other message types here as needed.)
+        // ... (Add other message types here as needed)
     }
 
     //name of the server device: android powered robo platform

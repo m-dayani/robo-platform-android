@@ -77,8 +77,8 @@ import java.util.Date;
 
 public class MyLocationManager /*implements MyPermissionManager.PermissionsInterface*/ {
 
-    private static final String PACKAGE_NAME =
-            "com.dayani.m.flightsimulator2019";
+    private static final String PACKAGE_NAME = "com.dayani.m.flightsimulator2019";
+
     private static final String TAG = "MyLocationManager";
 
     public final class Constants {
@@ -169,7 +169,7 @@ public class MyLocationManager /*implements MyPermissionManager.PermissionsInter
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(appContext);
         mSettingsClient = LocationServices.getSettingsClient(appContext);
 
-        // Kick off the process of building the LocationCallback, LocationRequest, and
+        // the process of building the LocationCallback, LocationRequest, and
         // LocationSettingsRequest objects.
         createLocationRequest();
         createLocationCallback();
@@ -212,7 +212,7 @@ public class MyLocationManager /*implements MyPermissionManager.PermissionsInter
         };
     }
 
-    /**
+    /*
      private void createLocationCallbackThreadSafe() {
         mLocationCallback = new LocationCallback() {
             @Override
@@ -606,7 +606,7 @@ public class MyLocationManager /*implements MyPermissionManager.PermissionsInter
     /*------------------------------------------ Updates -----------------------------------------*/
 
     /**
-     * contains: ?????????????????????? -> should we worry about context?
+     * should we worry about context?
      * Requests location updates from the FusedLocationApi. Note: we don't call this unless location
      * runtime permission has been granted.
      */
@@ -773,7 +773,7 @@ public class MyLocationManager /*implements MyPermissionManager.PermissionsInter
             });
     }
 
-    /** contains: ???????????????
+    /**
      * Removes location updates from the FusedLocationApi.
      */
     public void stopLocationUpdates() {
