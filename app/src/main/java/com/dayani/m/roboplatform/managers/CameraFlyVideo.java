@@ -57,7 +57,7 @@ import java.util.concurrent.TimeUnit;
 
 public class CameraFlyVideo /*implements MyPermissionManager.PermissionsInterface*/ {
 
-    private static final String PACKAGE_NAME = "com.dayani.masoud.flightsimulator2019";
+    private static final String PACKAGE_NAME = "com.dayani.m.flightsimulator2019";
     private static final String TAG = "CameraFlyVideo";
     private static Context appContext;
 

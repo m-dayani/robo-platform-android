@@ -185,7 +185,6 @@ public class FileLogger implements GnssListener, MySensorManager.SensorListener 
         }
     }
 
-    //ToDo: my contribution!
     public void stopLog() {
         if (mFileWriter != null) {
             try {
@@ -194,7 +193,6 @@ public class FileLogger implements GnssListener, MySensorManager.SensorListener 
                 mFileWriter = null;
             } catch (IOException e) {
                 logException("Unable to close all file streams.", e);
-                return;
             }
         }
     }

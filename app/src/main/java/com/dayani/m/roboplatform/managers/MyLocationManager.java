@@ -78,7 +78,7 @@ import java.util.Date;
 public class MyLocationManager /*implements MyPermissionManager.PermissionsInterface*/ {
 
     private static final String PACKAGE_NAME =
-            "com.dayani.masoud.flightsimulator2019";
+            "com.dayani.m.flightsimulator2019";
     private static final String TAG = "MyLocationManager";
 
     public final class Constants {

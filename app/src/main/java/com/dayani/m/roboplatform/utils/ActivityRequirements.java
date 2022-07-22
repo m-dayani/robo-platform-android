@@ -5,7 +5,7 @@ package com.dayani.m.roboplatform.utils;
     uses bunch of predefined static methods.
     In current version of program there is no way to
     define static interface.
-    TODO: Later, we might be able to fix this.
+    TODO: it might be possible to fix this later.
  */
 
 import android.os.Parcel;

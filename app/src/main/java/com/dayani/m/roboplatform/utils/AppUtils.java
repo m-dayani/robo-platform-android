@@ -17,7 +17,7 @@ import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
 
 public class AppUtils {
 
-    ArrayList<Requirement> bili = new ArrayList<Requirement>();
+    ArrayList<Requirement> alRequirements = new ArrayList<Requirement>();
 
     public static ArrayList<Requirement> sParcelables2Requirements(Parcelable[] reqs) {
         if (reqs == null) return null;

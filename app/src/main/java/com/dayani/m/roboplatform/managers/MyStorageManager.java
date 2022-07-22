@@ -25,7 +25,7 @@ import java.util.Date;
 
 public class MyStorageManager /*implements MyPermissionManager.PermissionsInterface*/ {
 
-    private static final String PACKAGE_NAME = "com.dayani.masoud.flightsimulator2019";
+    private static final String PACKAGE_NAME = "com.dayani.m.flightsimulator2019";
     private static final String TAG = "MyStorageManager";
 
     private static final int REQUEST_WRITE_PERMISSION_CODE = 7769;

@@ -2,7 +2,7 @@ package com.dayani.m.roboplatform.utils;
 
 public interface AppGlobals {
 
-    String PACKAGE_BASE_NAME = "com.dayani.masoud.roboplatform";
+    String PACKAGE_BASE_NAME = "com.dayani.m.roboplatform";
 
     String KEY_TARGET_ACTIVITY = PACKAGE_BASE_NAME+".TARGET_ACTIVITY";
 
