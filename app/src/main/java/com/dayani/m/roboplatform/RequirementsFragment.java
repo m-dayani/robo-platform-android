@@ -8,10 +8,9 @@ import android.view.View;
     of transferring to target activity.
     TODO: Use ViewModel to hold necessary data.
     2) Implementing a list of requirements as a predefined
-    stack of views is not good since it requires a lot of
+    stack of views is not advisable since it requires a lot of
     repetition with the slightest modifications
-    TODO: Work with list views & ... after a solid grasp on
-    the algorithm.
+    TODO: Work with list views & ...
  */
 
 
@@ -210,8 +209,8 @@ public class RequirementsFragment extends Fragment implements View.OnClickListen
     }
 
     private void enableStart(View view) {
-        Button bili = view.findViewById(R.id.startActivity);
-        bili.setEnabled(true);
+        Button startActBtn = view.findViewById(R.id.startActivity);
+        startActBtn.setEnabled(true);
     }
 
     private void detachItem(View view, int rId) {
