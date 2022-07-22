@@ -2,7 +2,7 @@ package com.dayani.m.roboplatform.managers;
 
 /*
  * Note1: Unlike other sensor manager classes, USB
- *      doesn't provide a callback for recieving USB data.
+ *      doesn't provide a callback for receiving USB data.
  *      To overcome this problem, currently a broadcast
  *      mechanism is used.
  *      There could be other options like acquiring data periodically
@@ -10,7 +10,7 @@ package com.dayani.m.roboplatform.managers;
  *
  * Note2: Done: methods to interpret byte buffer content.
  *      (turn bytes to sensor values).
- *      Also program device to send meaningfull values.
+ *      Also program device to send meaningful values.
  *
  * Note3: This is how to debug USB transactions
  * 		(https://developer.android.com/guide/topics/connectivity/usb)
@@ -112,7 +112,7 @@ public class MyUSBManager {
     // http://libusb.sourceforge.net/api-1.0/group__desc.html
     protected static final int LIBUSB_DT_STRING = 0x03;
 
-    private static final int SENSOR_UPDATE_INTERVAL_MILIS = 256;
+    private static final int SENSOR_UPDATE_INTERVAL_MILLIS = 256;
     private static final int TARGET_STATE_BUFFER_BYTES = 8;
 
     private static Context appContext;
@@ -152,7 +152,7 @@ public class MyUSBManager {
 
         @Override
         public void run() {
-            Log.d(TAG, "Message recieved, processing...");
+            Log.d(TAG, "Message received, processing...");
             Log.d(TAG,"Doing Sensor receive job in background.");
 
             mRecMsg = receiveSensor();
@@ -163,7 +163,7 @@ public class MyUSBManager {
             //}
             Log.d(TAG, mRecMsg);
 
-            mUSBSensorHandler.postDelayed(this, SENSOR_UPDATE_INTERVAL_MILIS);
+            mUSBSensorHandler.postDelayed(this, SENSOR_UPDATE_INTERVAL_MILLIS);
         }
     };
 
@@ -347,7 +347,7 @@ public class MyUSBManager {
         if (mConnection != null) {
             mConnection.releaseInterface(mInterface);
             mConnection.close();
-            Log.d(TAG, "USB device closed sucessfully.");
+            Log.d(TAG, "USB device closed successfully.");
         }
     }
 
@@ -445,7 +445,7 @@ public class MyUSBManager {
     }
 
     /**
-     * 2 Possible approach:
+     * Possible approaches:
      * 1. Open device with default vendor and dev id
      * 2. Open first connected device (since our device only has
      *      one port).
@@ -538,7 +538,7 @@ public class MyUSBManager {
         res = sendControlMsg(UsbConstants.USB_DIR_IN, // _IN for read
                 UsbCommands.REPORT_SENSOR, mSensorBuffer, mSensorBuffer.length);
         mRecMsg = getASCIIMessage(Arrays.copyOfRange(mSensorBuffer,0,4));
-        Log.d(TAG, "got: "+res+" Bytes, msg: "+mRecMsg+", cool right?!");
+        Log.d(TAG, "got: "+res+" Bytes, msg: "+mRecMsg+", cool, right?!");
         return mRecMsg.equals(DEFAULT_TEST_OUT_NEG_MESSAGE) ||
                 mRecMsg.equals(DEFAULT_TEST_OUT_POS_MESSAGE);
     }
@@ -605,7 +605,7 @@ public class MyUSBManager {
     }
 
     /**
-     * Methods to work with byte sent and recieved.
+     * Methods to work with byte sent and received.
      * @param value
      * @return
      */
@@ -616,7 +616,7 @@ public class MyUSBManager {
     }
 
     /**
-     * Error: there's a lim on input to byte array size when
+     * Error: there's a limit on input to byte array size when
      *      sent to ByteBuffer.wrap method (lim = 8);
      *      Only work with this when have byte arr returned from
      *      #toByteArray().

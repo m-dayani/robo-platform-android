@@ -531,8 +531,8 @@ public class MyWifiManager {
     }
 
     /**
-     * Enabling Wifi and Being connected to the network is 2
-     * different things (think about university vpn connection!)
+     * Remember: enabling Wifi and Being connected to the network is two
+     * different things!
      */
     private class WifiStateBrReceiver extends BroadcastReceiver {
 
