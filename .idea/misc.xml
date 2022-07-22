@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DesignSurface">
+    <option name="filePathToZoomLevelMap">
+      <map>
+        <entry key="app/src/main/res/layout/activity_car_manual_control.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/activity_main.xml" value="0.25" />
+        <entry key="app/src/main/res/layout/activity_record_all.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/activity_record_sensors.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/activity_settings.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/activity_test.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/fragment_bluetooth_req.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/fragment_front_panel.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/fragment_hotspot_req.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/fragment_location_req.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/fragment_permission_req.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/fragment_requirements.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/fragment_usb_req.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/fragment_wi_net_req.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/fragment_wireless_conn_front_panel.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/z_activity_requirements.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/z_fragment_requirement_list_item.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/z_permissions_fragment.xml" value="0.1" />
+        <entry key="app/src/main/res/menu/main_menu.xml" value="0.19375" />
+        <entry key="app/src/main/res/xml/permissions.xml" value="0.1" />
+        <entry key="app/src/main/res/xml/preferences.xml" value="0.1" />
+      </map>
+    </option>
+  </component>
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_11" default="true" project-jdk-name="11" project-jdk-type="JavaSDK">
+    <output url="file://$PROJECT_DIR$/build/classes" />
+  </component>
+  <component name="ProjectType">
+    <option name="id" value="Android" />
+  </component>
+</project>
