@@ -4,7 +4,7 @@ package com.dayani.m.roboplatform;
   1. This activity launches target activities with
     an intent containing the fully-qualified name of that activity.
   2. Important Note: without saving these fragments on backstack,
-    when you back from the last fragment, it'll still visible!
+    when you back from the last fragment, it'll still be visible!
 */
 
 
