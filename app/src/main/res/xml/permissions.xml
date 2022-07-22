@@ -7,23 +7,23 @@
         app:title="Permissions Summary">
 
         <Preference
-            app:key="com.dayani.masoud.roboplatform.android.permission.WRITE_EXTERNAL_STORAGE"
+            app:key="com.dayani.m.roboplatform.android.permission.WRITE_EXTERNAL_STORAGE"
             app:title="Storage and Files" />
 
         <Preference
-            app:key="com.dayani.masoud.roboplatform.android.permission.CAMERA"
+            app:key="com.dayani.m.roboplatform.android.permission.CAMERA"
             app:title="Camera" />
 
         <Preference
-            app:key="com.dayani.masoud.roboplatform.android.permission.RECORD_AUDIO"
+            app:key="com.dayani.m.roboplatform.android.permission.RECORD_AUDIO"
             app:title="Record Audio" />
 
         <Preference
-            app:key="com.dayani.masoud.roboplatform.android.permission.ACCESS_FINE_LOCATION"
+            app:key="com.dayani.m.roboplatform.android.permission.ACCESS_FINE_LOCATION"
             app:title="Location" />
 
         <Preference
-            app:key="com.dayani.masoud.roboplatform.MainActivity.ALL_PERMISSIONS"
+            app:key="com.dayani.m.roboplatform.MainActivity.ALL_PERMISSIONS"
             app:title="All Permissions"
             app:summary="In order to see the updates, restart this page." />
 
