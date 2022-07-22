@@ -6,7 +6,7 @@
         app:key="permissions"
         app:title="Permissions"
         app:summary="Check and modify the current state of App permissions."
-        app:fragment="com.dayani.masoud.roboplatform.MyPermissionPrefsFragment" />
+        app:fragment="com.dayani.m.roboplatform.MyPermissionPrefsFragment" />
 
     <Preference
         app:key="app_rates"
