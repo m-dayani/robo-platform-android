@@ -246,7 +246,7 @@ public class RecordAllActivity extends AppCompatActivity
 
      /*
     //Here we don't deal with any permission handling/request &...
-    //If permission are not available, we don't do anything.
+    //If permissions are not available, we don't do anything.
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
@@ -310,7 +310,7 @@ public class RecordAllActivity extends AppCompatActivity
                 break;
             }
             case R.id.info: {
-                Toast.makeText(this,"alie bili is a good guy.",
+                Toast.makeText(this,"Showing sensor information!",
                         Toast.LENGTH_LONG).show();
                 break;
             }
