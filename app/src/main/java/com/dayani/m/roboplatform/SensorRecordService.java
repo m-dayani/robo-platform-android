@@ -1,9 +1,9 @@
 package com.dayani.m.roboplatform;
 
 /*
-    ToDo: It's very ugly to use a stringBuffer for
+    TODO: Don't use a stringBuffer for
     sensor logging and a fileLogger for gnss!
-    Fix this latter.
+    Fix this.
  */
 
 import android.app.Notification;
@@ -147,7 +147,7 @@ public class SensorRecordService extends Service {
         mSensorString = new StringBuffer();
 
         mUiLogger = new UiLogger();
-        //mUiLogger.setUiFragmentComponent(new UiLogger.UIFragmentComponent(this, reportTxt, bili));
+        //mUiLogger.setUiFragmentComponent(new UiLogger.UIFragmentComponent(this, reportTxt, frag));
         mFileLogger = new FileLogger(getApplicationContext());
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
