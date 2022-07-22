@@ -190,7 +190,7 @@ public class MyStorageManager /*implements MyPermissionManager.PermissionsInterf
      * saves file on ... location but readable from docs
      *      works for both internal and external storage
      *      its file content is deleted with uninstall.
-     *      add readable writable check for external storage latter.
+     *      add readable writable check for external storage.
      *      Uses BufferWriter
      */
     public void writeBuffered(File file, String content) {
@@ -200,7 +200,7 @@ public class MyStorageManager /*implements MyPermissionManager.PermissionsInterf
             BufferedWriter writer = new BufferedWriter(new FileWriter(file, true /*append*/));
             writer.write(content);
             writer.close();
-            // Refresh the data so it can seen when the device is plugged in a
+            // Refresh the data so it can seen when the device is plugged into a
             // computer. You may have to unplug and replug the device to see the
             // latest changes. This is not necessary if the user should not modify
             // the files.

@@ -1,6 +1,6 @@
 package com.dayani.m.roboplatform.managers;
 
-/**
+/*
  * Note1: Unlike other sensor manager classes, USB
  *      doesn't provide a callback for recieving USB data.
  *      To overcome this problem, currently a broadcast

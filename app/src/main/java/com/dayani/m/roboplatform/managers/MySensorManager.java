@@ -3,7 +3,7 @@ package com.dayani.m.roboplatform.managers;
 /**
  * TODO: We can receive and process sensor values from
  *      another thread.
- * (We don't do this here because it's a very light job).
+ * (We don't do this here because it's straightforward).
  *
  * TODO: This is a test acquisition program.
  *      In real programs, test to see if all sensors are
@@ -251,7 +251,7 @@ public class MySensorManager {
             setAvailableFlag(true);
         }
         else if (hasAccelerometer()) {
-            //This is android dependent and acts weird!!!?????
+            //This is android dependent and acts mysteriously!!!?????
             mAccel = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
             setAvailableFlag(true);
         }
@@ -515,7 +515,7 @@ public class MySensorManager {
     }
 
     private void handleUsbAlso() {
-        //Also get sensor values from usb !!!!!!!!!!???????????
+        //Also get sensor values from usb?
         //Intent intent = new Intent();
         //intent.setAction(MyUSBManager.ACTION_SENSOR_RECIEVE);
         //intent.putExtra("data","Notice me senpai!");

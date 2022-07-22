@@ -1,6 +1,6 @@
 package com.dayani.m.roboplatform.managers;
 
-/**
+/*
  * ADB Commands for testing doze mode:
  *      adb shell dumpsys deviceidle force-idle
  *      adb shell dumpsys deviceidle unforce
@@ -55,9 +55,9 @@ public class MySleepManager {
         mPowerManager = (PowerManager) mAppContext.getSystemService(Context.POWER_SERVICE);
     }
 
-    /**
+    /*
      * Start an alarm when the device restarts
-     * This works even when reboot and goes to sleep mode.
+     * This works even when reboots and goes to sleep mode.
      */
     /*public static void enableBootReciever(Context mAppContext) {
         ComponentName receiver = new ComponentName(mAppContext, AlarmBootReceiver.class);
@@ -135,7 +135,7 @@ public class MySleepManager {
                     Log.d(TAG, "Now Ignoring battery optimizations for this app.");
                 }else{
                     // Not ignoring battery optimization
-                    Log.d(TAG, "Use not agreed to ignore battery optz for this app.");
+                    Log.d(TAG, "Use not agreed to ignore battery opt for this app.");
                 }
             }
 

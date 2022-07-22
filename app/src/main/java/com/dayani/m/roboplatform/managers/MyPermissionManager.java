@@ -225,7 +225,7 @@ public class MyPermissionManager {
     }*/
 
     /**
-     * little problem in requesting specific permissions...
+     * small problem in requesting specific permissions...
      * @param permissions
      * @return
      */
@@ -420,7 +420,7 @@ public class MyPermissionManager {
 
     /*
       These functions also update the state of permissions
-      There is 2 category of universal keys for each permission group:
+      There are two categories of universal keys for each permission group:
            1. The key identifying the group
            2. The keys for each permission
      */
