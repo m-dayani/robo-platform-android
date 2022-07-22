@@ -314,11 +314,6 @@ public class MyLocationManager /*implements MyPermissionManager.PermissionsInter
 
     /*-------------------------------- Sertters and Getters --------------------------------------*/
 
-    /**
-     * These are bullshit and is not considered
-     *  in final decisions!
-     */
-
     private boolean getRequestingLocationUpdatesFlag() {
         return mRequestingLocationUpdates;
     }
