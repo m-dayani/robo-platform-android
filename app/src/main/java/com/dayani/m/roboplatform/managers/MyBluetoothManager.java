@@ -235,8 +235,8 @@ public class MyBluetoothManager {
         if (mBluetoothDevice == null) {
             requestDiscoverabilityEnabled();
         }
-        AcceptThread bili = new AcceptThread();
-        bili.start();
+        AcceptThread thAccept = new AcceptThread();
+        thAccept.start();
     }
 
     private class AcceptThread extends Thread {
@@ -281,8 +281,8 @@ public class MyBluetoothManager {
 
                         //my contribution
                         //mBluetoothDevice = mSocket.getRemoteDevice();
-                        ConnectedThread bili = new ConnectedThread(mSocket);
-                        bili.start();
+                        ConnectedThread thConnected = new ConnectedThread(mSocket);
+                        thConnected.start();
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -332,8 +332,8 @@ public class MyBluetoothManager {
                 mmSocket.connect();
 
                 //my Contribution
-                ConnectedThread bili = new ConnectedThread(mmSocket);
-                bili.start();
+                ConnectedThread thConnected = new ConnectedThread(mmSocket);
+                thConnected.start();
             } catch (IOException connectException) {
                 // Unable to connect; close the socket and return.
                 try {

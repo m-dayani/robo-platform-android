@@ -87,9 +87,9 @@ public class MyUSBManager {
 
     private static final String TAG = MyUSBManager.class.getSimpleName();
 
-    private static final String DEFAULT_TEST_IN_MESSAGE = "bili"; //sent to usb device
-    private static final String DEFAULT_TEST_OUT_NEG_MESSAGE = "nala";
-    private static final String DEFAULT_TEST_OUT_POS_MESSAGE = "yala";
+    private static final String DEFAULT_TEST_IN_MESSAGE = "in_msg"; //sent to usb device
+    private static final String DEFAULT_TEST_OUT_NEG_MESSAGE = "outn";
+    private static final String DEFAULT_TEST_OUT_POS_MESSAGE = "outp";
 
     private static final int DEFAULT_VENDOR_ID = 5824; //V-USB VID //1659; //Omega VID //0x2341; //Arduino VID
     private static final int DEFAULT_DEVICE_ID = 2002; //V-USB led device (avr)
@@ -631,15 +631,15 @@ public class MyUSBManager {
     }
 
     public static byte[] getBufferSlice(byte[] inArray, int offset, int length, int outSize) {
-        byte[] bili = new byte[outSize];
+        byte[] outBuff = new byte[outSize];
         for (int i = 0; i < outSize; i++) {
             if (i >= length) {
-                bili[i] = 0;
+                outBuff[i] = 0;
             } else {
-                bili[i] = inArray[i+offset];
+                outBuff[i] = inArray[i+offset];
             }
         }
-        return bili;
+        return outBuff;
     }
 
     /**

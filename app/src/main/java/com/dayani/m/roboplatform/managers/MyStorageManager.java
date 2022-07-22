@@ -241,8 +241,8 @@ public class MyStorageManager /*implements MyPermissionManager.PermissionsInterf
         if (!file.mkdirs()) {
             Log.e(TAG, "Directory not created");
         }
-//        Uri bil = MediaStore.Audio.Media.getContentUriForPath("bili");
-//        Log.i(TAG, bil.getPath());
+//        Uri mUri = MediaStore.Audio.Media.getContentUriForPath("audio/path");
+//        Log.i(TAG, mUri.getPath());
         return file;
 
         /*try {
@@ -291,11 +291,11 @@ public class MyStorageManager /*implements MyPermissionManager.PermissionsInterf
             e.printStackTrace();
         }
 
-        /*String bili = "Bili is a good guy!";
+        /*String strMsg = "Sending a message!";
         byte[] buffer = new byte[1024];
         int len1 = 0;
         //while ((len1 = in.read(buffer)) > 0) {
-        //f.write(bili.getBytes(), 0, bili.length());
+        //f.write(strMsg.getBytes(), 0, strMsg.length());
         //}*/
     }
 
