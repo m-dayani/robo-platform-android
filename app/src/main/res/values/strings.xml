@@ -1,0 +1,52 @@
+<resources>
+    <string name="app_name">Robo Platform</string>
+    <string name="record">Record</string>
+    <string name="description_info">Info</string>
+    <string name="settings_menu_action">Settings</string>
+    <string name="help">Help</string>
+    <string name="main_refresh">Refresh</string>
+    <string name="labelStartRecordAll">Launch Record All Test</string>
+    <string name="labelStartCarManual">Start Car Manual Ctrl</string>
+    <string name="labelStartTest">Start USB Test Activity</string>
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="all_sensors">All Sensors</string>
+    <string name="wireless_connection">Wireless Connection</string>
+    <string name="usb_device">Usb Device</string>
+    <string name="app_permissions">App Permissions</string>
+    <string name="start">Start</string>
+    <string name="lock_icon">lock icon</string>
+    <string name="storage_permission">Storage and Files</string>
+    <string name="camera">Camera</string>
+    <string name="microphone">Microphone</string>
+    <string name="location">Location</string>
+    <string name="check_permissions">Check Permissions</string>
+    <string name="modify_permissions">Modify Permissions</string>
+    <string name="regected">regected</string>
+    <string name="enable_location">Enable Location</string>
+    <string name="check_location_enabled">Check Location Enabled</string>
+    <string name="enumBtn">Enum Devices</string>
+    <string name="openDev">Open Device</string>
+    <string name="vendor_id">Vendor ID</string>
+    <string name="device_id">Device ID</string>
+    <string name="run_test">Check Connection</string>
+    <string name="save_device_as_default">Save Device as Default</string>
+    <string name="wireless_network">Wireless Network</string>
+    <string name="mobile_hotspot">Mobile Hotspot</string>
+    <string name="bluetooth">Bluetooth</string>
+    <string name="enable_wifi">Enable Wifi</string>
+    <string name="ip_address">Ip Address</string>
+    <string name="default_port">Default Port</string>
+    <string name="start_server">Start Server</string>
+    <string name="save_port_as_default">Save Port as Default</string>
+    <string name="enable_hotspot_and_tethering">Enable Hotspot and Tethering</string>
+    <string name="hotspot_ip_address">Hotspot Ip Address</string>
+    <string name="save_socket_as_default">Save Socket as Default</string>
+    <string name="change_hotspot_permission">Change Hotspot Permission</string>
+    <string name="enable_bluetooth">Enable Bluetooth</string>
+    <string name="blth_server_name">Server Name</string>
+    <string name="service_uuid">Service UUID</string>
+    <string name="save_as_default_service">Save as Default Service</string>
+    <string name="start_record_sensors">Start Record Sensors</string>
+    <string name="app_version">1.0</string>
+</resources>

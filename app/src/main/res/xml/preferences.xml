@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <Preference
+        app:key="permissions"
+        app:title="Permissions"
+        app:summary="Check and modify the current state of App permissions."
+        app:fragment="com.dayani.masoud.roboplatform.MyPermissionPrefsFragment" />
+
+    <Preference
+        app:key="app_rates"
+        app:title="Critical Sensor Timing"
+        app:summary="Manage timing and intervals required for the best sensor performance."/>
+
+</PreferenceScreen>

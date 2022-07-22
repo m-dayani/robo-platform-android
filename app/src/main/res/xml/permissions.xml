@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory
+        app:key="permissions_category"
+        app:title="Permissions Summary">
+
+        <Preference
+            app:key="com.dayani.masoud.roboplatform.android.permission.WRITE_EXTERNAL_STORAGE"
+            app:title="Storage and Files" />
+
+        <Preference
+            app:key="com.dayani.masoud.roboplatform.android.permission.CAMERA"
+            app:title="Camera" />
+
+        <Preference
+            app:key="com.dayani.masoud.roboplatform.android.permission.RECORD_AUDIO"
+            app:title="Record Audio" />
+
+        <Preference
+            app:key="com.dayani.masoud.roboplatform.android.permission.ACCESS_FINE_LOCATION"
+            app:title="Location" />
+
+        <Preference
+            app:key="com.dayani.masoud.roboplatform.MainActivity.ALL_PERMISSIONS"
+            app:title="All Permissions"
+            app:summary="In order to see the updates, restart this page." />
+
+    </PreferenceCategory>
+    <Preference
+        app:key="edit_permission_prefs"
+        app:title="Edit Permission Preferences"
+        app:summary="User directed to a system page where they can manage system permissions.\nIn order to see the updates, restart this page.">
+        <!--Intent
+            android:action="Settings.ACTION_APPLICATION_DETAILS_SETTINGS"
+            android:data="" /-->
+    </Preference>
+
+</PreferenceScreen>

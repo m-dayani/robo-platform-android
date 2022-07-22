@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".requirements.UsbReqFragment">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:dividerPadding="5dp"
+        android:orientation="vertical"
+        android:padding="10dp"
+        tools:ignore="UselessParent">
+
+
+        <Button
+            android:id="@+id/enableWifi"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/enable_wifi" />
+
+        <TextView
+            android:id="@+id/ipTxtView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ems="10"
+            android:hint="@string/ip_address"
+            android:padding="5dp"
+            android:textSize="18sp" />
+
+        <EditText
+            android:id="@+id/portTxtEdit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ems="10"
+            android:hint="@string/default_port"
+            android:inputType="number" />
+
+        <LinearLayout
+            android:id="@+id/wiNetActionsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" >
+
+            <Button
+                android:id="@+id/startServer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/start_server" />
+
+            <Button
+                android:id="@+id/saveDefaultPort"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/save_port_as_default" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/statView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="30dp"
+            android:textAlignment="center" />
+
+    </LinearLayout>
+
+</FrameLayout>

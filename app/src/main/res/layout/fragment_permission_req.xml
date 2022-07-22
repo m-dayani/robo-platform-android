@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context=".requirements.PermissionReqFragment"
+    android:orientation="vertical"
+    android:layout_height="match_parent"
+    android:layout_width="match_parent">
+
+    <LinearLayout
+        android:id="@+id/permissions_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="10dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/reqStorageIcon"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_weight="1"
+                android:src="@drawable/ic_action_cancel"
+                android:contentDescription="@string/regected" />
+
+            <TextView
+                android:id="@+id/storagePermission"
+                android:tag="android.permission.WRITE_EXTERNAL_STORAGE"
+                android:layout_width="match_parent"
+                android:layout_height="30dp"
+                android:layout_weight="10"
+                android:gravity="center"
+                android:text="@string/storage_permission" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/reqCameraIcon"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_weight="1"
+                android:src="@drawable/ic_action_cancel"
+                android:contentDescription="@string/regected" />
+
+            <TextView
+                android:id="@+id/cameraPermission"
+                android:tag="android.permission.CAMERA"
+                android:layout_width="match_parent"
+                android:layout_height="30dp"
+                android:layout_weight="10"
+                android:gravity="center"
+                android:text="@string/camera" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/reqMicIcon"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_weight="1"
+                android:src="@drawable/ic_action_cancel"
+                android:contentDescription="@string/regected" />
+
+            <TextView
+                android:id="@+id/microphonePermission"
+                android:tag="android.permission.RECORD_AUDIO"
+                android:layout_width="match_parent"
+                android:layout_height="30dp"
+                android:layout_weight="10"
+                android:gravity="center"
+                android:text="@string/microphone" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/reqLocationIcon"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_weight="1"
+                android:src="@drawable/ic_action_cancel"
+                android:contentDescription="@string/regected" />
+
+            <TextView
+                android:id="@+id/locationPermission"
+                android:tag="android.permission.ACCESS_FINE_LOCATION"
+                android:layout_width="match_parent"
+                android:layout_height="30dp"
+                android:layout_weight="10"
+                android:gravity="center"
+                android:text="@string/location" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <Button
+            android:id="@+id/permReqCheckAction"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/check_permissions" />
+
+        <Button
+            android:id="@+id/permReqAction"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/modify_permissions" />
+
+        <TextView
+            android:id="@+id/reportTxt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+    </LinearLayout>
+
+</LinearLayout>

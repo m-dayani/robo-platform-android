@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <Button
+        android:id="@+id/enumDevs"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Enummerate Devices" />
+
+    <Button
+        android:id="@+id/openDefaultDev"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open default Device" />
+
+    <Button
+        android:id="@+id/sendState"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Send State" />
+
+    <Button
+        android:id="@+id/recieveSensor"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Get Sensor" />
+
+    <Button
+        android:id="@+id/runTest"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Run Test" />
+
+    <TextView
+        android:id="@+id/reportText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="TextView"
+        android:padding="16dp"/>
+
+</LinearLayout>

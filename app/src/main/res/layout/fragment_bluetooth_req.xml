@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".requirements.BluetoothReqFragment">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:dividerPadding="5dp"
+        android:orientation="vertical"
+        android:padding="10dp"
+        tools:ignore="UselessParent">
+
+
+        <Button
+            android:id="@+id/enableBluetooth"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/enable_bluetooth" />
+
+        <TextView
+            android:id="@+id/devNameTxtEdit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ems="10"
+            android:hint="@string/blth_server_name"
+            android:padding="5dp"
+            android:textSize="18sp" />
+
+        <EditText
+            android:id="@+id/serviceUuidTxtEdit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ems="10"
+            android:hint="@string/service_uuid"
+            android:inputType="number" />
+
+        <LinearLayout
+            android:id="@+id/wiNetActionsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" >
+
+            <Button
+                android:id="@+id/startServer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/start_server" />
+
+            <Button
+                android:id="@+id/saveServiceUuid"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/save_as_default_service" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/statView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="30dp"
+            android:textAlignment="center" />
+
+    </LinearLayout>
+
+</FrameLayout>

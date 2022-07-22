@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/mainRefresh"
+        android:icon="@drawable/ic_action_refresh"
+        android:title="@string/main_refresh"
+        app:showAsAction="ifRoom"/>
+    <item android:id="@+id/settings"
+        android:icon="@drawable/ic_action_settings_white"
+        android:title="@string/settings_menu_action"
+        app:showAsAction="ifRoom" />
+    <item android:id="@+id/help"
+        android:icon="@drawable/ic_action_help_white"
+        android:title="@string/help" />
+</menu>
