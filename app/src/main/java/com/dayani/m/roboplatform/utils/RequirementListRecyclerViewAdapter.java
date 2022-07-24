@@ -37,7 +37,7 @@ public class RequirementListRecyclerViewAdapter extends
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
         Log.d(TAG, "onCreateViewHolder");
         View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.z_fragment_requirement_list_item, parent, false);
+                .inflate(R.layout.fragment_requirement_list_item, parent, false);
         //TODO: set/create view holder with an implementation of onClickInterface
         ViewHolder.IMyViewHolderClicks vhListener = new ViewHolder.IMyViewHolderClicks() {
             @Override
