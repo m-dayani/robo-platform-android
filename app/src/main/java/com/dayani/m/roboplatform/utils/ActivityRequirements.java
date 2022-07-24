@@ -42,15 +42,6 @@ public interface ActivityRequirements {
                 return new Requirement[size];
             }
         };
-
-//        @Override
-//        public String toString() {
-//            return super.toString();
-//        }
-
-        //        private ReqParcelable(Parcel in) {
-//            mData = in.readInt();
-//        }
     }
 
     enum RequirementState {
@@ -72,17 +63,6 @@ public interface ActivityRequirements {
             this.name = name;
         }
     }
-//    class Requirement {
-//        private Requirement() {}
-//        public static String PERMISSIONS = "PERMISSIONS";
-//        public static String USB_DEVICE = "USB_DEVICE";
-//        public static String WIRELESS_CONNECTION = "WIRELESS_CONNECTION";
-//        public static String ENABLE_LOACTION = "ENABLE_LOACTION";
-//        public static String ALL_SENSORS = "ALL_SENSORS";
-//    }
 
-
-    boolean usesActivityRequirementsInterface();
-    //public static int[] getActivityRequirements();
-    //public static String[] getActivityPermissions();
+    public SensorsContainer getSensorRequirements();
 }

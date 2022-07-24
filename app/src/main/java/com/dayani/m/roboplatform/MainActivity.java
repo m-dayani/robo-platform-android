@@ -50,11 +50,10 @@ public class MainActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        FrontPanelFragment fpFragment = FrontPanelFragment.newInstance();
-
         fragmentManager = getSupportFragmentManager();
         fragmentTransaction = fragmentManager.beginTransaction();
 
+        FrontPanelFragment fpFragment = FrontPanelFragment.newInstance();
         fragmentTransaction.add(R.id.fragment_container, fpFragment).commit();
     }
 
@@ -115,14 +114,13 @@ public class MainActivity extends AppCompatActivity
     /*--------------------------------------------------------------------------------------------*/
 
     @Override
-    public void onFrontPanelInteraction(Class<?> targetActivity,
-                                        ArrayList<Requirement> requirements, String[] perms) {
+    public void onFrontPanelInteraction(Class<?> targetActivity) {
 
         Log.d(TAG, "onFrontPanelInteraction");
         this.targetActivity = targetActivity;
 
         fragmentTransaction = fragmentManager.beginTransaction();
-        requirementsFragment = RequirementsFragment.newInstance(requirements, perms);
+        requirementsFragment = RequirementsFragment.newInstance();
         fragmentTransaction.replace(R.id.fragment_container, requirementsFragment).
                 addToBackStack("root").commit();
     }

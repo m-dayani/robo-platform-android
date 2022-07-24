@@ -6,7 +6,7 @@ import android.view.View;
 /*
     1) This Fragment does share data between every stage
     of transferring to target activity.
-    TODO: Use ViewModel to hold necessary data.
+    TODO: Consider using ViewModel to hold necessary data.
     2) Implementing a list of requirements as a predefined
     stack of views is not advisable since it requires a lot of
     repetition with the slightest modifications
@@ -14,10 +14,10 @@ import android.view.View;
  */
 
 
-import android.content.Context;
-
+import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 
+import android.content.Context;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.ViewGroup;
@@ -49,8 +49,6 @@ public class RequirementsFragment extends Fragment implements View.OnClickListen
     private static final String ARG_PERMISSIONS = "arg_permissions";
     private static final String ARG_REQUIREMENTS = "arg_requirements";
 
-    private View mView;
-
     private ArrayList<Requirement> requirements;
     private String[] permissions;
     private String connectionType = null;
@@ -70,21 +68,25 @@ public class RequirementsFragment extends Fragment implements View.OnClickListen
      * @return A new instance of fragment RequirementsFragment.
      */
     // TODO: Rename and change types and number of parameters
-    public static RequirementsFragment newInstance(
-            ArrayList<Requirement> requirements, String[] permissions) {
+    public static RequirementsFragment newInstance() {
+
         RequirementsFragment fragment = new RequirementsFragment();
+
         Bundle args = new Bundle();
-        args.putStringArray(ARG_PERMISSIONS, permissions);
-        args.putParcelableArray(ARG_REQUIREMENTS, AppUtils.sRequirements2Parcelables(requirements));
+        //args.putStringArray(ARG_PERMISSIONS, permissions);
+        //args.putParcelableArray(ARG_REQUIREMENTS, AppUtils.sRequirements2Parcelables(requirements));
+
         fragment.setArguments(args);
         return fragment;
     }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
+
         if (getArguments() != null) {
-            //requirements = (Requirement[]) getArguments().getParcelableArray(ARG_REQUIREMENTS);
+
             requirements = AppUtils.sParcelables2Requirements(
                     getArguments().getParcelableArray(ARG_REQUIREMENTS));
             permissions = getArguments().getStringArray(ARG_PERMISSIONS);
@@ -94,8 +96,9 @@ public class RequirementsFragment extends Fragment implements View.OnClickListen
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+
         // Inflate the layout for this fragment
-        mView = inflater.inflate(R.layout.fragment_requirements, container, false);
+        View mView = inflater.inflate(R.layout.fragment_requirements, container, false);
 
         mView.findViewById(R.id.permissions).setOnClickListener(this);
         mView.findViewById(R.id.usb_device).setOnClickListener(this);
@@ -110,15 +113,18 @@ public class RequirementsFragment extends Fragment implements View.OnClickListen
     }
 
     @Override
-    public void onAttach(Context context) {
+    public void onAttach(@NonNull Context context) {
+
         super.onAttach(context);
         Log.i(TAG, "onAttach");
+
         if (context instanceof OnRequirementsInteractionListener) {
             mListener = (OnRequirementsInteractionListener) context;
         } else {
             throw new RuntimeException(context.toString()
                     + " must implement OnRequirementsInteractionListener");
         }
+
         if (context instanceof OnRequestPageChange) {
             mPageListener = (OnRequestPageChange) context;
         } else {
@@ -135,61 +141,58 @@ public class RequirementsFragment extends Fragment implements View.OnClickListen
 
     @Override
     public void onClick(View view) {
-        switch (view.getId()) {
-            case R.id.permissions: {
-                Log.d(TAG, "permissions requirement");
-                PermissionReqFragment permPrefFrag = PermissionReqFragment.newInstance(permissions);
-                //mListener.onRequirementsListInteraction(Requirement.PERMISSIONS, permPrefFrag);
-                mPageListener.onRequestPageChange(permPrefFrag, "req");
-                break;
-            }
-            case R.id.usb_device: {
-                Log.d(TAG, "usb device requirement");
-                UsbReqFragment usbPrefFragment = UsbReqFragment.newInstance();
-                mPageListener.onRequestPageChange(usbPrefFragment, "req");
-                break;
-            }
-            case R.id.wireless_conn: {
-                Log.d(TAG, "wireless connection requirement");
-                WirelessConnFrontPanelFragment wcfpFragment =
-                        WirelessConnFrontPanelFragment.newInstance();
-                mPageListener.onRequestPageChange(wcfpFragment, "req");
-                break;
-            }
-            case R.id.enable_location: {
-                Log.d(TAG, "enable location requirement");
-                LocationReqFragment locPrefFragment = LocationReqFragment.newInstance();
-                mPageListener.onRequestPageChange(locPrefFragment, "req");
-                break;
-            }
-            case R.id.all_sensors: {
-                Log.d(TAG, "all sensors requirement");
-                //mListener.onRequirementInteraction(Requirement.ALL_SENSORS);
-                break;
-            }
-            case R.id.startActivity: {
-                Log.d(TAG, "permitted to start activity");
-                mListener.startTargetActivity(connectionType);
-                break;
-            }
-            default:
-                Log.e(TAG, "Undefined requirement");
-                break;
+
+        int id = view.getId();
+        if (id == R.id.permissions) {
+            Log.d(TAG, "permissions requirement");
+            PermissionReqFragment permPrefFrag = PermissionReqFragment.newInstance(permissions);
+            mPageListener.onRequestPageChange(permPrefFrag, "req");
+        }
+        else if (id == R.id.usb_device) {
+            Log.d(TAG, "usb device requirement");
+            UsbReqFragment usbPrefFragment = UsbReqFragment.newInstance();
+            mPageListener.onRequestPageChange(usbPrefFragment, "req");
+        }
+        else if (id == R.id.wireless_conn) {
+            Log.d(TAG, "wireless connection requirement");
+            WirelessConnFrontPanelFragment wcfpFragment =
+                    WirelessConnFrontPanelFragment.newInstance();
+            mPageListener.onRequestPageChange(wcfpFragment, "req");
+        }
+        else if (id == R.id.enable_location) {
+            Log.d(TAG, "enable location requirement");
+            LocationReqFragment locPrefFragment = LocationReqFragment.newInstance();
+            mPageListener.onRequestPageChange(locPrefFragment, "req");
+        }
+        else if (id == R.id.all_sensors) {
+            Log.d(TAG, "all sensors requirement");
+            //mListener.onRequirementInteraction(Requirement.ALL_SENSORS);
+        }
+        else if (id == R.id.startActivity) {
+            Log.d(TAG, "permitted to start activity");
+            mListener.startTargetActivity(connectionType);
+        }
+        else {
+            Log.e(TAG, "Undefined requirement");
         }
     }
 
     private void processRequirements(View view,
                                      ArrayList<Requirement> requirements, String[] permissions) {
+
         if (view == null || requirements == null || requirements.size() <= 0) {
+
             //if requirements is null: there is no requirement!
             detachAll(view);
             enableStart(view);
             return;
         }
+
         if ((permissions == null || permissions.length <=0) &&
                 (requirements).contains(Requirement.PERMISSIONS)) {
-                requirements.remove(Requirement.PERMISSIONS);
+            requirements.remove(Requirement.PERMISSIONS);
         }
+
         if (!(requirements).contains(Requirement.PERMISSIONS)
             || permissions == null || permissions.length <= 0) {
             detachItem(view,R.id.permissions);
@@ -209,11 +212,13 @@ public class RequirementsFragment extends Fragment implements View.OnClickListen
     }
 
     private void enableStart(View view) {
+
         Button startActBtn = view.findViewById(R.id.startActivity);
         startActBtn.setEnabled(true);
     }
 
     private void detachItem(View view, int rId) {
+
         LinearLayout btParent = (LinearLayout) view.findViewById(rId).getParent();
         ((LinearLayout)view.findViewById(R.id.requirements_container)).removeView(btParent);
     }
@@ -223,6 +228,7 @@ public class RequirementsFragment extends Fragment implements View.OnClickListen
     }
 
     public void requirementHandled(Requirement requirement, String connType) {
+
         Log.i(TAG, "requirementHandled");
         if (requirement.equals(Requirement.WIRELESS_CONNECTION) && connType == null) {
             return; //the requirement has not passed!
@@ -237,13 +243,12 @@ public class RequirementsFragment extends Fragment implements View.OnClickListen
      * fragment to allow an interaction in this fragment to be communicated
      * to the activity and potentially other fragments contained in that
      * activity.
-     * <p>
      * See the Android Training lesson <a href=
      * "http://developer.android.com/training/basics/fragments/communicating.html"
      * >Communicating with Other Fragments</a> for more information.
      */
     public interface OnRequirementsInteractionListener {
-        //void onRequirementsListInteraction(Requirement req, Fragment targetFragment);
+
         void onRequirementInteraction(Requirement requirement,
                                       boolean isPassed, String connType, String backStackName);
         void startTargetActivity(String connType);

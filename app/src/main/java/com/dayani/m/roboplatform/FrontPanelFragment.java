@@ -5,6 +5,7 @@ import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -12,6 +13,8 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
+import com.dayani.m.roboplatform.utils.SensorRequirementsViewModel;
+import com.dayani.m.roboplatform.utils.SensorsContainer;
 
 import java.util.ArrayList;
 
@@ -28,9 +31,9 @@ public class FrontPanelFragment extends Fragment implements View.OnClickListener
 
     private static final String TAG = FrontPanelFragment.class.getSimpleName();
 
-
-    private ArrayList<Requirement> mRequirements;
-    private String[] mPermissions;
+    //private ArrayList<Requirement> mRequirements;
+    //private String[] mPermissions;
+    SensorRequirementsViewModel mVM_Sensors;
 
     private OnFrontPanelInteractionListener mListener;
 
@@ -52,17 +55,8 @@ public class FrontPanelFragment extends Fragment implements View.OnClickListener
         return fragment;
     }
 
-//    @Override
-//    public void onCreate(Bundle savedInstanceState) {
-//        super.onCreate(savedInstanceState);
-//        //if (getArguments() != null) {
-//            //mParam1 = getArguments().getString(ARG_PARAM1);
-//        //}
-//    }
-
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 
         // Inflate the layout for this fragment
         View view = inflater.inflate(R.layout.fragment_front_panel, container, false);
@@ -79,6 +73,7 @@ public class FrontPanelFragment extends Fragment implements View.OnClickListener
     public void onAttach(@NonNull Context context) {
 
         super.onAttach(context);
+
         if (context instanceof OnFrontPanelInteractionListener) {
             mListener = (OnFrontPanelInteractionListener) context;
         }
@@ -96,58 +91,61 @@ public class FrontPanelFragment extends Fragment implements View.OnClickListener
     @Override
     public void onClick(View view) {
 
+        mVM_Sensors = new ViewModelProvider(requireActivity()).get(SensorRequirementsViewModel.class);
+        Class<?> targetActivity = MainActivity.class;
+        SensorsContainer mSensors = new SensorsContainer();
+
+
         int id = view.getId();
         if (id == R.id.startRecordAll) {
 
             Log.d(TAG, "startRecordAllActivity");
-            this.getRecordAllInfo();
-            mListener.onFrontPanelInteraction(RecordAllActivity.class, mRequirements, mPermissions);
+            mSensors = this.getRecordAllInfo();
+            targetActivity = RecordAllActivity.class;
         }
         else if (id == R.id.startCarManualCtrl) {
 
             Log.d(TAG, "startCarManualCtrl");
-            this.getCarManualControlInfo();
-            mListener.onFrontPanelInteraction(CarManualControlActivity.class, mRequirements, mPermissions);
+            mSensors = this.getCarManualControlInfo();
+            targetActivity = CarManualControlActivity.class;
         }
         else if (id == R.id.startRecordSensors) {
 
             Log.d(TAG, "startRecordSensors");
-            this.getRecordSensorsInfo();
-            mListener.onFrontPanelInteraction(RecordSensorsActivity.class, mRequirements, mPermissions);
+            mSensors = this.getRecordSensorsInfo();
+            targetActivity = RecordSensorsActivity.class;
         }
         else if (id == R.id.startTest) {
 
             Log.d(TAG, "startTest");
-            this.getTestActivityInfo();
-            mListener.onFrontPanelInteraction(TestActivity.class, mRequirements, mPermissions);
+            mSensors = this.getTestActivityInfo();
+            targetActivity = TestActivity.class;
         }
+
+        mVM_Sensors.setSensorsContainer(mSensors);
+        mListener.onFrontPanelInteraction(targetActivity);
     }
 
     /*--------------------------------------------------------------------------------------------*/
 
-    private void getRecordAllInfo() {
+    private SensorsContainer getRecordAllInfo() {
 
-        mRequirements = RecordAllActivity.getActivityRequirements();
-        mPermissions = RecordAllActivity.getActivityPermissions();
-        //RecordAllActivity.class.getSimpleName();
+        return RecordAllActivity.getSensorRequirements();
     }
 
-    private void getCarManualControlInfo() {
+    private SensorsContainer getCarManualControlInfo() {
 
-        mRequirements = CarManualControlActivity.getActivityRequirements();
-        mPermissions = CarManualControlActivity.getActivityPermissions();
+        return CarManualControlActivity.getSensorRequirements();
     }
 
-    private void getRecordSensorsInfo() {
+    private SensorsContainer getRecordSensorsInfo() {
 
-        mRequirements = RecordSensorsActivity.getActivityRequirements();
-        mPermissions = RecordSensorsActivity.getActivityPermissions();
+        return RecordSensorsActivity.getSensorRequirements();
     }
 
-    private void getTestActivityInfo() {
+    private SensorsContainer getTestActivityInfo() {
 
-        mRequirements = null;
-        mPermissions = null;
+        return new SensorsContainer();
     }
 
     /*--------------------------------------------------------------------------------------------*/
@@ -164,7 +162,6 @@ public class FrontPanelFragment extends Fragment implements View.OnClickListener
      */
     public interface OnFrontPanelInteractionListener {
 
-        void onFrontPanelInteraction(Class<?> targetActivity,
-                ArrayList<Requirement> requirements, String[] perms);
+        void onFrontPanelInteraction(Class<?> targetActivity);
     }
 }

@@ -14,6 +14,7 @@ package com.dayani.m.roboplatform;
  *      the checking internally (in each utility class).
  */
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
@@ -367,9 +368,9 @@ public class RecordAllActivity extends AppCompatActivity
         return REQUIREMENTS;
     }
 
-    public static String[] getActivityPermissions() {
+    public static String[] getActivityPermissions(Context mContext) {
         String[] allPermissions = ArrayUtils.concat(MyStorageManager.getPermissions(),
-                CameraFlyVideo.getPermissions(), MyLocationManager.getPermissions());
+                CameraFlyVideo.getPermissions(), MyLocationManager.getPermissions(mContext));
         Log.i(TAG, Arrays.toString(allPermissions));
         return allPermissions;
     }

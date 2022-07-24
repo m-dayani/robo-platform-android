@@ -25,6 +25,7 @@ package com.dayani.m.roboplatform.managers;
  *      and that entry checks availability from the root.
  *
  * ** Availability:
+ *      0. Device supports location? (e.g. emulators don't support GNSS)
  *      1. Location permissions
  *      2. Location settings is on (for updates)
  * ** Resources:
@@ -43,6 +44,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
+import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
@@ -81,7 +83,7 @@ public class MyLocationManager /*implements MyPermissionManager.PermissionsInter
 
     private static final String TAG = "MyLocationManager";
 
-    public final class Constants {
+    public static final class Constants {
 
         private Constants() {}
 
@@ -344,8 +346,22 @@ public class MyLocationManager /*implements MyPermissionManager.PermissionsInter
         return Constants.REQUEST_LOCATION_PERMISSION_CODE;
     }
 
-    public static String[] getPermissions() {
-        return LOCATION_PERMISSIONS;
+    public static String[] getPermissions(Context mContext) {
+
+        if (hasGNSS_Sensor(mContext)) {
+            Log.d(TAG, "Device supports the GNSS sensor.");
+            return LOCATION_PERMISSIONS;
+        }
+        else {
+            Log.d(TAG, "Device doesn't support the GNSS sensor.");
+            return new String[]{};
+        }
+    }
+
+    public static boolean hasGNSS_Sensor(Context mContext) {
+
+        PackageManager packageManager = mContext.getPackageManager();
+        return packageManager.hasSystemFeature(PackageManager.FEATURE_LOCATION_GPS);
     }
 
     public static String getPermissionKey() {

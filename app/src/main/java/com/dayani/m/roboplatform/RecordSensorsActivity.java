@@ -6,6 +6,7 @@ package com.dayani.m.roboplatform;
   All Sensors are onboard, no external USB device attached to the cellphone.
  */
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
@@ -243,9 +244,9 @@ public class RecordSensorsActivity extends AppCompatActivity
         return REQUIREMENTS;
     }
 
-    public static String[] getActivityPermissions() {
+    public static String[] getActivityPermissions(Context mContext) {
         String[] allPermissions = ArrayUtils.concat(MyStorageManager.getPermissions(),
-                MyLocationManager.getPermissions());
+                MyLocationManager.getPermissions(mContext));
         Log.i(TAG, Arrays.toString(allPermissions));
         return allPermissions;
     }

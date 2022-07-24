@@ -270,7 +270,7 @@ public class RequirementsActivity extends AppCompatActivity
 
     private void createPermissions() {
         allPermissions = ArrayUtils.concat(MyStorageManager.getPermissions(),
-                CameraFlyVideo.getPermissions(), MyLocationManager.getPermissions());
+                CameraFlyVideo.getPermissions(), MyLocationManager.getPermissions(getApplicationContext()));
         Log.i(TAG, Arrays.toString(allPermissions));
     }
 

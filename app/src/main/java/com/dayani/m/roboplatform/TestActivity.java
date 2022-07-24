@@ -41,7 +41,7 @@ public class TestActivity extends AppCompatActivity implements View.OnClickListe
     public void onClick(View view) {
         switch (view.getId()) {
             case R.id.enumDevs: {
-                TextView rptTxt = (TextView) findViewById(R.id.reportText);
+                TextView rptTxt = (TextView) findViewById(R.id.fpReportText);
                 rptTxt.setText(mUsb.enumerateDevices());
                 break;
             }
@@ -54,7 +54,7 @@ public class TestActivity extends AppCompatActivity implements View.OnClickListe
                 break;
             }
             case R.id.recieveSensor: {
-                TextView rptTxt = (TextView) findViewById(R.id.reportText);
+                TextView rptTxt = (TextView) findViewById(R.id.fpReportText);
                 rptTxt.setText(mUsb.receiveSensor());
                 break;
             }
