@@ -13,6 +13,9 @@ import android.net.Uri;
 import android.os.Environment;
 import android.util.Log;
 
+import com.dayani.m.roboplatform.utils.ActivityRequirements;
+import com.dayani.m.roboplatform.utils.SensorsContainer;
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -21,6 +24,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 
 public class MyStorageManager /*implements MyPermissionManager.PermissionsInterface*/ {
@@ -351,5 +355,22 @@ public class MyStorageManager /*implements MyPermissionManager.PermissionsInterf
                 //showImage(uri);
             }
         }
+    }
+
+    public static void getSensorRequirements(Context mContext, SensorsContainer sensors) {
+
+        // add requirements
+        if (!sensors.getRequirements().contains(ActivityRequirements.Requirement.PERMISSIONS)) {
+
+            sensors.addRequirement(ActivityRequirements.Requirement.PERMISSIONS);
+        }
+
+        // add permissions
+        for (String perm : STORAGE_PERMISSIONS) {
+            sensors.addPermission(perm);
+        }
+
+        // add sensors:
+        // there are no sensors here
     }
 }

@@ -49,4 +49,14 @@
     <string name="save_as_default_service">Save as Default Service</string>
     <string name="start_record_sensors">Start Record Sensors</string>
     <string name="app_version">1.0</string>
+    <string name="btn_record_label">Record</string>
+    <string name="btn_save_info_label">Save Info</string>
+    <string name="unknown_sensor">Unknown Sensor</string>
+    <string name="sensor_title">Sensor Title</string>
+    <string name="sensor_name">Sensor Name</string>
+    <string name="sensor_details">Sensor Details</string>
+    <string name="sensor_not_available_image">Sensor Not Available Image</string>
+    <string name="sensor_not_available">Sensor Not Available</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>

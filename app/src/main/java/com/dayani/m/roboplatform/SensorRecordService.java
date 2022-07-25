@@ -33,7 +33,7 @@ import com.dayani.m.roboplatform.utils.UiLogger;
 
 import java.io.File;
 
-import static com.dayani.m.roboplatform.RecordSensorsActivity.KEY_IS_RECORDING_STATE;
+import static com.dayani.m.roboplatform.dump.RecordSensorsActivity_old.KEY_IS_RECORDING_STATE;
 
 public class SensorRecordService extends Service {
 

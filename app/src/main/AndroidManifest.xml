@@ -52,7 +52,7 @@
             android:enabled="true"
             android:exported="true"></service>
 
-        <activity android:name="com.dayani.m.roboplatform.RecordSensorsActivity" />
+        <activity android:name="com.dayani.m.roboplatform.dump.RecordSensorsActivity_old" />
         <activity android:name="com.dayani.m.roboplatform.dump.RequirementsActivity">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
@@ -73,7 +73,7 @@
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="com.dayani.m.roboplatform.MainActivity" />
         </activity>
-        <activity android:name="com.dayani.m.roboplatform.RecordAllActivity">
+        <activity android:name="com.dayani.m.roboplatform.RecordSensorsActivity">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="com.dayani.m.roboplatform.MainActivity" />

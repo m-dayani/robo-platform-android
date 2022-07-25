@@ -8,6 +8,7 @@ import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 
 import android.provider.Settings;
 import android.util.Log;
@@ -24,6 +25,7 @@ import com.dayani.m.roboplatform.managers.MyStateManager;
 import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
 import com.dayani.m.roboplatform.RequirementsFragment.OnRequirementsInteractionListener;
 import com.dayani.m.roboplatform.utils.AppGlobals;
+import com.dayani.m.roboplatform.utils.SensorRequirementsViewModel;
 
 import java.util.Arrays;
 
@@ -45,6 +47,7 @@ public class PermissionReqFragment extends Fragment implements View.OnClickListe
 
     View mView;
 
+    SensorRequirementsViewModel mVM_Sensors;
     private String[] mPermissions;
 
     private OnRequirementsInteractionListener mListener;
@@ -57,25 +60,23 @@ public class PermissionReqFragment extends Fragment implements View.OnClickListe
      * Use this factory method to create a new instance of
      * this fragment using the provided parameters.
      *
-     * @param perms Parameter 1.
      * @return A new instance of fragment PermissionReqFragment.
      */
-    public static PermissionReqFragment newInstance(String[] perms) {
+    public static PermissionReqFragment newInstance() {
+
         PermissionReqFragment fragment = new PermissionReqFragment();
         Bundle args = new Bundle();
-        args.putStringArray(ARG_PERMISSIONS, perms);
         fragment.setArguments(args);
         return fragment;
     }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
-        if (getArguments() != null) {
-            mPermissions = getArguments().getStringArray(ARG_PERMISSIONS);
-            //Manage permissions
-            this.checkPermissions(mPermissions);
-        }
+
+        mVM_Sensors = new ViewModelProvider(requireActivity()).get(SensorRequirementsViewModel.class);
+        mPermissions = mVM_Sensors.getSensorsContainer().getPermissions().toArray(new String[0]);
     }
 
     @Override

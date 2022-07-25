@@ -64,5 +64,5 @@ public interface ActivityRequirements {
         }
     }
 
-    public SensorsContainer getSensorRequirements();
+    //boolean usesActivityRequirementsInterface();
 }

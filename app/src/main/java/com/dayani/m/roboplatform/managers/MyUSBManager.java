@@ -72,7 +72,9 @@ import android.widget.Toast;
 
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
+import com.dayani.m.roboplatform.utils.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.AppGlobals;
+import com.dayani.m.roboplatform.utils.SensorsContainer;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
@@ -339,6 +341,18 @@ public class MyUSBManager {
         for (int i = 0; i < minLength; i++) {
             mStateBuffer[i] = buffer[i];
         }
+    }
+
+    public static void getSensorRequirements(Context mContext, SensorsContainer sensors) {
+
+        // add requirements
+        sensors.addRequirement(ActivityRequirements.Requirement.USB_DEVICE);
+
+        // add permissions
+        // no permissions
+
+        // add sensors (external ADC)
+        // TODO:
     }
 
     /*========================================== Close ===========================================*/

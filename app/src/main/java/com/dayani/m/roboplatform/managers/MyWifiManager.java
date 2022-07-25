@@ -16,7 +16,9 @@ import android.os.Looper;
 import android.provider.Settings;
 import android.util.Log;
 
+import com.dayani.m.roboplatform.utils.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.AppGlobals;
+import com.dayani.m.roboplatform.utils.SensorsContainer;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -109,6 +111,23 @@ public class MyWifiManager {
 
     public static String getPermissionKey() {
         return KEY_WRITE_SETTINGS_PERMISSION;
+    }
+
+    public static void getSensorRequirements(Context mContext, SensorsContainer sensors) {
+
+        // add requirements
+        if (!sensors.getRequirements().contains(ActivityRequirements.Requirement.PERMISSIONS)) {
+
+            sensors.addRequirement(ActivityRequirements.Requirement.PERMISSIONS);
+        }
+
+        // add permissions
+        for (String perm : WRITE_SETTINGS_PERMISSIONS) {
+            sensors.addPermission(perm);
+        }
+
+        // add sensors:
+        // there are no sensors here
     }
 
     public String getMessage() {

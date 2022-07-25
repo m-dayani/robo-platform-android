@@ -12,11 +12,9 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
-import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
+import com.dayani.m.roboplatform.dump.RecordSensorsActivity_old;
 import com.dayani.m.roboplatform.utils.SensorRequirementsViewModel;
 import com.dayani.m.roboplatform.utils.SensorsContainer;
-
-import java.util.ArrayList;
 
 
 /**
@@ -58,6 +56,8 @@ public class FrontPanelFragment extends Fragment implements View.OnClickListener
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 
+        mVM_Sensors = new ViewModelProvider(requireActivity()).get(SensorRequirementsViewModel.class);
+
         // Inflate the layout for this fragment
         View view = inflater.inflate(R.layout.fragment_front_panel, container, false);
 
@@ -91,7 +91,6 @@ public class FrontPanelFragment extends Fragment implements View.OnClickListener
     @Override
     public void onClick(View view) {
 
-        mVM_Sensors = new ViewModelProvider(requireActivity()).get(SensorRequirementsViewModel.class);
         Class<?> targetActivity = MainActivity.class;
         SensorsContainer mSensors = new SensorsContainer();
 
@@ -100,25 +99,24 @@ public class FrontPanelFragment extends Fragment implements View.OnClickListener
         if (id == R.id.startRecordAll) {
 
             Log.d(TAG, "startRecordAllActivity");
-            mSensors = this.getRecordAllInfo();
-            targetActivity = RecordAllActivity.class;
+            mSensors = RecordSensorsActivity.getSensorRequirements(getActivity(), true);
+            targetActivity = RecordSensorsActivity.class;
         }
         else if (id == R.id.startCarManualCtrl) {
 
             Log.d(TAG, "startCarManualCtrl");
-            mSensors = this.getCarManualControlInfo();
+            mSensors = CarManualControlActivity.getSensorRequirements(getActivity());
             targetActivity = CarManualControlActivity.class;
         }
         else if (id == R.id.startRecordSensors) {
 
             Log.d(TAG, "startRecordSensors");
-            mSensors = this.getRecordSensorsInfo();
-            targetActivity = RecordSensorsActivity.class;
+            mSensors = RecordSensorsActivity.getSensorRequirements(getActivity(), false);
+            targetActivity = RecordSensorsActivity_old.class;
         }
         else if (id == R.id.startTest) {
 
             Log.d(TAG, "startTest");
-            mSensors = this.getTestActivityInfo();
             targetActivity = TestActivity.class;
         }
 
@@ -128,34 +126,11 @@ public class FrontPanelFragment extends Fragment implements View.OnClickListener
 
     /*--------------------------------------------------------------------------------------------*/
 
-    private SensorsContainer getRecordAllInfo() {
-
-        return RecordAllActivity.getSensorRequirements();
-    }
-
-    private SensorsContainer getCarManualControlInfo() {
-
-        return CarManualControlActivity.getSensorRequirements();
-    }
-
-    private SensorsContainer getRecordSensorsInfo() {
-
-        return RecordSensorsActivity.getSensorRequirements();
-    }
-
-    private SensorsContainer getTestActivityInfo() {
-
-        return new SensorsContainer();
-    }
-
-    /*--------------------------------------------------------------------------------------------*/
-
     /**
      * This interface must be implemented by activities that contain this
      * fragment to allow an interaction in this fragment to be communicated
      * to the activity and potentially other fragments contained in that
      * activity.
-     * <p>
      * See the Android Training lesson <a href=
      * "http://developer.android.com/training/basics/fragments/communicating.html"
      * >Communicating with Other Fragments</a> for more information.

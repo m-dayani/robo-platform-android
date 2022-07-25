@@ -45,6 +45,9 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 
+import com.dayani.m.roboplatform.utils.ActivityRequirements;
+import com.dayani.m.roboplatform.utils.SensorsContainer;
+
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -314,6 +317,18 @@ public class MySensorManager {
 
     public boolean checkAvailability() {
         return getAvailableFlag();
+    }
+
+    public static void getSensorRequirements(Context mContext, SensorsContainer sensors) {
+
+        // add requirements
+        // no requirements
+
+        // add permissions
+        // no permissions
+
+        // add sensors:
+        // TODO:
     }
 
     /*---------------------------------- Lifecycle Management ------------------------------------*/

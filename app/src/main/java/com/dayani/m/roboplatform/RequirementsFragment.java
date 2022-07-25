@@ -16,6 +16,7 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 
 import android.content.Context;
 import android.util.Log;
@@ -30,6 +31,7 @@ import com.dayani.m.roboplatform.requirements.UsbReqFragment;
 import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
 import com.dayani.m.roboplatform.utils.AppUtils;
 import com.dayani.m.roboplatform.utils.OnRequestPageChange;
+import com.dayani.m.roboplatform.utils.SensorRequirementsViewModel;
 
 import java.util.ArrayList;
 
@@ -49,8 +51,9 @@ public class RequirementsFragment extends Fragment implements View.OnClickListen
     private static final String ARG_PERMISSIONS = "arg_permissions";
     private static final String ARG_REQUIREMENTS = "arg_requirements";
 
+    SensorRequirementsViewModel mVM_Sensors;
     private ArrayList<Requirement> requirements;
-    private String[] permissions;
+    //private String[] permissions;
     private String connectionType = null;
 
     private OnRequirementsInteractionListener mListener;
@@ -73,10 +76,8 @@ public class RequirementsFragment extends Fragment implements View.OnClickListen
         RequirementsFragment fragment = new RequirementsFragment();
 
         Bundle args = new Bundle();
-        //args.putStringArray(ARG_PERMISSIONS, permissions);
-        //args.putParcelableArray(ARG_REQUIREMENTS, AppUtils.sRequirements2Parcelables(requirements));
-
         fragment.setArguments(args);
+
         return fragment;
     }
 
@@ -85,12 +86,8 @@ public class RequirementsFragment extends Fragment implements View.OnClickListen
 
         super.onCreate(savedInstanceState);
 
-        if (getArguments() != null) {
-
-            requirements = AppUtils.sParcelables2Requirements(
-                    getArguments().getParcelableArray(ARG_REQUIREMENTS));
-            permissions = getArguments().getStringArray(ARG_PERMISSIONS);
-        }
+        mVM_Sensors = new ViewModelProvider(requireActivity()).get(SensorRequirementsViewModel.class);
+        requirements = mVM_Sensors.getSensorsContainer().getRequirements();
     }
 
     @Override
@@ -107,7 +104,7 @@ public class RequirementsFragment extends Fragment implements View.OnClickListen
         mView.findViewById(R.id.all_sensors).setOnClickListener(this);
         mView.findViewById(R.id.startActivity).setOnClickListener(this);
 
-        processRequirements(mView, requirements, permissions);
+        processRequirements(mView, requirements);
 
         return mView;
     }
@@ -145,7 +142,7 @@ public class RequirementsFragment extends Fragment implements View.OnClickListen
         int id = view.getId();
         if (id == R.id.permissions) {
             Log.d(TAG, "permissions requirement");
-            PermissionReqFragment permPrefFrag = PermissionReqFragment.newInstance(permissions);
+            PermissionReqFragment permPrefFrag = PermissionReqFragment.newInstance();
             mPageListener.onRequestPageChange(permPrefFrag, "req");
         }
         else if (id == R.id.usb_device) {
@@ -178,7 +175,7 @@ public class RequirementsFragment extends Fragment implements View.OnClickListen
     }
 
     private void processRequirements(View view,
-                                     ArrayList<Requirement> requirements, String[] permissions) {
+                                     ArrayList<Requirement> requirements) {
 
         if (view == null || requirements == null || requirements.size() <= 0) {
 
@@ -188,13 +185,7 @@ public class RequirementsFragment extends Fragment implements View.OnClickListen
             return;
         }
 
-        if ((permissions == null || permissions.length <=0) &&
-                (requirements).contains(Requirement.PERMISSIONS)) {
-            requirements.remove(Requirement.PERMISSIONS);
-        }
-
-        if (!(requirements).contains(Requirement.PERMISSIONS)
-            || permissions == null || permissions.length <= 0) {
+        if (!(requirements).contains(Requirement.PERMISSIONS)) {
             detachItem(view,R.id.permissions);
         }
         if (!(requirements).contains(Requirement.USB_DEVICE)) {

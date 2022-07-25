@@ -43,7 +43,9 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.dayani.m.roboplatform.utils.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.AutoFitTextureView;
+import com.dayani.m.roboplatform.utils.SensorsContainer;
 
 import java.io.File;
 import java.io.IOException;
@@ -692,6 +694,22 @@ public class CameraFlyVideo /*implements MyPermissionManager.PermissionsInterfac
         startPreview();
     }
 
+    public static void getSensorRequirements(Context mContext, SensorsContainer sensors) {
+
+        // add requirements
+        if (!sensors.getRequirements().contains(ActivityRequirements.Requirement.PERMISSIONS)) {
+
+            sensors.addRequirement(ActivityRequirements.Requirement.PERMISSIONS);
+        }
+
+        // add permissions
+        for (String perm : VIDEO_PERMISSIONS) {
+            sensors.addPermission(perm);
+        }
+
+        // add sensors:
+        // TODO:
+    }
 
 
     /**

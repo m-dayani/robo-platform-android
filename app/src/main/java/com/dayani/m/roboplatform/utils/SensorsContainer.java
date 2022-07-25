@@ -11,7 +11,7 @@ public class SensorsContainer {
         mArrSensorGroups = new ArrayList<>();
     }
 
-    public SensorsContainer(ArrayList<String> reqs, ArrayList<String> perms,
+    public SensorsContainer(ArrayList<ActivityRequirements.Requirement> reqs, ArrayList<String> perms,
                             ArrayList<MySensorGroup> sensorGroups) {
 
         mRequirements = reqs;
@@ -19,7 +19,7 @@ public class SensorsContainer {
         mArrSensorGroups = sensorGroups;
     }
 
-    public void addRequirement(String req) {
+    public void addRequirement(ActivityRequirements.Requirement req) {
 
         mRequirements.add(req);
     }
@@ -34,7 +34,7 @@ public class SensorsContainer {
         mArrSensorGroups.add(sensorGrp);
     }
 
-    public ArrayList<String> getRequirements() {
+    public ArrayList<ActivityRequirements.Requirement> getRequirements() {
         return mRequirements;
     }
 
@@ -46,7 +46,7 @@ public class SensorsContainer {
         return mArrSensorGroups;
     }
 
-    private ArrayList<String> mRequirements;
+    private ArrayList<ActivityRequirements.Requirement> mRequirements;
     private ArrayList<String> mPermissions;
     private ArrayList<MySensorGroup> mArrSensorGroups;
 }

@@ -20,6 +20,10 @@
         <entry key="app/src/main/res/layout/fragment_usb_req.xml" value="0.1" />
         <entry key="app/src/main/res/layout/fragment_wi_net_req.xml" value="0.1" />
         <entry key="app/src/main/res/layout/fragment_wireless_conn_front_panel.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/sensor_group.xml" value="0.19375" />
+        <entry key="app/src/main/res/layout/sensor_item.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/sensor_not_available.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/sensors_list_fragment.xml" value="0.19375" />
         <entry key="app/src/main/res/layout/z_activity_requirements.xml" value="0.1" />
         <entry key="app/src/main/res/layout/z_fragment_requirement_list_item.xml" value="0.1" />
         <entry key="app/src/main/res/layout/z_permissions_fragment.xml" value="0.1" />

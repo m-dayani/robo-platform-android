@@ -13,6 +13,13 @@ public class MySensorGroup {
         TYPE_MAGNET
     }
 
+    public MySensorGroup() {
+
+        mTitle = "Unknown";
+        mType = SensorType.TYPE_UNKNOWN;
+        mSensors =  new ArrayList<>();
+    }
+
     public MySensorGroup(SensorType type) {
 
         mType = type;
@@ -40,6 +47,11 @@ public class MySensorGroup {
         this.mSensors = mSensors;
     }
 
-    private SensorType mType = SensorType.TYPE_UNKNOWN;
-    private ArrayList<MySensorInfo> mSensors = new ArrayList<>();
+    public String getTitle() {
+        return mTitle;
+    }
+
+    private String mTitle;
+    private SensorType mType;
+    private ArrayList<MySensorInfo> mSensors;
 }

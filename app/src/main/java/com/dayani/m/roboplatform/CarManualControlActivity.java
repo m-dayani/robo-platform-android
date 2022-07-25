@@ -1,5 +1,6 @@
 package com.dayani.m.roboplatform;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -13,13 +14,17 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.dayani.m.roboplatform.managers.CameraFlyVideo;
+import com.dayani.m.roboplatform.managers.MyLocationManager;
 import com.dayani.m.roboplatform.managers.MySensorManager;
 import com.dayani.m.roboplatform.managers.MyStateManager;
+import com.dayani.m.roboplatform.managers.MyStorageManager;
 import com.dayani.m.roboplatform.managers.MyUSBManager;
 import com.dayani.m.roboplatform.managers.MyWifiManager;
 import com.dayani.m.roboplatform.utils.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.AppGlobals;
 import com.dayani.m.roboplatform.utils.ControlInput;
+import com.dayani.m.roboplatform.utils.SensorsContainer;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -268,21 +273,31 @@ public class CarManualControlActivity extends AppCompatActivity
     }
 
     /*============================ Static ActivityRequirements interface =========================*/
-    @Override
-    public boolean usesActivityRequirementsInterface() {
-        return true;
-    }
-
-    public static ArrayList<Requirement> getActivityRequirements() {
-        return REQUIREMENTS;
-    }
-
-    public static String[] getActivityPermissions() {
-        String[] allPermissions = null;
-        Log.i(TAG, Arrays.toString(allPermissions));
-        return allPermissions;
-    }
+//    @Override
+//    public boolean usesActivityRequirementsInterface() {
+//        return true;
+//    }
+//
+//    public static ArrayList<Requirement> getActivityRequirements() {
+//        return REQUIREMENTS;
+//    }
+//
+//    public static String[] getActivityPermissions() {
+//        String[] allPermissions = null;
+//        Log.i(TAG, Arrays.toString(allPermissions));
+//        return allPermissions;
+//    }
     /*============================ Static ActivityRequirements interface =========================*/
+
+    public static SensorsContainer getSensorRequirements(Context mContext) {
+
+        SensorsContainer sensors = new SensorsContainer();
+
+        MyUSBManager.getSensorRequirements(mContext, sensors);
+        MyWifiManager.getSensorRequirements(mContext, sensors);
+
+        return sensors;
+    }
 
     public void toastMsgShort(String msg) {
         Toast.makeText(this.getApplicationContext(), msg, Toast.LENGTH_SHORT).show();

@@ -5,6 +5,11 @@ import androidx.lifecycle.ViewModel;
 
 public class SensorRequirementsViewModel extends ViewModel {
 
+    public SensorRequirementsViewModel() {
+
+        mSensorsContainer = new SensorsContainer();
+    }
+
     public SensorRequirementsViewModel(SensorsContainer sensors) {
 
         mSensorsContainer = sensors;

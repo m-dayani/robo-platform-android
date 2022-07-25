@@ -57,6 +57,8 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
+import com.dayani.m.roboplatform.utils.ActivityRequirements;
+import com.dayani.m.roboplatform.utils.SensorsContainer;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.common.api.ResolvableApiException;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -356,6 +358,31 @@ public class MyLocationManager /*implements MyPermissionManager.PermissionsInter
             Log.d(TAG, "Device doesn't support the GNSS sensor.");
             return new String[]{};
         }
+    }
+
+    public static void getSensorRequirements(Context mContext, SensorsContainer sensors) {
+
+        if (!hasGNSS_Sensor(mContext)) {
+
+            Log.i(TAG, "GNSS is not supported for this device.");
+            return;
+        }
+
+        // add requirements
+        if (!sensors.getRequirements().contains(ActivityRequirements.Requirement.PERMISSIONS)) {
+
+            sensors.addRequirement(ActivityRequirements.Requirement.PERMISSIONS);
+        }
+        sensors.addRequirement(ActivityRequirements.Requirement.ENABLE_LOCATION);
+
+        // add permissions
+        // TODO: Check if permissions has already granted
+        for (String perm : LOCATION_PERMISSIONS) {
+            sensors.addPermission(perm);
+        }
+
+        // add sensors:
+        // TODO:
     }
 
     public static boolean hasGNSS_Sensor(Context mContext) {
