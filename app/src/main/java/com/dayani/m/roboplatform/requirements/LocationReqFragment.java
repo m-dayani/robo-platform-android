@@ -4,7 +4,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 
+import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -12,9 +14,12 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import com.dayani.m.roboplatform.R;
+import com.dayani.m.roboplatform.RequirementsFragment;
 import com.dayani.m.roboplatform.managers.MyLocationManager;
 import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
-import com.dayani.m.roboplatform.RequirementsFragment.OnRequirementsInteractionListener;
+import com.dayani.m.roboplatform.utils.SensorRequirementsViewModel;
+
+import java.util.ArrayList;
 
 
 /**
@@ -30,9 +35,9 @@ public class LocationReqFragment extends Fragment implements View.OnClickListene
     private static final String TAG = LocationReqFragment.class.getSimpleName();
     // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
 
-    private MyLocationManager mLocation = null;
+    SensorRequirementsViewModel mVM_Sensors;
 
-    private OnRequirementsInteractionListener mListener;
+    private MyLocationManager mLocation = null;
 
     public LocationReqFragment() {
         // Required empty public constructor
@@ -45,6 +50,7 @@ public class LocationReqFragment extends Fragment implements View.OnClickListene
      * @return A new instance of fragment LocationPrefFragment.
      */
     public static LocationReqFragment newInstance() {
+
         LocationReqFragment fragment = new LocationReqFragment();
         Bundle args = new Bundle();
         fragment.setArguments(args);
@@ -53,11 +59,14 @@ public class LocationReqFragment extends Fragment implements View.OnClickListene
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         //if (getArguments() != null) { }
         mLocation = new MyLocationManager(getActivity(), new StringBuffer());
         mLocation.updateLocationSettings();
         //this.checkLocationEnabled(); //useless, why?
+
+        mVM_Sensors = new ViewModelProvider(requireActivity()).get(SensorRequirementsViewModel.class);
     }
 
     @Override
@@ -71,20 +80,13 @@ public class LocationReqFragment extends Fragment implements View.OnClickListene
     }
 
     @Override
-    public void onAttach(Context context) {
+    public void onAttach(@NonNull Context context) {
         super.onAttach(context);
-        if (context instanceof OnRequirementsInteractionListener) {
-            mListener = (OnRequirementsInteractionListener) context;
-        } else {
-            throw new RuntimeException(context.toString()
-                    + " must implement OnFragmentInteractionListener");
-        }
     }
 
     @Override
     public void onDetach() {
         super.onDetach();
-        mListener = null;
     }
 
     @Override
@@ -98,28 +100,23 @@ public class LocationReqFragment extends Fragment implements View.OnClickListene
 
     @Override
     public void onClick(View view) {
-        switch (view.getId()) {
-            case R.id.enableLocation: {
-                Log.d(TAG, "Enabling Location");
-                mLocation.updateLocationSettings();
-                break;
-            }
-            case R.id.checkLocation: {
-                Log.d(TAG, "Checking Location");
-                this.checkLocationEnabled();
-                break;
-            }
-            default:
-                Log.e(TAG, "Undefined Action");
-                break;
+
+        int id = view.getId();
+        if (id == R.id.enableLocation) {
+            Log.d(TAG, "Enabling Location");
+            mLocation.updateLocationSettings();
+        }
+        else if (id == R.id.checkLocation) {
+            Log.d(TAG, "Checking Location");
+            this.checkLocationEnabled();
+        }
+        else {
+            Log.e(TAG, "Undefined Action");
         }
     }
 
     private boolean isLocationEnabled() {
-        if (mLocation.checkAvailability()) {
-            return true;
-        }
-        return false;
+        return mLocation.checkAvailability();
     }
 
     private void checkLocationEnabled() {
@@ -129,26 +126,20 @@ public class LocationReqFragment extends Fragment implements View.OnClickListene
     }
 
     private void permit() {
-        mListener.onRequirementInteraction(Requirement.ENABLE_LOCATION,
-                true, null, "req");
-    }
 
-//    private void updateLocationStates() {
-//        PreferenceCategory cat = findPreference("location_settings_category");
-//        int catCount = cat.getPreferenceCount();
-//
-//        for (int i = 0; i < catCount; i++) {
-//            Preference pref = cat.getPreference(i);
-//            String prefKey = pref.getKey();
-//            CharSequence prefTxt = pref.getTitle();
-//            boolean stat = MyStateManager.getBoolPref(getContext(),prefKey,false);
-//            if (stat) {
-//                pref.setTitle(prefTxt+": Available");
-//                pref.setIcon(R.drawable.ic_action_accept);
-//            } else {
-//                pref.setTitle(prefTxt+": Missing");
-//                pref.setIcon(R.drawable.ic_action_cancel);
-//            }
-//        }
-//    }
+        Bundle bundle = new Bundle();
+        bundle.putBoolean(RequirementsFragment.KEY_REQUIREMENT_PASSED, true);
+        getParentFragmentManager()
+                .setFragmentResult(RequirementsFragment.KEY_REQUIREMENT_PASSED_REQUEST, bundle);
+
+        // remove location requirement
+        ArrayList<Requirement> reqs = mVM_Sensors.getRequirements().getValue();
+        if (reqs != null && reqs.contains(Requirement.ENABLE_LOCATION)) {
+            reqs.remove(Requirement.ENABLE_LOCATION);
+            mVM_Sensors.getRequirements().setValue(reqs);
+        }
+
+        // remove current fragment and go back to last (requirements)
+        getParentFragmentManager().popBackStack();
+    }
 }

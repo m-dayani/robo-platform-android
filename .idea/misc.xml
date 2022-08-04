@@ -6,8 +6,10 @@
         <entry key="../../../../../../layout/custom_preview.xml" value="0.221875" />
         <entry key="app/src/main/res/layout/activity_car_manual_control.xml" value="0.1" />
         <entry key="app/src/main/res/layout/activity_main.xml" value="0.25" />
+        <entry key="app/src/main/res/layout/activity_main2.xml" value="0.14673913043478262" />
         <entry key="app/src/main/res/layout/activity_record_all.xml" value="0.1" />
         <entry key="app/src/main/res/layout/activity_record_sensors.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/activity_record_sensors2.xml" value="0.19375" />
         <entry key="app/src/main/res/layout/activity_settings.xml" value="0.1" />
         <entry key="app/src/main/res/layout/activity_test.xml" value="0.1" />
         <entry key="app/src/main/res/layout/fragment_bluetooth_req.xml" value="0.1" />
@@ -15,15 +17,19 @@
         <entry key="app/src/main/res/layout/fragment_hotspot_req.xml" value="0.1" />
         <entry key="app/src/main/res/layout/fragment_location_req.xml" value="0.1" />
         <entry key="app/src/main/res/layout/fragment_permission_req.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/fragment_recording.xml" value="0.19375" />
         <entry key="app/src/main/res/layout/fragment_requirement_list_item.xml" value="0.13903985507246377" />
         <entry key="app/src/main/res/layout/fragment_requirements.xml" value="0.25" />
+        <entry key="app/src/main/res/layout/fragment_sensor_info.xml" value="0.19375" />
+        <entry key="app/src/main/res/layout/fragment_sensors_list.xml" value="0.14673913043478262" />
         <entry key="app/src/main/res/layout/fragment_usb_req.xml" value="0.1" />
         <entry key="app/src/main/res/layout/fragment_wi_net_req.xml" value="0.1" />
         <entry key="app/src/main/res/layout/fragment_wireless_conn_front_panel.xml" value="0.1" />
         <entry key="app/src/main/res/layout/sensor_group.xml" value="0.19375" />
-        <entry key="app/src/main/res/layout/sensor_item.xml" value="0.1" />
-        <entry key="app/src/main/res/layout/sensor_not_available.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/sensor_item.xml" value="0.25" />
+        <entry key="app/src/main/res/layout/sensor_not_available.xml" value="0.22" />
         <entry key="app/src/main/res/layout/sensors_list_fragment.xml" value="0.19375" />
+        <entry key="app/src/main/res/layout/z_activity_main2.xml" value="0.14673913043478262" />
         <entry key="app/src/main/res/layout/z_activity_requirements.xml" value="0.1" />
         <entry key="app/src/main/res/layout/z_fragment_requirement_list_item.xml" value="0.1" />
         <entry key="app/src/main/res/layout/z_permissions_fragment.xml" value="0.1" />

@@ -46,9 +46,12 @@ import android.util.Log;
 import androidx.annotation.Nullable;
 
 import com.dayani.m.roboplatform.utils.ActivityRequirements;
+import com.dayani.m.roboplatform.utils.MySensorGroup;
+import com.dayani.m.roboplatform.utils.MySensorInfo;
 import com.dayani.m.roboplatform.utils.SensorsContainer;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 
 public class MySensorManager {
@@ -319,16 +322,28 @@ public class MySensorManager {
         return getAvailableFlag();
     }
 
-    public static void getSensorRequirements(Context mContext, SensorsContainer sensors) {
+    public static ArrayList<MySensorGroup> getSensorRequirements(Context mContext) {
 
-        // add requirements
-        // no requirements
+        ArrayList<MySensorGroup> sensorGroups = new ArrayList<>();
+        ArrayList<MySensorInfo> mImu = new ArrayList<>();
+        ArrayList<MySensorInfo> mMag = new ArrayList<>();
+        ArrayList<ActivityRequirements.Requirement> reqs = new ArrayList<>();
+        ArrayList<String> perms = new ArrayList<>();
 
-        // add permissions
-        // no permissions
 
+        // TODO: Retrieve sensor calibrations
         // add sensors:
-        // TODO:
+
+        mImu.add(new MySensorInfo(0, "accel0", "This is the Accelerometer sensor"));
+        mImu.add(new MySensorInfo(1, "gyro0", "This is the Gyroscope sensor"));
+        mMag.add(new MySensorInfo(0, "mag0", "This is the Magnetometer sensor"));
+
+
+        sensorGroups.add(new MySensorGroup(MySensorGroup.SensorType.TYPE_IMU, "IMU", mImu, reqs, perms));
+        // Usually, magnetometer is considered a separate sensor
+        sensorGroups.add(new MySensorGroup(MySensorGroup.SensorType.TYPE_MAGNET, "Magnetometer", mMag, reqs, perms));
+
+        return sensorGroups;
     }
 
     /*---------------------------------- Lifecycle Management ------------------------------------*/

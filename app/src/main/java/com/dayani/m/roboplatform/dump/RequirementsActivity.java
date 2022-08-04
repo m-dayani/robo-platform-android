@@ -37,7 +37,6 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import com.dayani.m.roboplatform.utils.AppGlobals;
 import com.dayani.m.roboplatform.CarManualControlActivity;
 import com.dayani.m.roboplatform.R;
-import com.dayani.m.roboplatform.RecordSensorsActivity;
 import com.dayani.m.roboplatform.SettingsActivity;
 import com.dayani.m.roboplatform.TestActivity;
 import com.dayani.m.roboplatform.managers.CameraFlyVideo;
@@ -316,7 +315,7 @@ public class RequirementsActivity extends AppCompatActivity
     /*--------------------------------------------------------------------------------------------*/
 
     private void startRecordAllTest() {
-        Intent intent = new Intent(this, RecordSensorsActivity.class);
+        Intent intent = new Intent(this, RecordSensorsActivity_old2.class);
         //intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
         //finish();
         startActivity(intent);

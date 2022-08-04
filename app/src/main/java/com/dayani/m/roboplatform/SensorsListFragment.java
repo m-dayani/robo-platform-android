@@ -1,42 +1,41 @@
 package com.dayani.m.roboplatform;
 
-import androidx.lifecycle.ViewModelProvider;
-
 import android.content.Context;
-import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
-
-import android.os.Environment;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.ListView;
 
-import com.dayani.m.roboplatform.dump.RecordSensorsActivity_old;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
+
+import com.dayani.m.roboplatform.managers.MyStorageManager;
 import com.dayani.m.roboplatform.utils.MySensorGroup;
-import com.dayani.m.roboplatform.utils.MySensorInfo;
 import com.dayani.m.roboplatform.utils.SensorRequirementsViewModel;
 import com.dayani.m.roboplatform.utils.SensorsAdapter;
-import com.dayani.m.roboplatform.utils.SensorsContainer;
 
-import java.io.File;
 import java.util.ArrayList;
+import java.util.Objects;
+
 
 public class SensorsListFragment extends Fragment implements View.OnClickListener {
 
-    private static final String TAG = FrontPanelFragment.class.getSimpleName();
+    private static final String TAG = SensorsListFragment.class.getSimpleName();
 
-    SensorRequirementsViewModel mVM_Sensors;
-    ArrayList<MySensorGroup> mSensorGroups;
+    private static final String CALIB_FILE_NAME = "calib.txt";
 
-    private FrontPanelFragment.OnFrontPanelInteractionListener mListener;
+    private SensorRequirementsViewModel mVM_Sensors;
+
+    private String dsRoot;
+
+    private MyStorageManager mStorageManager;
+
+    private int mCalibStorageId;
+
 
     public SensorsListFragment() {
         // Required empty public constructor
@@ -57,19 +56,51 @@ public class SensorsListFragment extends Fragment implements View.OnClickListene
     }
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
 
         mVM_Sensors = new ViewModelProvider(requireActivity()).get(SensorRequirementsViewModel.class);
-        mSensorGroups = mVM_Sensors.getSensorsContainer().getSensorGroups();
+
+        String curDsPath = mVM_Sensors.getDsPath().getValue();
+
+        if (curDsPath == null || curDsPath.isEmpty()) {
+
+            dsRoot = MyStorageManager.DS_FOLDER_PREFIX+MyStorageManager.getTimePerfix();
+            mVM_Sensors.setDsPath(dsRoot);
+        }
+
+        mStorageManager = new MyStorageManager(requireActivity());
+
+        mCalibStorageId = -1;
+    }
+
+    @Override
+    public void onDestroy() {
+
+        mStorageManager.clean();
+        super.onDestroy();
+    }
+
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+
+        ArrayList<MySensorGroup> mSensorGroups = new ArrayList<>(Objects.requireNonNull(mVM_Sensors.getSensorGroups().getValue()));
+
+        ArrayList<MySensorGroup> sGroupsFiltered = new ArrayList<>();
+        for (MySensorGroup sgrp : mSensorGroups) {
+            if (!sgrp.getType().equals(MySensorGroup.SensorType.TYPE_STORAGE)) {
+                sGroupsFiltered.add(sgrp);
+            }
+        }
 
         // Inflate the layout for this fragment
-        View view = inflater.inflate(R.layout.sensors_list_fragment, container, false);
+        View view = inflater.inflate(R.layout.fragment_sensors_list, container, false);
 
-        view.findViewById(R.id.btn_record).setOnClickListener(this);
+        view.findViewById(R.id.btn_start_req).setOnClickListener(this);
         view.findViewById(R.id.btn_save_info).setOnClickListener(this);
 
         ListView lvSensors = view.findViewById(R.id.list_sensors);
-        lvSensors.setAdapter(new SensorsAdapter(getActivity(), R.layout.sensor_group, mSensorGroups));
+        lvSensors.setAdapter(new SensorsAdapter(getActivity(), R.layout.sensor_group, sGroupsFiltered));
 
         return view;
     }
@@ -78,48 +109,57 @@ public class SensorsListFragment extends Fragment implements View.OnClickListene
     public void onAttach(@NonNull Context context) {
 
         super.onAttach(context);
-
-        if (context instanceof FrontPanelFragment.OnFrontPanelInteractionListener) {
-            mListener = (FrontPanelFragment.OnFrontPanelInteractionListener) context;
-        }
-        else {
-            throw new RuntimeException(context + " must implement OnFragmentInteractionListener");
-        }
     }
 
     @Override
     public void onDetach() {
         super.onDetach();
-        mListener = null;
+//        mListener = null;
     }
 
     @Override
     public void onClick(View view) {
 
         int id = view.getId();
-        if (id == R.id.btn_record) {
+        if (id == R.id.btn_start_req) {
 
-            Log.d(TAG, "Launch Record Fragment");
+            Log.d(TAG, "Launch Start Fragment");
+            launchRecordingFrag();
         }
         else if (id == R.id.btn_save_info) {
 
             Log.d(TAG, "Launch save sensor info task.");
+            saveSensorsInfo();
         }
     }
 
-    /*--------------------------------------------------------------------------------------------*/
+    private void launchRecordingFrag() {
 
-    /**
-     * This interface must be implemented by activities that contain this
-     * fragment to allow an interaction in this fragment to be communicated
-     * to the activity and potentially other fragments contained in that
-     * activity.
-     * See the Android Training lesson <a href=
-     * "http://developer.android.com/training/basics/fragments/communicating.html"
-     * >Communicating with Other Fragments</a> for more information.
-     */
-    public interface OnFrontPanelInteractionListener {
+        getParentFragmentManager().beginTransaction()
+                .replace(R.id.fragment_container_view, RecordingFragment.class, null)
+                .setReorderingAllowed(true)
+                .addToBackStack("sensors")
+                .commit();
+    }
 
-        void onFrontPanelInteraction(Class<?> targetActivity);
+    private void saveSensorsInfo() {
+
+        if (mStorageManager.isAvailable()) {
+            if (mCalibStorageId < 0) {
+                mCalibStorageId = mStorageManager.subscribeStorageChannel(
+                        mStorageManager.resolveFilePath(new String[]{dsRoot}, CALIB_FILE_NAME));
+            }
+
+            mStorageManager.publishMessage(mCalibStorageId, getAllSensorsInfo());
+        }
+        else {
+            mStorageManager.resolveAvailability();
+        }
+    }
+
+    private String getAllSensorsInfo() {
+
+        return "Overwritten at " + System.currentTimeMillis() + "\n" +
+                "Sensors are very good!\n";
     }
 }

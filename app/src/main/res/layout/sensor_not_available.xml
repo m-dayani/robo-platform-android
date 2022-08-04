@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/s_not_available_container"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="wrap_content"
     android:orientation="horizontal">
 
     <ImageView
@@ -11,13 +11,14 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        app:srcCompat="@android:drawable/ic_dialog_alert"
-        android:contentDescription="@string/sensor_not_available_image" />
+        android:contentDescription="@string/sensor_not_available_image"
+        app:srcCompat="@android:drawable/ic_dialog_alert" />
 
     <TextView
         android:id="@+id/sna_text"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:layout_weight="1"
+        android:padding="5dp"
         android:text="@string/sensor_not_available" />
 </LinearLayout>

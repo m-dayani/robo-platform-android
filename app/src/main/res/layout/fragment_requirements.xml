@@ -1,16 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/reqs_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     tools:context=".RequirementsFragment">
 
     <LinearLayout
+        android:id="@+id/requirements_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:id="@+id/requirements_container">
+        android:orientation="vertical">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -22,8 +23,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:src="@android:drawable/ic_lock_lock"
-                android:contentDescription="@string/lock_icon" />
+                android:contentDescription="@string/lock_icon"
+                android:src="@android:drawable/ic_lock_lock" />
 
             <Button
                 android:id="@+id/permissions"
@@ -43,8 +44,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:src="@android:drawable/ic_lock_lock"
-                android:contentDescription="@string/lock_icon" />
+                android:contentDescription="@string/lock_icon"
+                android:src="@android:drawable/ic_lock_lock" />
 
             <Button
                 android:id="@+id/usb_device"
@@ -64,8 +65,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:src="@android:drawable/ic_lock_lock"
-                android:contentDescription="@string/lock_icon" />
+                android:contentDescription="@string/lock_icon"
+                android:src="@android:drawable/ic_lock_lock" />
 
             <Button
                 android:id="@+id/wireless_conn"
@@ -85,8 +86,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:src="@android:drawable/ic_lock_lock"
-                android:contentDescription="@string/lock_icon" />
+                android:contentDescription="@string/lock_icon"
+                android:src="@android:drawable/ic_lock_lock" />
 
             <Button
                 android:id="@+id/enable_location"
@@ -106,8 +107,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:src="@android:drawable/ic_lock_lock"
-                android:contentDescription="@string/lock_icon" />
+                android:contentDescription="@string/lock_icon"
+                android:src="@android:drawable/ic_lock_lock" />
 
             <Button
                 android:id="@+id/all_sensors"
@@ -130,6 +131,6 @@
         android:id="@+id/fpReportText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp"/>
+        android:padding="16dp" />
 
 </LinearLayout>

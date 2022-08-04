@@ -1,6 +1,10 @@
 package com.dayani.m.roboplatform.utils;
 
+import androidx.lifecycle.LiveData;
+
 import java.util.ArrayList;
+
+import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
 
 public class SensorsContainer {
 
@@ -46,7 +50,7 @@ public class SensorsContainer {
         return mArrSensorGroups;
     }
 
-    private ArrayList<ActivityRequirements.Requirement> mRequirements;
+    private ArrayList<Requirement> mRequirements;
     private ArrayList<String> mPermissions;
     private ArrayList<MySensorGroup> mArrSensorGroups;
 }

@@ -74,12 +74,16 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.dayani.m.roboplatform.utils.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.AppGlobals;
-import com.dayani.m.roboplatform.utils.SensorsContainer;
+import com.dayani.m.roboplatform.utils.MySensorGroup;
+import com.dayani.m.roboplatform.utils.MySensorInfo;
+import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -343,16 +347,21 @@ public class MyUSBManager {
         }
     }
 
-    public static void getSensorRequirements(Context mContext, SensorsContainer sensors) {
+    public static ArrayList<MySensorGroup> getSensorRequirements(Context mContext) {
 
-        // add requirements
-        sensors.addRequirement(ActivityRequirements.Requirement.USB_DEVICE);
+        ArrayList<MySensorGroup> sensorGroups = new ArrayList<>();
+        ArrayList<MySensorInfo> mSensors = new ArrayList<>();
+        ArrayList<Requirement> reqs = new ArrayList<>();
+        ArrayList<String> perms = new ArrayList<>();
 
-        // add permissions
-        // no permissions
+        reqs.add(Requirement.USB_DEVICE);
 
-        // add sensors (external ADC)
-        // TODO:
+        // add sensors:
+        mSensors.add(new MySensorInfo(0, "usb0", "This is External sensor (USB)"));
+
+        sensorGroups.add(new MySensorGroup(MySensorGroup.SensorType.TYPE_EXTERNAL, "External (USB)", mSensors, reqs, perms));
+
+        return sensorGroups;
     }
 
     /*========================================== Close ===========================================*/

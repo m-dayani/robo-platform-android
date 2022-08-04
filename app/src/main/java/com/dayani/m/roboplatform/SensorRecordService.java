@@ -23,6 +23,7 @@ import android.util.Log;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
+import com.dayani.m.roboplatform.dump.MainActivity_old;
 import com.dayani.m.roboplatform.managers.MyLocationManager;
 import com.dayani.m.roboplatform.managers.MySensorManager;
 import com.dayani.m.roboplatform.managers.MyStateManager;
@@ -73,10 +74,10 @@ public class SensorRecordService extends Service {
             //devise a unified optimum method for setting and
             //updating compatible video & sensor file names
             synchronized (this) {
-                mStore.writeBuffered(
-                        new File(MyStorageManager.getNextFilePath(
-                                mSensorFile.getAbsolutePath(),mTimePrefix,"txt")),
-                        mSensorString.toString());
+//                mStore.writeBuffered(
+//                        new File(MyStorageManager.getNextFilePath(
+//                                mSensorFile.getAbsolutePath(),mTimePrefix,"txt")),
+//                        mSensorString.toString());
             }
         }
     };
@@ -92,7 +93,7 @@ public class SensorRecordService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         String input = intent.getStringExtra("inputExtra");
         createNotificationChannel();
-        Intent notificationIntent = new Intent(this, MainActivity.class);
+        Intent notificationIntent = new Intent(this, MainActivity_old.class);
         PendingIntent pendingIntent = PendingIntent.getActivity(this,
                 0, notificationIntent, 0);
 
@@ -142,7 +143,7 @@ public class SensorRecordService extends Service {
     private void init() {
         mStore = new MyStorageManager(this);
 
-        mSensorFile = mStore.getPublicInternalFile(SENSOR_FILE_BASE_PATH, SENSOR_FILE_BASE_NAME);
+        //mSensorFile = mStore.getPublicInternalFile(SENSOR_FILE_BASE_PATH, SENSOR_FILE_BASE_NAME);
         mTimePrefix = MyStorageManager.getTimePerfix();
         mSensorString = new StringBuffer();
 

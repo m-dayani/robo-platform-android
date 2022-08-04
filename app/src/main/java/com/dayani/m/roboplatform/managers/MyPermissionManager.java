@@ -501,7 +501,8 @@ public class MyPermissionManager {
                 MyStateManager.setBoolPref(context,permissionKey,false);
                 Log.i(TAG, "User interaction was cancelled.");
                 //or add a String[] requestPermissions argument
-            } else if (grantResults.length == permissions.length) {
+            }
+            else if (grantResults.length == permissions.length) {
                 boolean flag = true;
                 for (int i = 0; i < grantResults.length; i++) {
                     int result = grantResults[i];
@@ -520,7 +521,8 @@ public class MyPermissionManager {
                     }
                 }
                 MyStateManager.setBoolPref(context,permissionKey,flag);
-            } else {
+            }
+            else {
                 MyStateManager.setBoolPref(context,permissionKey,false);
                 Log.i(TAG, "There was a problem in user interaction (permissions).");
             }

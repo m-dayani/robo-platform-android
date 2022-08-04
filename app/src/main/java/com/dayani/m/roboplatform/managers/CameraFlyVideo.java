@@ -45,11 +45,14 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.dayani.m.roboplatform.utils.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.AutoFitTextureView;
+import com.dayani.m.roboplatform.utils.MySensorGroup;
+import com.dayani.m.roboplatform.utils.MySensorInfo;
 import com.dayani.m.roboplatform.utils.SensorsContainer;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -694,21 +697,32 @@ public class CameraFlyVideo /*implements MyPermissionManager.PermissionsInterfac
         startPreview();
     }
 
-    public static void getSensorRequirements(Context mContext, SensorsContainer sensors) {
+    /**
+     * Must check two things: 1. device has the sensor 2. permissions has already granted
+     * @param mContext
+     * @return
+     */
+    public static ArrayList<MySensorGroup> getSensorRequirements(Context mContext) {
 
-        // add requirements
-        if (!sensors.getRequirements().contains(ActivityRequirements.Requirement.PERMISSIONS)) {
+        ArrayList<MySensorGroup> sensorGroups = new ArrayList<>();
+        ArrayList<ActivityRequirements.Requirement> reqs = new ArrayList<>();
+        ArrayList<String> perms = new ArrayList<>();
+        ArrayList<MySensorInfo> sensors = new ArrayList<>();
 
-            sensors.addRequirement(ActivityRequirements.Requirement.PERMISSIONS);
-        }
+        if (!MyPermissionManager.hasAllPermissions(mContext, VIDEO_PERMISSIONS, KEY_VIDEO_PERMISSION)) {
 
-        // add permissions
-        for (String perm : VIDEO_PERMISSIONS) {
-            sensors.addPermission(perm);
+            reqs.add(ActivityRequirements.Requirement.PERMISSIONS);
+            perms = new ArrayList<>(Arrays.asList(VIDEO_PERMISSIONS));
         }
 
         // add sensors:
-        // TODO:
+        sensors.add(new MySensorInfo(0, "cam0", "Camera 0 ..."));
+        sensors.add(new MySensorInfo(1, "cam1", "Camera 1 ..."));
+        sensors.add(new MySensorInfo(2, "cam2", "Camera 2 ..."));
+
+        sensorGroups.add(new MySensorGroup(MySensorGroup.SensorType.TYPE_CAMERA, "Camera", sensors, reqs, perms));
+
+        return sensorGroups;
     }
 
 

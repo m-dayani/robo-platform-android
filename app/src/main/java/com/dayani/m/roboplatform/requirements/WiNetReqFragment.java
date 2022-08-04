@@ -17,9 +17,8 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.dayani.m.roboplatform.R;
+import com.dayani.m.roboplatform.RequirementsFragment;
 import com.dayani.m.roboplatform.managers.MyWifiManager;
-import com.dayani.m.roboplatform.RequirementsFragment.OnRequirementsInteractionListener;
-import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -40,8 +39,6 @@ public class WiNetReqFragment extends Fragment
     private EditText portTxt;
     private TextView reportTxt;
     private LinearLayout actionsContainer;
-
-    private OnRequirementsInteractionListener mListener;
 
     private MyWifiManager mWifi;
     private Handler mUiHandler = new Handler();
@@ -99,19 +96,12 @@ public class WiNetReqFragment extends Fragment
     @Override
     public void onAttach(Context context) {
         super.onAttach(context);
-        if (context instanceof OnRequirementsInteractionListener) {
-            mListener = (OnRequirementsInteractionListener) context;
-        } else {
-            throw new RuntimeException(context.toString()
-                    + " must implement OnFragmentInteractionListener");
-        }
     }
 
     @Override
     public void onDetach() {
         mWifi.clean();
         super.onDetach();
-        mListener = null;
     }
 
     @Override
@@ -180,7 +170,10 @@ public class WiNetReqFragment extends Fragment
     }
 
     private void permit() {
-        mListener.onRequirementInteraction(Requirement.WIRELESS_CONNECTION,
-                true, "network", "req");
+
+        Bundle bundle = new Bundle();
+        bundle.putBoolean(RequirementsFragment.KEY_REQUIREMENT_PASSED, true);
+        getParentFragmentManager()
+                .setFragmentResult(RequirementsFragment.KEY_REQUIREMENT_PASSED_REQUEST, bundle);
     }
 }

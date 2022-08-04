@@ -4,11 +4,6 @@ package com.dayani.m.roboplatform.requirements;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
-
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -18,11 +13,14 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+
 import com.dayani.m.roboplatform.R;
+import com.dayani.m.roboplatform.RequirementsFragment;
 import com.dayani.m.roboplatform.managers.MyBluetoothManager;
 import com.dayani.m.roboplatform.managers.MyWifiManager;
-import com.dayani.m.roboplatform.RequirementsFragment.OnRequirementsInteractionListener;
-import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -43,8 +41,6 @@ public class BluetoothReqFragment extends Fragment
     private EditText serviceUuidEditTxt;
     private TextView reportTxt;
     private LinearLayout actionsContainer;
-
-    private OnRequirementsInteractionListener mListener;
 
     private MyBluetoothManager mBlth;
 
@@ -102,19 +98,12 @@ public class BluetoothReqFragment extends Fragment
     @Override
     public void onAttach(@NonNull Context context) {
         super.onAttach(context);
-        if (context instanceof OnRequirementsInteractionListener) {
-            mListener = (OnRequirementsInteractionListener) context;
-        } else {
-            throw new RuntimeException(context.toString()
-                    + " must implement OnFragmentInteractionListener");
-        }
     }
 
     @Override
     public void onDetach() {
         //mBlth.clean();
         super.onDetach();
-        mListener = null;
     }
 
     @Override
@@ -198,7 +187,10 @@ public class BluetoothReqFragment extends Fragment
     }
 
     private void permit() {
-        mListener.onRequirementInteraction(Requirement.WIRELESS_CONNECTION,
-                true, "bluetooth", "req");
+
+        Bundle bundle = new Bundle();
+        bundle.putBoolean(RequirementsFragment.KEY_REQUIREMENT_PASSED, true);
+        getParentFragmentManager()
+                .setFragmentResult(RequirementsFragment.KEY_REQUIREMENT_PASSED_REQUEST, bundle);
     }
 }

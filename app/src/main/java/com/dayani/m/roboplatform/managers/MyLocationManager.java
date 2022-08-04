@@ -58,7 +58,9 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.dayani.m.roboplatform.utils.ActivityRequirements;
-import com.dayani.m.roboplatform.utils.SensorsContainer;
+import com.dayani.m.roboplatform.utils.MySensorGroup;
+import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
+import com.dayani.m.roboplatform.utils.MySensorInfo;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.common.api.ResolvableApiException;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -69,6 +71,7 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationSettingsRequest;
 import com.google.android.gms.location.LocationSettingsResponse;
 import com.google.android.gms.location.LocationSettingsStatusCodes;
+import com.google.android.gms.location.Priority;
 import com.google.android.gms.location.SettingsClient;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
@@ -76,6 +79,9 @@ import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 
 
@@ -181,7 +187,7 @@ public class MyLocationManager /*implements MyPermissionManager.PermissionsInter
     }
 
     private void createLocationRequest() {
-        mLocationRequest = new LocationRequest();
+        mLocationRequest = LocationRequest.create();
         // Sets the desired interval for active location updates. This interval is
         // inexact. You may not receive updates at all if no location sources are available, or
         // you may receive them slower than requested. You may also receive updates faster than
@@ -190,7 +196,7 @@ public class MyLocationManager /*implements MyPermissionManager.PermissionsInter
         // Sets the fastest rate for active location updates. This interval is exact, and your
         // application will never receive updates faster than this value.
         mLocationRequest.setFastestInterval(Constants.FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS);
-        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        mLocationRequest.setPriority(Priority.PRIORITY_HIGH_ACCURACY);
     }
 
     /**
@@ -360,29 +366,32 @@ public class MyLocationManager /*implements MyPermissionManager.PermissionsInter
         }
     }
 
-    public static void getSensorRequirements(Context mContext, SensorsContainer sensors) {
+    public static ArrayList<MySensorGroup> getSensorRequirements(Context mContext) {
+
+        ArrayList<MySensorGroup> sensorGroups = new ArrayList<>();
+        ArrayList<MySensorInfo> sensors = new ArrayList<>();
+        ArrayList<Requirement> reqs = new ArrayList<>();
+        ArrayList<String> perms = new ArrayList<>();
 
         if (!hasGNSS_Sensor(mContext)) {
-
             Log.i(TAG, "GNSS is not supported for this device.");
-            return;
+            return sensorGroups;
         }
 
-        // add requirements
-        if (!sensors.getRequirements().contains(ActivityRequirements.Requirement.PERMISSIONS)) {
+        reqs.add(Requirement.ENABLE_LOCATION);
 
-            sensors.addRequirement(ActivityRequirements.Requirement.PERMISSIONS);
-        }
-        sensors.addRequirement(ActivityRequirements.Requirement.ENABLE_LOCATION);
+        if (!MyPermissionManager.hasAllPermissions(mContext, LOCATION_PERMISSIONS, "gnss_permission_key")) {
 
-        // add permissions
-        // TODO: Check if permissions has already granted
-        for (String perm : LOCATION_PERMISSIONS) {
-            sensors.addPermission(perm);
+            reqs.add(Requirement.PERMISSIONS);
+            perms = new ArrayList<>(Arrays.asList(LOCATION_PERMISSIONS));
         }
 
         // add sensors:
-        // TODO:
+        sensors.add(new MySensorInfo(0, "gnss0", "GPS sensor, sensitivity: ..."));
+
+        sensorGroups.add(new MySensorGroup(MySensorGroup.SensorType.TYPE_GNSS, "GNSS", sensors, reqs, perms));
+
+        return sensorGroups;
     }
 
     public static boolean hasGNSS_Sensor(Context mContext) {

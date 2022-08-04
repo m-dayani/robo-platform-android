@@ -293,8 +293,8 @@ public class CarManualControlActivity extends AppCompatActivity
 
         SensorsContainer sensors = new SensorsContainer();
 
-        MyUSBManager.getSensorRequirements(mContext, sensors);
-        MyWifiManager.getSensorRequirements(mContext, sensors);
+//        MyUSBManager.getSensorRequirements(mContext, sensors);
+//        MyWifiManager.getSensorRequirements(mContext, sensors);
 
         return sensors;
     }

@@ -1,4 +1,4 @@
-package com.dayani.m.roboplatform.utils;
+package com.dayani.m.roboplatform.dump;
 
 import android.content.Context;
 import android.util.Log;
@@ -11,9 +11,7 @@ import android.widget.ImageButton;
 
 import androidx.annotation.NonNull;
 
-import com.dayani.m.roboplatform.MainActivity;
 import com.dayani.m.roboplatform.R;
-import com.dayani.m.roboplatform.utils.MySensorGroup;
 import com.dayani.m.roboplatform.utils.MySensorInfo;
 
 import java.util.ArrayList;

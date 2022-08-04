@@ -30,10 +30,6 @@ import com.dayani.m.roboplatform.managers.MyUSBManager;
 import com.dayani.m.roboplatform.utils.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.AppGlobals;
 import com.dayani.m.roboplatform.utils.SensorsContainer;
-import com.google.android.gms.common.util.ArrayUtils;
-
-import java.util.ArrayList;
-import java.util.Arrays;
 
 
 public class RecordSensorsActivity_old extends AppCompatActivity
@@ -58,7 +54,7 @@ public class RecordSensorsActivity_old extends AppCompatActivity
     protected void onCreate(Bundle savedInstanceState) {
 
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_record_sensors);
+        setContentView(R.layout.z_activity_record_sensors);
 
         mBtnRecord = findViewById(R.id.record);
         mBtnRecord.setOnClickListener(this);
@@ -245,10 +241,10 @@ public class RecordSensorsActivity_old extends AppCompatActivity
 
         SensorsContainer sensors = new SensorsContainer();
 
-        MyStorageManager.getSensorRequirements(mContext, sensors);
-        CameraFlyVideo.getSensorRequirements(mContext, sensors);
-        MyLocationManager.getSensorRequirements(mContext, sensors);
-        MySensorManager.getSensorRequirements(mContext, sensors);
+//        MyStorageManager.getSensorRequirements(mContext, sensors);
+//        CameraFlyVideo.getSensorRequirements(mContext, sensors);
+//        MyLocationManager.getSensorRequirements(mContext, sensors);
+//        MySensorManager.getSensorRequirements(mContext, sensors);
 
         return sensors;
     }

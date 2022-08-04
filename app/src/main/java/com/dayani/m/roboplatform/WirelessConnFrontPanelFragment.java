@@ -13,12 +13,12 @@ import android.view.ViewGroup;
 import com.dayani.m.roboplatform.requirements.BluetoothReqFragment;
 import com.dayani.m.roboplatform.requirements.HotspotReqFragment;
 import com.dayani.m.roboplatform.requirements.WiNetReqFragment;
-import com.dayani.m.roboplatform.utils.OnRequestPageChange;
+import com.dayani.m.roboplatform.utils.MyFragmentInteraction;
 
 /**
  * A simple {@link Fragment} subclass.
  * Activities that contain this fragment must implement the
- * {@link OnRequestPageChange} interface
+ * {@link MyFragmentInteraction} interface
  * to handle interaction events.
  * Use the {@link WirelessConnFrontPanelFragment#newInstance} factory method to
  * create an instance of this fragment.
@@ -29,7 +29,7 @@ public class WirelessConnFrontPanelFragment extends Fragment implements View.OnC
 
 
 
-    private OnRequestPageChange mListener;
+    private MyFragmentInteraction mListener;
 
     public WirelessConnFrontPanelFragment() {
         // Required empty public constructor
@@ -72,8 +72,8 @@ public class WirelessConnFrontPanelFragment extends Fragment implements View.OnC
     @Override
     public void onAttach(Context context) {
         super.onAttach(context);
-        if (context instanceof OnRequestPageChange) {
-            mListener = (OnRequestPageChange) context;
+        if (context instanceof MyFragmentInteraction) {
+            mListener = (MyFragmentInteraction) context;
         } else {
             throw new RuntimeException(context.toString()
                     + " must implement OnRequestPageChange");

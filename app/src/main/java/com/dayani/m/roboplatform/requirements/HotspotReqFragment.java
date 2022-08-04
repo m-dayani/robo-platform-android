@@ -4,11 +4,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
-
 import android.provider.Settings;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -19,11 +14,14 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+
 import com.dayani.m.roboplatform.R;
+import com.dayani.m.roboplatform.RequirementsFragment;
 import com.dayani.m.roboplatform.managers.MyPermissionManager;
 import com.dayani.m.roboplatform.managers.MyWifiManager;
-import com.dayani.m.roboplatform.RequirementsFragment.OnRequirementsInteractionListener;
-import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -47,8 +45,6 @@ public class HotspotReqFragment extends Fragment
     private EditText portTxt;
     private TextView reportTxt;
     private LinearLayout actionsContainer;
-
-    private OnRequirementsInteractionListener mListener;
 
     private MyWifiManager mWifi;
 
@@ -106,19 +102,12 @@ public class HotspotReqFragment extends Fragment
     @Override
     public void onAttach(Context context) {
         super.onAttach(context);
-        if (context instanceof OnRequirementsInteractionListener) {
-            mListener = (OnRequirementsInteractionListener) context;
-        } else {
-            throw new RuntimeException(context.toString()
-                    + " must implement OnFragmentInteractionListener");
-        }
     }
 
     @Override
     public void onDetach() {
         mWifi.clean();
         super.onDetach();
-        mListener = null;
     }
 
     @Override
@@ -228,7 +217,10 @@ public class HotspotReqFragment extends Fragment
     }
 
     private void permit() {
-        mListener.onRequirementInteraction(Requirement.WIRELESS_CONNECTION,
-                true, "hotspot", "req");
+
+        Bundle bundle = new Bundle();
+        bundle.putBoolean(RequirementsFragment.KEY_REQUIREMENT_PASSED, true);
+        getParentFragmentManager()
+                .setFragmentResult(RequirementsFragment.KEY_REQUIREMENT_PASSED_REQUEST, bundle);
     }
 }
