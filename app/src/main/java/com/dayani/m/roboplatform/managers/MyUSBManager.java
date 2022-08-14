@@ -357,9 +357,10 @@ public class MyUSBManager {
         reqs.add(Requirement.USB_DEVICE);
 
         // add sensors:
-        mSensors.add(new MySensorInfo(0, "usb0", "This is External sensor (USB)"));
+        mSensors.add(new MySensorInfo(0, "usb0", true));
 
-        sensorGroups.add(new MySensorGroup(MySensorGroup.SensorType.TYPE_EXTERNAL, "External (USB)", mSensors, reqs, perms));
+        sensorGroups.add(new MySensorGroup(MySensorGroup.getNextGlobalId(),
+                MySensorGroup.SensorType.TYPE_EXTERNAL, "External (USB)", mSensors, reqs, perms));
 
         return sensorGroups;
     }

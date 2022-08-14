@@ -66,7 +66,7 @@
         <service
             android:name=".SensorRecordService"
             android:enabled="true"
-            android:exported="true" />
+            android:exported="false" />
 
         <activity android:name=".CarManualControlActivity" >
             <meta-data

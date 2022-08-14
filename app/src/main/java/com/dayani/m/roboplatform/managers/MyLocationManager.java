@@ -387,9 +387,10 @@ public class MyLocationManager /*implements MyPermissionManager.PermissionsInter
         }
 
         // add sensors:
-        sensors.add(new MySensorInfo(0, "gnss0", "GPS sensor, sensitivity: ..."));
+        sensors.add(new MySensorInfo(0, "gnss0", true));
 
-        sensorGroups.add(new MySensorGroup(MySensorGroup.SensorType.TYPE_GNSS, "GNSS", sensors, reqs, perms));
+        sensorGroups.add(new MySensorGroup(MySensorGroup.getNextGlobalId(),
+                MySensorGroup.SensorType.TYPE_GNSS, "GNSS", sensors, reqs, perms));
 
         return sensorGroups;
     }

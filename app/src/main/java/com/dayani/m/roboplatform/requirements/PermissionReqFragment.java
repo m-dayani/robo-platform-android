@@ -31,11 +31,11 @@ import com.dayani.m.roboplatform.managers.MyStateManager;
 import com.dayani.m.roboplatform.managers.MyStorageManager;
 import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
 import com.dayani.m.roboplatform.utils.AppGlobals;
-import com.dayani.m.roboplatform.utils.SensorRequirementsViewModel;
+import com.dayani.m.roboplatform.utils.SensorsViewModel;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 
 
 /**
@@ -52,7 +52,7 @@ public class PermissionReqFragment extends Fragment implements View.OnClickListe
 
     View mView;
 
-    SensorRequirementsViewModel mVM_Sensors;
+    SensorsViewModel mVM_Sensors;
 
     public PermissionReqFragment() {
         // Required empty public constructor
@@ -78,7 +78,7 @@ public class PermissionReqFragment extends Fragment implements View.OnClickListe
 
                 // Note: none of PermissionManager's methods is used here
 
-                ArrayList<String> perms = mVM_Sensors.getPermissions().getValue();
+                List<String> perms = mVM_Sensors.getPermissions().getValue();
 
                 if (perms != null) {
                     for (String perm : permissions.keySet()) {
@@ -115,7 +115,7 @@ public class PermissionReqFragment extends Fragment implements View.OnClickListe
                 // Here, no request code
                 Intent data = result.getData();
 
-                ArrayList<String> perms = mVM_Sensors.getPermissions().getValue();
+                List<String> perms = mVM_Sensors.getPermissions().getValue();
 
                 if (perms != null) {
                     Log.i(TAG, "get permission result OK, perms size: "+ perms);
@@ -158,7 +158,7 @@ public class PermissionReqFragment extends Fragment implements View.OnClickListe
 
         super.onCreate(savedInstanceState);
 
-        mVM_Sensors = new ViewModelProvider(requireActivity()).get(SensorRequirementsViewModel.class);
+        mVM_Sensors = new ViewModelProvider(requireActivity()).get(SensorsViewModel.class);
 
         mVM_Sensors.getPermissions().observe(requireActivity(), perms -> {
             if (mView != null) {
@@ -167,7 +167,7 @@ public class PermissionReqFragment extends Fragment implements View.OnClickListe
         });
 
         // Instigate an initial permission request
-        ArrayList<String> perms = mVM_Sensors.getPermissions().getValue();
+        List<String> perms = mVM_Sensors.getPermissions().getValue();
         if (perms != null) {
             String[] strArrPerms = perms.toArray(new String[0]);
             checkPermissions(strArrPerms);
@@ -185,7 +185,7 @@ public class PermissionReqFragment extends Fragment implements View.OnClickListe
         mView.findViewById(R.id.permReqAction).setOnClickListener(this);
         mView.findViewById(R.id.permReqCheckAction).setOnClickListener(this);
 
-        ArrayList<String> perms = mVM_Sensors.getPermissions().getValue();
+        List<String> perms = mVM_Sensors.getPermissions().getValue();
         if (perms != null) {
             String[] mPermissions = perms.toArray(new String[0]);
             updatePermissionsUI(mView, mPermissions);
@@ -207,7 +207,7 @@ public class PermissionReqFragment extends Fragment implements View.OnClickListe
     @Override
     public void onClick(View view) {
 
-        ArrayList<String> mPermissions = mVM_Sensors.getPermissions().getValue();
+        List<String> mPermissions = mVM_Sensors.getPermissions().getValue();
 
         int id = view.getId();
         if (id == R.id.permReqCheckAction) {
@@ -369,7 +369,7 @@ public class PermissionReqFragment extends Fragment implements View.OnClickListe
                 .setFragmentResult(RequirementsFragment.KEY_REQUIREMENT_PASSED_REQUEST, bundle);
 
         // remove permission requirement
-        ArrayList<Requirement> reqs = mVM_Sensors.getRequirements().getValue();
+        List<Requirement> reqs = mVM_Sensors.getRequirements().getValue();
         if (reqs != null && reqs.contains(Requirement.PERMISSIONS)) {
             Log.i(TAG, "old requirements: " + reqs);
             reqs.remove(Requirement.PERMISSIONS);

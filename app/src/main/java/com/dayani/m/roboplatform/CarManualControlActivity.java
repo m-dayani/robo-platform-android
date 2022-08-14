@@ -136,7 +136,7 @@ public class CarManualControlActivity extends AppCompatActivity
 
         mSensorString = new StringBuffer();
 
-        mSensorManager = new MySensorManager(this, mSensorString);
+        mSensorManager = new MySensorManager(this);
 
         mUsb = new MyUSBManager(this, this, mSensorString);
         mUsb.updateDefaultDeviceAvailability();

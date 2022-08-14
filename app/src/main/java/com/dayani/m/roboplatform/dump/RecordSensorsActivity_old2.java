@@ -42,11 +42,8 @@ import com.dayani.m.roboplatform.utils.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.AppGlobals;
 import com.dayani.m.roboplatform.utils.AutoFitTextureView;
 import com.dayani.m.roboplatform.utils.SensorsContainer;
-import com.google.android.gms.common.util.ArrayUtils;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
 
 
 public class RecordSensorsActivity_old2 extends AppCompatActivity
@@ -130,16 +127,16 @@ public class RecordSensorsActivity_old2 extends AppCompatActivity
 
         //mVideoFile = mStore.getPublicInternalFile(VIDEO_FILE_BASE_PATH, VIDEO_FILE_BASE_NAME);
         //mSensorFile = mStore.getPublicInternalFile(SENSOR_FILE_BASE_PATH, SENSOR_FILE_BASE_NAME);
-        mTimePerfix = MyStorageManager.getTimePerfix();
+        mTimePerfix = MyStorageManager.getTimePrefix();
         mSensorString = new StringBuffer();
 
-        mCam = new CameraFlyVideo(this, mTextureView,
-                new File(MyStorageManager.getNextFilePath(
-                        mVideoFile.getAbsolutePath(),mTimePerfix,"mp4")));
+//        mCam = new CameraFlyVideo(this, mTextureView,
+//                new File(MyStorageManager.getNextFilePath(
+//                        mVideoFile.getAbsolutePath(),mTimePerfix,"mp4")));
 
         mLocation = new MyLocationManager(this, mSensorString);
 
-        mSensorManager = new MySensorManager(this, mSensorString);
+        mSensorManager = new MySensorManager(this);
 
         mUsb = new MyUSBManager(this, this, mSensorString);
         mUsb.updateDefaultDeviceAvailability();
@@ -290,9 +287,9 @@ public class RecordSensorsActivity_old2 extends AppCompatActivity
         //TODO: or use an asyncTask instead
         mSensorWriteHandler.post(sensorWriteTask);
         //preparing the next file
-        mTimePerfix = MyStorageManager.getTimePerfix();
-        mCam.setOutputFile(new File(MyStorageManager.getNextFilePath(
-                mVideoFile.getAbsolutePath(),mTimePerfix,"mp4")));
+        mTimePerfix = MyStorageManager.getTimePrefix();
+//        mCam.setOutputFile(new File(MyStorageManager.getNextFilePath(
+//                mVideoFile.getAbsolutePath(),mTimePerfix,"mp4")));
         // UI
         updateButtonState(mIsRecording);
     }
@@ -320,12 +317,12 @@ public class RecordSensorsActivity_old2 extends AppCompatActivity
         if (state) {
             mChronometer.setVisibility(View.VISIBLE);
             mChronometer.start();
-            mButtonVideo.setText("Stop");
+            mButtonVideo.setText(R.string.btn_txt_stop);
             //mButtonVideo.setImageResource(R.drawable.ic_action_pause_over_video);
         } else {
             mChronometer.stop();
             mChronometer.setVisibility(View.INVISIBLE);
-            mButtonVideo.setText("Start");
+            mButtonVideo.setText(R.string.btn_txt_start);
             //mButtonVideo.setImageResource(R.drawable.ic_action_play_over_video);
         }
     }

@@ -267,11 +267,11 @@ public class RequirementsActivity extends AppCompatActivity
 
     /*--------------------------------------------------------------------------------------------*/
 
-    private void createPermissions() {
-        allPermissions = ArrayUtils.concat(MyStorageManager.getPermissions(),
-                CameraFlyVideo.getPermissions(), MyLocationManager.getPermissions(getApplicationContext()));
-        Log.i(TAG, Arrays.toString(allPermissions));
-    }
+//    private void createPermissions() {
+//        allPermissions = ArrayUtils.concat(MyStorageManager.getPermissions(),
+//                CameraFlyVideo.getPermissions(), MyLocationManager.getPermissions(getApplicationContext()));
+//        Log.i(TAG, Arrays.toString(allPermissions));
+//    }
 
     /**
      * Either use the total key to see if permissions granted

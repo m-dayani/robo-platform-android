@@ -16,7 +16,6 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentResultListener;
 import androidx.lifecycle.ViewModelProvider;
 
@@ -31,11 +30,9 @@ import com.dayani.m.roboplatform.requirements.LocationReqFragment;
 import com.dayani.m.roboplatform.requirements.PermissionReqFragment;
 import com.dayani.m.roboplatform.requirements.UsbReqFragment;
 import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
-import com.dayani.m.roboplatform.utils.AppUtils;
-import com.dayani.m.roboplatform.utils.MyFragmentInteraction;
-import com.dayani.m.roboplatform.utils.SensorRequirementsViewModel;
+import com.dayani.m.roboplatform.utils.SensorsViewModel;
 
-import java.util.ArrayList;
+import java.util.List;
 
 
 /**
@@ -53,7 +50,7 @@ public class RequirementsFragment extends Fragment implements View.OnClickListen
     public static final String KEY_REQUIREMENT_PASSED_REQUEST = TAG + "requirement-passed-request";
     public static final String KEY_REQUIREMENT_PASSED = TAG + "requirement-passed";
 
-    SensorRequirementsViewModel mVM_Sensors;
+    SensorsViewModel mVM_Sensors;
 
     View mView;
 
@@ -82,7 +79,7 @@ public class RequirementsFragment extends Fragment implements View.OnClickListen
 
         super.onCreate(savedInstanceState);
 
-        mVM_Sensors = new ViewModelProvider(requireActivity()).get(SensorRequirementsViewModel.class);
+        mVM_Sensors = new ViewModelProvider(requireActivity()).get(SensorsViewModel.class);
         mVM_Sensors.getRequirements().observe(this, reqs -> {
             // update UI
             if (mView != null) {
@@ -108,7 +105,7 @@ public class RequirementsFragment extends Fragment implements View.OnClickListen
         mView.findViewById(R.id.all_sensors).setOnClickListener(this);
         mView.findViewById(R.id.startActivity).setOnClickListener(this);
 
-        ArrayList<Requirement> requirements = mVM_Sensors.getRequirements().getValue();
+        List<Requirement> requirements = mVM_Sensors.getRequirements().getValue();
         processRequirements(mView, requirements);
 
         return mView;
@@ -186,7 +183,7 @@ public class RequirementsFragment extends Fragment implements View.OnClickListen
         }
     }
 
-    private void processRequirements(View view, ArrayList<Requirement> requirements) {
+    private void processRequirements(View view, List<Requirement> requirements) {
 
         if (view == null || requirements == null || requirements.size() <= 0) {
 

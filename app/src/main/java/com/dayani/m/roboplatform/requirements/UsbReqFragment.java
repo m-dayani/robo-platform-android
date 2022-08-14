@@ -20,9 +20,9 @@ import com.dayani.m.roboplatform.R;
 import com.dayani.m.roboplatform.RequirementsFragment;
 import com.dayani.m.roboplatform.managers.MyUSBManager;
 import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
-import com.dayani.m.roboplatform.utils.SensorRequirementsViewModel;
+import com.dayani.m.roboplatform.utils.SensorsViewModel;
 
-import java.util.ArrayList;
+import java.util.List;
 
 
 /**
@@ -46,7 +46,7 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
 
     private MyUSBManager mUsb = null;
 
-    SensorRequirementsViewModel mVM_Sensors;
+    SensorsViewModel mVM_Sensors;
 
     //private boolean usbLedState = false;
 
@@ -75,7 +75,7 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
 
         mUsb = new MyUSBManager(getActivity(),this, new StringBuffer());
 
-        mVM_Sensors = new ViewModelProvider(requireActivity()).get(SensorRequirementsViewModel.class);
+        mVM_Sensors = new ViewModelProvider(requireActivity()).get(SensorsViewModel.class);
     }
 
     @Override
@@ -190,7 +190,7 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
                 .setFragmentResult(RequirementsFragment.KEY_REQUIREMENT_PASSED_REQUEST, bundle);
 
         // remove USB requirement
-        ArrayList<Requirement> reqs = mVM_Sensors.getRequirements().getValue();
+        List<Requirement> reqs = mVM_Sensors.getRequirements().getValue();
         if (reqs != null && reqs.contains(Requirement.USB_DEVICE)) {
             reqs.remove(Requirement.USB_DEVICE);
             mVM_Sensors.getRequirements().setValue(reqs);

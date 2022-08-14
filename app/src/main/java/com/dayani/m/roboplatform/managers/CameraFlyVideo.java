@@ -716,11 +716,12 @@ public class CameraFlyVideo /*implements MyPermissionManager.PermissionsInterfac
         }
 
         // add sensors:
-        sensors.add(new MySensorInfo(0, "cam0", "Camera 0 ..."));
-        sensors.add(new MySensorInfo(1, "cam1", "Camera 1 ..."));
-        sensors.add(new MySensorInfo(2, "cam2", "Camera 2 ..."));
+        sensors.add(new MySensorInfo(0, "cam0", true));
+        sensors.add(new MySensorInfo(1, "cam1", true));
+        sensors.add(new MySensorInfo(2, "cam2", true));
 
-        sensorGroups.add(new MySensorGroup(MySensorGroup.SensorType.TYPE_CAMERA, "Camera", sensors, reqs, perms));
+        sensorGroups.add(new MySensorGroup(MySensorGroup.getNextGlobalId(),
+                MySensorGroup.SensorType.TYPE_CAMERA, "Camera", sensors, reqs, perms));
 
         return sensorGroups;
     }

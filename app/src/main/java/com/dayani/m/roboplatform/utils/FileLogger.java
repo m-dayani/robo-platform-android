@@ -42,7 +42,7 @@ import java.util.Locale;
 /**
  * A GNSS logger to store information to a file.
  */
-public class FileLogger implements GnssListener, MySensorManager.SensorListener {
+public class FileLogger implements GnssListener {
 
     private static final String TAG = "FileLogger";
     private static final String FILE_PREFIX = "gnss_log";
@@ -409,16 +409,6 @@ public class FileLogger implements GnssListener, MySensorManager.SensorListener 
     private void logError(String errorMessage) {
         Log.e(GnssContainer.TAG + TAG, errorMessage);
         Toast.makeText(mContext, errorMessage, Toast.LENGTH_LONG).show();
-    }
-
-    @Override
-    public void onSensorChanged(SensorEvent sensorEvent) {
-        switch (sensorEvent.sensor.getType()) {
-            case Sensor.TYPE_ACCELEROMETER:
-            case Sensor.TYPE_GYROSCOPE:
-            case Sensor.TYPE_MAGNETIC_FIELD:
-            default:
-        }
     }
 
     /**

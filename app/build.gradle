@@ -93,8 +93,11 @@ dependencies {
     //testImplementation "androidx.lifecycle:lifecycle-runtime-testing:$lifecycle_version"
 
     implementation 'androidx.activity:activity:1.5.1'
-    implementation 'androidx.fragment:fragment:1.5.1'
+    implementation 'androidx.fragment:fragment:1.5.2'
 
+    implementation "androidx.constraintlayout:constraintlayout:2.1.4"
+    // To use constraintlayout in compose
+    implementation "androidx.constraintlayout:constraintlayout-compose:1.0.1"
 
 }
 

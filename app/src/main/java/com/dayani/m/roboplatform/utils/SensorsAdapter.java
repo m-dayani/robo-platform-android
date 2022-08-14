@@ -12,19 +12,24 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.fragment.app.Fragment;
 
-import com.dayani.m.roboplatform.MainActivity;
 import com.dayani.m.roboplatform.R;
-import com.dayani.m.roboplatform.SensorInfoFragment;
 
-import java.util.ArrayList;
+import java.util.List;
 
 public class SensorsAdapter extends ArrayAdapter<MySensorGroup> {
 
-    public SensorsAdapter(Context context, int resource, ArrayList<MySensorGroup> objects) {
+    public static final String TAG = SensorsAdapter.class.getSimpleName();
+
+    public SensorsAdapter(Context context, int resource, List<MySensorGroup> objects) {
         super(context, resource, objects);
+    }
+
+    public SensorsAdapter(Context context, int resource, List<MySensorGroup> objects,
+                          SensorItemInteraction sensorItemListener) {
+
+        this(context, resource, objects);
+        mSensorItemListener = sensorItemListener;
     }
 
     @Override
@@ -35,7 +40,7 @@ public class SensorsAdapter extends ArrayAdapter<MySensorGroup> {
         }
 
         MySensorGroup currSensorObj = getItem(position);
-        ArrayList<MySensorInfo> currSensorItems = currSensorObj.getSensors();
+        List<MySensorInfo> currSensorItems = currSensorObj.getSensors();
         String sensorTitle = currSensorObj.getTitle();
 
         TextView tvSensorTitle = convertView.findViewById(R.id.sensor_grp_title);
@@ -47,6 +52,7 @@ public class SensorsAdapter extends ArrayAdapter<MySensorGroup> {
         }
 
         LinearLayout llSensorItems = convertView.findViewById(R.id.sensor_items);
+        llSensorItems.removeAllViews();
         ViewGroup par = (ViewGroup) llSensorItems.getParent();
 
         if (currSensorItems == null || currSensorItems.size() <= 0) {
@@ -55,7 +61,7 @@ public class SensorsAdapter extends ArrayAdapter<MySensorGroup> {
             llSensorItems.addView(sna_view);
         }
         else {
-            Log.i("SensorsAdapter", "size of sensor items: " + Integer.toString(currSensorItems.size()));
+            Log.i(TAG, "size of sensor items: " + currSensorItems.size());
             //lvSensorItems.setAdapter(new SensorItemAdapter(getContext(), R.layout.sensor_item, currSensorItems));
             for (MySensorInfo sensor : currSensorItems) {
 
@@ -63,23 +69,26 @@ public class SensorsAdapter extends ArrayAdapter<MySensorGroup> {
 
                 CheckBox chbxSensorItem = vSensor.findViewById(R.id.chbx_sensor_item);
                 chbxSensorItem.setText(sensor.getName());
-                chbxSensorItem.setChecked(true);
+                chbxSensorItem.setChecked(sensor.isChecked());
                 chbxSensorItem.setOnCheckedChangeListener((compoundButton, b) -> {
-                    Log.i("CheckBox::onChChanged", "Sensor: " + sensor.getId() + " is clicked!");
-                    //((MainActivity) getContext()).notifyCheckboxChanged(currSensorObj.getId(), b);
+
+                    if (mSensorItemListener != null) {
+                        mSensorItemListener.onSensorCheckedListener(compoundButton, currSensorObj.getId(), sensor.getId(), b);
+                    }
+                    else {
+                        Log.i(TAG, "Parent context doesn't implement SensorInfoInteraction");
+                    }
                 });
 
                 ImageButton ibtnSensorInfo = vSensor.findViewById(R.id.btn_sensor_details);
                 ibtnSensorInfo.setOnClickListener(view -> {
-                    Log.i("ImageButton::onClick", "Sensor info: " + sensor.getDescInfo());
-                    //((MainActivity) getContext()).startSensorInfoActivity(currSensorObj.getId());
-                    Fragment frag = SensorInfoFragment.newInstance(sensor.getDescInfo());
-                    // TODO: Is there a better way than a hardwired context???
-                    ((AppCompatActivity) getContext()).getSupportFragmentManager().beginTransaction()
-                            .replace(R.id.fragment_container_view, frag, null)
-                            .setReorderingAllowed(true)
-                            .addToBackStack("sensors")
-                            .commit();
+
+                    if (mSensorItemListener != null) {
+                        mSensorItemListener.onSensorInfoClickListener(view, currSensorObj.getId(), sensor.getId());
+                    }
+                    else {
+                        Log.i(TAG, "Parent context doesn't implement SensorInfoInteraction");
+                    }
                 });
 
                 llSensorItems.addView(vSensor);
@@ -87,5 +96,18 @@ public class SensorsAdapter extends ArrayAdapter<MySensorGroup> {
         }
 
         return convertView;
+    }
+
+    public void setItemInteractionListener(SensorItemInteraction sensorItemInteraction) {
+
+        mSensorItemListener = sensorItemInteraction;
+    }
+
+    private SensorItemInteraction mSensorItemListener;
+
+    public interface SensorItemInteraction {
+
+        void onSensorCheckedListener(View view, int grpId, int sensorId, boolean state);
+        void onSensorInfoClickListener(View view, int grpId, int sensorId);
     }
 }

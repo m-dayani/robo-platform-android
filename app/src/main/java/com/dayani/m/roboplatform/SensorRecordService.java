@@ -12,7 +12,6 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
-import android.hardware.SensorManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -144,7 +143,7 @@ public class SensorRecordService extends Service {
         mStore = new MyStorageManager(this);
 
         //mSensorFile = mStore.getPublicInternalFile(SENSOR_FILE_BASE_PATH, SENSOR_FILE_BASE_NAME);
-        mTimePrefix = MyStorageManager.getTimePerfix();
+        mTimePrefix = MyStorageManager.getTimePrefix();
         mSensorString = new StringBuffer();
 
         mUiLogger = new UiLogger();
@@ -159,9 +158,7 @@ public class SensorRecordService extends Service {
             mLocation = new MyLocationManager(this, mSensorString);
         }
 
-        mSensorManager = new MySensorManager(this, mSensorString,
-                MySensorManager.RecordMode.MODE_RECORD_ANY_RAW, SensorManager.SENSOR_DELAY_UI);
-        mSensorManager.writeSensorHeader();
+        mSensorManager = new MySensorManager(this);
         //null, SensorManager.SENSOR_DELAY_FASTEST);
 
         startSensorThread();
@@ -238,7 +235,7 @@ public class SensorRecordService extends Service {
         //TODO: or use an asyncTask instead
         mSensorWriteHandler.post(sensorWriteTask);
         //preparing the next file
-        mTimePrefix = MyStorageManager.getTimePerfix();
+        mTimePrefix = MyStorageManager.getTimePrefix();
         // UI
         //updateButtonState(mIsRecording);
     }

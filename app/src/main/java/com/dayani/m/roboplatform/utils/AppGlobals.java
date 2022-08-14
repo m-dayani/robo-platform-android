@@ -28,6 +28,7 @@ public interface AppGlobals {
         BLUETOOTH
     }
 
+    String DEF_FILE_NAME_CALIBRATION = "calib.txt";
 
     int REQUEST_ALL_PERMISSIONS_CODE = 9432;
     int REQUEST_PARTIAL_PERMISSIONS_CODE = 2345;

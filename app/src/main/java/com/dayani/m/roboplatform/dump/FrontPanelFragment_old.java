@@ -16,7 +16,7 @@ import com.dayani.m.roboplatform.CarManualControlActivity;
 import com.dayani.m.roboplatform.R;
 import com.dayani.m.roboplatform.SensorsListFragment;
 import com.dayani.m.roboplatform.TestActivity;
-import com.dayani.m.roboplatform.utils.SensorRequirementsViewModel;
+import com.dayani.m.roboplatform.utils.SensorsViewModel;
 import com.dayani.m.roboplatform.utils.SensorsContainer;
 
 
@@ -34,7 +34,7 @@ public class FrontPanelFragment_old extends Fragment implements View.OnClickList
 
     //private ArrayList<Requirement> mRequirements;
     //private String[] mPermissions;
-    SensorRequirementsViewModel mVM_Sensors;
+    SensorsViewModel mVM_Sensors;
 
     private OnFrontPanelInteractionListener mListener;
 
@@ -59,7 +59,7 @@ public class FrontPanelFragment_old extends Fragment implements View.OnClickList
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 
-        mVM_Sensors = new ViewModelProvider(requireActivity()).get(SensorRequirementsViewModel.class);
+        mVM_Sensors = new ViewModelProvider(requireActivity()).get(SensorsViewModel.class);
 
         // Inflate the layout for this fragment
         View view = inflater.inflate(R.layout.z_fragment_front_panel, container, false);

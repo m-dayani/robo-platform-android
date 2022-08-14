@@ -62,4 +62,7 @@
     <string name="btn_start_req">Start</string>
     <string name="no_description_provided">No description provided.</string>
     <string name="tv_manage_all_files">Manage All Files</string>
+    <string name="sensors_stat">Sensors Stat</string>
+    <string name="btn_txt_stop">Stop</string>
+    <string name="btn_txt_start">Start</string>
 </resources>

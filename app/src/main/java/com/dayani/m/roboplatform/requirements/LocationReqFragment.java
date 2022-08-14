@@ -17,9 +17,9 @@ import com.dayani.m.roboplatform.R;
 import com.dayani.m.roboplatform.RequirementsFragment;
 import com.dayani.m.roboplatform.managers.MyLocationManager;
 import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
-import com.dayani.m.roboplatform.utils.SensorRequirementsViewModel;
+import com.dayani.m.roboplatform.utils.SensorsViewModel;
 
-import java.util.ArrayList;
+import java.util.List;
 
 
 /**
@@ -35,7 +35,7 @@ public class LocationReqFragment extends Fragment implements View.OnClickListene
     private static final String TAG = LocationReqFragment.class.getSimpleName();
     // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
 
-    SensorRequirementsViewModel mVM_Sensors;
+    SensorsViewModel mVM_Sensors;
 
     private MyLocationManager mLocation = null;
 
@@ -66,7 +66,7 @@ public class LocationReqFragment extends Fragment implements View.OnClickListene
         mLocation.updateLocationSettings();
         //this.checkLocationEnabled(); //useless, why?
 
-        mVM_Sensors = new ViewModelProvider(requireActivity()).get(SensorRequirementsViewModel.class);
+        mVM_Sensors = new ViewModelProvider(requireActivity()).get(SensorsViewModel.class);
     }
 
     @Override
@@ -133,7 +133,7 @@ public class LocationReqFragment extends Fragment implements View.OnClickListene
                 .setFragmentResult(RequirementsFragment.KEY_REQUIREMENT_PASSED_REQUEST, bundle);
 
         // remove location requirement
-        ArrayList<Requirement> reqs = mVM_Sensors.getRequirements().getValue();
+        List<Requirement> reqs = mVM_Sensors.getRequirements().getValue();
         if (reqs != null && reqs.contains(Requirement.ENABLE_LOCATION)) {
             reqs.remove(Requirement.ENABLE_LOCATION);
             mVM_Sensors.getRequirements().setValue(reqs);

@@ -87,9 +87,9 @@ public class RecordSensorsActivity_old extends AppCompatActivity
         // location updates if the user has requested them.
         //if (mLocation.checkRequestingLocUpdates() && mLocation.checkPermissions()) {
         //mLocation.startLocationUpdates();
-        /*} else if (!mLocation.checkPermissions()) {
-            reportTxt.setText("You've denied location permissions!");
-        }*/
+        //} else if (!mLocation.checkPermissions()) {
+        //    reportTxt.setText("You've denied location permissions!");
+        //}
         //Registers sensor callbacks
         //mSensorManager.onResume();
     }
