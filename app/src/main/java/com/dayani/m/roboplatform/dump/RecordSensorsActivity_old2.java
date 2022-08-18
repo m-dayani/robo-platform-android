@@ -47,7 +47,7 @@ import java.io.File;
 
 
 public class RecordSensorsActivity_old2 extends AppCompatActivity
-        implements View.OnClickListener, ActivityRequirements,
+        implements View.OnClickListener,
         MyUSBManager.OnUsbConnectionListener {
 
     private static final String TAG = "RecordAllActivity";
@@ -134,7 +134,7 @@ public class RecordSensorsActivity_old2 extends AppCompatActivity
 //                new File(MyStorageManager.getNextFilePath(
 //                        mVideoFile.getAbsolutePath(),mTimePerfix,"mp4")));
 
-        mLocation = new MyLocationManager(this, mSensorString);
+        //mLocation = new MyLocationManager(this, mSensorString);
 
         mSensorManager = new MySensorManager(this);
 
@@ -221,7 +221,7 @@ public class RecordSensorsActivity_old2 extends AppCompatActivity
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         Log.d(TAG, "onActivityResult");
-        mLocation.onActivityResult(requestCode, resultCode, data);
+        //mLocation.onActivityResult(requestCode, resultCode, data);
     }
 
     @Override
@@ -258,10 +258,10 @@ public class RecordSensorsActivity_old2 extends AppCompatActivity
         //Keep the device screen on while recording
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         //Registers sensor callbacks
-        mSensorManager.start();
+        mSensorManager.start(this);
         mUsb.startPeriodicSensorPoll();
         //while we're not saving files, use our handlerThread for location updates
-        mLocation.startLocationUpdates(mSensorLooper);
+        //mLocation.startLocationUpdates(mSensorLooper);
         mCam.startRecordingVideo();
         mIsRecording = true;
         MyStateManager.setBoolPref(this, KEY_IS_RECORDING_STATE, mIsRecording);
@@ -273,9 +273,9 @@ public class RecordSensorsActivity_old2 extends AppCompatActivity
         //stopSensorThread();
         //Allow device screen to be turned off
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        mSensorManager.stop();
+        mSensorManager.stop(this);
         mUsb.stopPeriodicSensorPoll();
-        mLocation.stopLocationUpdates();
+        mLocation.stopLocationUpdates(this);
         mCam.stopRecordingVideo();
         mIsRecording = false;
         MyStateManager.setBoolPref(this, KEY_IS_RECORDING_STATE, mIsRecording);

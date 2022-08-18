@@ -25,12 +25,13 @@ import com.dayani.m.roboplatform.utils.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.AppGlobals;
 import com.dayani.m.roboplatform.utils.ControlInput;
 import com.dayani.m.roboplatform.utils.SensorsContainer;
+import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 
 public class CarManualControlActivity extends AppCompatActivity
-        implements View.OnClickListener, ActivityRequirements,
+        implements View.OnClickListener,
         MyUSBManager.OnUsbConnectionListener, MyWifiManager.OnWifiNetworkInteractionListener {
 
     private static final String TAG = CarManualControlActivity.class.getSimpleName();

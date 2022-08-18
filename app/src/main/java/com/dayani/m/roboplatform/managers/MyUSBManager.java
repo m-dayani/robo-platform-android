@@ -351,16 +351,16 @@ public class MyUSBManager {
 
         ArrayList<MySensorGroup> sensorGroups = new ArrayList<>();
         ArrayList<MySensorInfo> mSensors = new ArrayList<>();
-        ArrayList<Requirement> reqs = new ArrayList<>();
-        ArrayList<String> perms = new ArrayList<>();
+//        ArrayList<Requirement> reqs = new ArrayList<>();
+//        ArrayList<String> perms = new ArrayList<>();
 
-        reqs.add(Requirement.USB_DEVICE);
+//        reqs.add(Requirement.USB_DEVICE);
 
         // add sensors:
-        mSensors.add(new MySensorInfo(0, "usb0", true));
+        mSensors.add(new MySensorInfo(0, "usb0"));
 
         sensorGroups.add(new MySensorGroup(MySensorGroup.getNextGlobalId(),
-                MySensorGroup.SensorType.TYPE_EXTERNAL, "External (USB)", mSensors, reqs, perms));
+                MySensorGroup.SensorType.TYPE_EXTERNAL, "External (USB)", mSensors));
 
         return sensorGroups;
     }

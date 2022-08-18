@@ -62,8 +62,8 @@ public class LocationReqFragment extends Fragment implements View.OnClickListene
 
         super.onCreate(savedInstanceState);
         //if (getArguments() != null) { }
-        mLocation = new MyLocationManager(getActivity(), new StringBuffer());
-        mLocation.updateLocationSettings();
+        mLocation = new MyLocationManager(requireActivity());
+        //mLocation.updateLocationSettings(requireActivity());
         //this.checkLocationEnabled(); //useless, why?
 
         mVM_Sensors = new ViewModelProvider(requireActivity()).get(SensorsViewModel.class);
@@ -94,7 +94,7 @@ public class LocationReqFragment extends Fragment implements View.OnClickListene
         //super.onActivityResult(requestCode, resultCode, data);
         // In fragment class callback
         Log.d(TAG, "onActivityResult");
-        mLocation.onActivityResult(requestCode,resultCode,data);
+        //mLocation.onActivityResult(requireActivity(), requestCode,resultCode,data);
         this.checkLocationEnabled();
     }
 
@@ -104,7 +104,7 @@ public class LocationReqFragment extends Fragment implements View.OnClickListene
         int id = view.getId();
         if (id == R.id.enableLocation) {
             Log.d(TAG, "Enabling Location");
-            mLocation.updateLocationSettings();
+            //mLocation.updateLocationSettings(requireActivity());
         }
         else if (id == R.id.checkLocation) {
             Log.d(TAG, "Checking Location");
@@ -116,7 +116,7 @@ public class LocationReqFragment extends Fragment implements View.OnClickListene
     }
 
     private boolean isLocationEnabled() {
-        return mLocation.checkAvailability();
+        return false; //mLocation.checkAvailability(requireActivity());
     }
 
     private void checkLocationEnabled() {

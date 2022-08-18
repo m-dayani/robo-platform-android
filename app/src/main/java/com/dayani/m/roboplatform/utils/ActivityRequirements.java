@@ -8,14 +8,19 @@ package com.dayani.m.roboplatform.utils;
     TODO: it might be possible to fix this later.
  */
 
+import android.content.Intent;
 import android.os.Parcel;
 import android.os.Parcelable;
 
-public interface ActivityRequirements {
+import androidx.activity.result.IntentSenderRequest;
+import androidx.fragment.app.Fragment;
+
+public class ActivityRequirements {
 
     //Or go with enums but very hard for later use.
-    enum Requirement implements Parcelable {
+    public enum Requirement implements Parcelable {
 
+        BASE_PATH_WRITABLE,
         PERMISSIONS,
         USB_DEVICE,
         WIRELESS_CONNECTION,
@@ -44,13 +49,13 @@ public interface ActivityRequirements {
         };
     }
 
-    enum RequirementState {
+    public enum RequirementState {
         PERMITTED,
         PENDING,
         DISABLED
     }
 
-    class RequirementItem {
+    public static class RequirementItem {
         Requirement requirement;
         RequirementState state; //permitted, pending, disabled, ...
         public int id;
@@ -65,4 +70,12 @@ public interface ActivityRequirements {
     }
 
     //boolean usesActivityRequirementsInterface();
+
+    public interface RequirementResolution {
+
+        void requestResolution(String[] perms);
+        void requestResolution(Intent activityIntent);
+        void requestResolution(IntentSenderRequest resolutionIntent);
+        void requestResolution(Fragment targetFragment);
+    }
 }

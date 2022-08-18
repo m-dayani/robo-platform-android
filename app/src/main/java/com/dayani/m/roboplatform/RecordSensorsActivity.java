@@ -5,12 +5,19 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.IntentSenderRequest;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.dayani.m.roboplatform.managers.MyBaseManager;
+import com.dayani.m.roboplatform.managers.MyLocationManager;
 import com.dayani.m.roboplatform.managers.MySensorManager;
 import com.dayani.m.roboplatform.managers.MyStorageManager;
+import com.dayani.m.roboplatform.utils.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.SensorsViewModel;
 
 import java.util.ArrayList;
@@ -20,7 +27,9 @@ import java.util.List;
 /**
  * Responsible for all fragment interactions from requirement handling to recording
  */
-public class RecordSensorsActivity extends AppCompatActivity implements MyStorageManager.StorageChannel {
+public class RecordSensorsActivity extends AppCompatActivity
+        implements MyStorageManager.StorageChannel,
+        ActivityRequirements.RequirementResolution {
 
     private static final String TAG = RecordSensorsActivity.class.getSimpleName();
 
@@ -79,7 +88,9 @@ public class RecordSensorsActivity extends AppCompatActivity implements MyStorag
 
         getOrCreateManager(this, vm, MySensorManager.class.getSimpleName());
 
-        // TODO: Add the rest
+        getOrCreateManager(this, vm, MyLocationManager.class.getSimpleName());
+
+        // TODO: Add the rest [also change getOrCreateManager(...)]
     }
 
     private void cleanManagers(List<MyBaseManager> lAllManagers) {
@@ -122,6 +133,13 @@ public class RecordSensorsActivity extends AppCompatActivity implements MyStorag
                 vm.addManagerAndSensors(context, manager);
             }
         }
+        else if (managerClassName.equals(MyLocationManager.class.getSimpleName())) {
+            manager = vm.getManager(MyLocationManager.class.getSimpleName());
+            if (manager == null) {
+                manager = new MyLocationManager(context);
+                vm.addManagerAndSensors(context, manager);
+            }
+        }
 
         return manager;
     }
@@ -145,7 +163,7 @@ public class RecordSensorsActivity extends AppCompatActivity implements MyStorag
             String[] foldersArr = foldersWithRoot.toArray(new String[0]);
 
             String fullPath = mStorageManager.resolveFilePath(this, foldersArr, fileName);
-            return mStorageManager.subscribeStorageChannel(fullPath, append);
+            return mStorageManager.subscribeStorageChannel(this, fullPath, append);
         }
         else {
             Log.w(TAG, "Storage manager is empty");
@@ -157,7 +175,7 @@ public class RecordSensorsActivity extends AppCompatActivity implements MyStorag
     public void publishMessage(int id, String msg) {
 
         if (mStorageManager != null) {
-            mStorageManager.publishMessage(id, msg);
+            mStorageManager.publishMessage(this, id, msg);
         }
         else {
             Log.w(TAG, "Storage manager is empty");
@@ -168,7 +186,7 @@ public class RecordSensorsActivity extends AppCompatActivity implements MyStorag
     public void resetChannel(int id) {
 
         if (mStorageManager != null) {
-            mStorageManager.resetStorageChannel(id);
+            mStorageManager.resetStorageChannel(this, id);
         }
         else {
             Log.w(TAG, "Storage manager is empty");
@@ -179,7 +197,7 @@ public class RecordSensorsActivity extends AppCompatActivity implements MyStorag
     public String getFullFilePath(int id) {
 
         if (mStorageManager != null) {
-            return mStorageManager.getFullFilePath(id);
+            return mStorageManager.getFullFilePath(this, id);
         }
         else {
             Log.w(TAG, "Storage manager is empty");
@@ -191,10 +209,64 @@ public class RecordSensorsActivity extends AppCompatActivity implements MyStorag
     public void removeChannel(int id) {
 
         if (mStorageManager != null) {
-            mStorageManager.removeChannel(id);
+            mStorageManager.removeChannel(this, id);
         }
         else {
             Log.w(TAG, "Storage manager is empty");
         }
+    }
+
+    /* ---------------------------------- Request Resolutions ----------------------------------- */
+
+    private final ActivityResultLauncher<Intent> mIntentLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            this::processActivityResult);
+
+    private final ActivityResultLauncher<IntentSenderRequest> mIntentSender = registerForActivityResult(
+            new ActivityResultContracts.StartIntentSenderForResult(),
+            this::processActivityResult);
+
+    private final ActivityResultLauncher<String[]> mPermsLauncher = registerForActivityResult(
+            new ActivityResultContracts.RequestMultiplePermissions(),
+            permissions -> {
+                if (mVM_Sensors != null && permissions != null) {
+                    for (MyBaseManager manager : mVM_Sensors.getAllManagers()) {
+                        manager.onPermissionsResult(this, permissions);
+                    }
+                }
+            });
+
+    private void processActivityResult(ActivityResult result) {
+
+        if (mVM_Sensors != null && result != null) {
+            for (MyBaseManager manager : mVM_Sensors.getAllManagers()) {
+                manager.onActivityResult(this, result);
+            }
+        }
+    }
+
+    @Override
+    public void requestResolution(String[] perms) {
+
+        mPermsLauncher.launch(perms);
+    }
+
+    @Override
+    public void requestResolution(Intent activityIntent) {
+
+        mIntentLauncher.launch(activityIntent);
+    }
+
+    @Override
+    public void requestResolution(IntentSenderRequest resolutionIntent) {
+
+        mIntentSender.launch(resolutionIntent);
+    }
+
+    @Override
+    public void requestResolution(Fragment targetFragment) {
+
+        MainActivity.startNewFragment(getSupportFragmentManager(),
+                R.id.fragment_container_view, targetFragment, "sensors");
     }
 }

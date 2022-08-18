@@ -2,7 +2,7 @@ package com.dayani.m.roboplatform.managers;
 
 /*
  * ** Availability:
- *      1. For full operation: Accel, Mangent, even Gyro sensors
+ *      1. For full operation: Accel, Magnet, even Gyro sensors
  *      2. For just record: At least Accel
  * ** Resources:
  *      1. Internal HandlerThread
@@ -29,14 +29,10 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Build;
-import android.os.Handler;
-import android.os.HandlerThread;
 import android.util.Log;
-import android.util.Pair;
 
-import androidx.activity.result.ActivityResult;
-
-import com.dayani.m.roboplatform.utils.ActivityRequirements;
+import com.dayani.m.roboplatform.managers.MyStorageManager.StorageInfo;
+import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
 import com.dayani.m.roboplatform.utils.MySensorGroup;
 import com.dayani.m.roboplatform.utils.MySensorGroup.SensorType;
 import com.dayani.m.roboplatform.utils.MySensorInfo;
@@ -45,13 +41,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 
 public class MySensorManager extends MyBaseManager {
+
+    /* ===================================== Variables ========================================== */
 
     private static final String TAG = MySensorManager.class.getSimpleName();
 
@@ -60,8 +57,10 @@ public class MySensorManager extends MyBaseManager {
     private static final int ANDROID_VERSION_UNCALIB_SENSORS = Build.VERSION_CODES.O;
     private static final int ANDROID_VERSION_ACQ_MODE = Build.VERSION_CODES.N;
 
-    private final List<SensorType> mSupportedSensorTypes = Arrays.asList(
-            SensorType.TYPE_IMU, SensorType.TYPE_MAGNET);
+//    private final List<SensorType> mSupportedSensorGroupTypes = Arrays.asList(
+//            SensorType.TYPE_IMU,
+//            SensorType.TYPE_MAGNET
+//    );
 
     private static final List<Integer> mCalibratedTypes = Arrays.asList(
             Sensor.TYPE_ACCELEROMETER,
@@ -71,34 +70,32 @@ public class MySensorManager extends MyBaseManager {
 
     private static final List<Integer> mUncalibratedTypes = initUncalibratedTypes();
 
+    private static final List<Integer> mAllSensorTypes = initAllSensorTypes();
+
+
     private static int currSensorId = 0;
 
     private final SensorManager mSensorManager;
 
-    private MyStorageManager.StorageChannel mStorageListener;
-
-    private final Map<Integer, Integer> mmPublishers = new HashMap<>();
-    private final Map<Integer, Pair<List<String>, String>> mmFileNames = initStorageFileNames();
+    //private final Map<Integer, Integer> mmPublishers = new HashMap<>();
+    //private final Map<Integer, Pair<List<String>, String>> mmFileNames = initStorageFileNames();
 
     private SensorEvent mSensorEvent;
-
-    private HandlerThread mBackgroundThread;
-    private Handler mSensorHandler;
 
     private final SensorEventListener mSensorCallback = new SensorEventListener() {
 
         @Override
-        public final void onAccuracyChanged(Sensor sensor, int accuracy) {
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
             // Do something here if sensor accuracy changes.
         }
 
         @Override
-        public final void onSensorChanged(SensorEvent event) {
+        public void onSensorChanged(SensorEvent event) {
             // The light sensor returns a single value.
             // Many sensors return 3 values, one for each axis.
             mSensorEvent = event;
             //mCurrentTimeStamp = System.nanoTime();
-            mSensorHandler.post(sensorReceiveTask);
+            mHandler.post(sensorReceiveTask);
         }
     };
 
@@ -113,11 +110,12 @@ public class MySensorManager extends MyBaseManager {
         private void handleEvent(SensorEvent event) {
 
             String sVal = getSensorString(event);
-            mStorageListener.publishMessage(getStorageChannelId(event.sensor.getType()), sVal);
+            int sensorId = mapSensorTypeToId(event.sensor.getType());
+            writeStorageChannel(getChannelId(sensorId), sVal);
         }
     };
 
-    /*======================================= Construction =======================================*/
+    /* ==================================== Construction ======================================== */
 
     public MySensorManager(Context context) {
 
@@ -126,166 +124,69 @@ public class MySensorManager extends MyBaseManager {
         mSensorManager = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
 
         init(context);
-        checkAvailability(context);
+    }
+
+    /* ===================================== Core Tasks ========================================= */
+
+    /* -------------------------------------- Support ------------------------------------------- */
+
+    /**
+     * This manager is supported if device has at least one sensor module
+     * @param context activity context
+     * @return boolean
+     */
+    @Override
+    protected boolean resolveSupport(Context context) {
+
+        SensorManager sensorManager = getStorageManager(context);
+
+        int countSupported = 0;
+
+        for (Integer sensorTypeCode: mAllSensorTypes) {
+
+            if (sensorManager.getDefaultSensor(sensorTypeCode) != null) {
+                countSupported++;
+            }
+        }
+
+        return countSupported > 0;
+    }
+
+    /* ----------------------------- Requirements & Permissions --------------------------------- */
+
+    @Override
+    public List<Requirement> getRequirements() {
+        return new ArrayList<>();
     }
 
     @Override
-    public void clean() {}
+    protected boolean hasAllRequirements(Context context) {
+        return true;
+    }
 
     @Override
-    protected void init(Context context) {
+    protected void resolveRequirements(Context context) {}
 
-        setStorageListener(context);
+    @Override
+    public List<String> getPermissions() {
+        return new ArrayList<>();
     }
 
-    private static Map<Integer, Pair<List<String>, String>> initStorageFileNames() {
-
-
-        Map<Integer, Pair<List<String>, String>> mFileNames = new HashMap<>();
-
-        List<String> imuDirs = Collections.singletonList("imu");
-        List<String> magDirs = Collections.singletonList("magnetic_field");
-
-        if (SDK_INT >= ANDROID_VERSION_UNCALIB_SENSORS) {
-            mFileNames.put(Sensor.TYPE_ACCELEROMETER_UNCALIBRATED, Pair.create(imuDirs, "accel_raw.txt"));
-            mFileNames.put(Sensor.TYPE_GYROSCOPE_UNCALIBRATED, Pair.create(imuDirs, "gyro_raw.txt"));
-            mFileNames.put(Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED, Pair.create(magDirs, "mag_raw.txt"));
-        }
-        mFileNames.put(Sensor.TYPE_ACCELEROMETER, Pair.create(imuDirs, "accel.txt"));
-        mFileNames.put(Sensor.TYPE_GYROSCOPE, Pair.create(imuDirs, "gyro.txt"));
-        mFileNames.put(Sensor.TYPE_MAGNETIC_FIELD, Pair.create(magDirs, "mag.txt"));
-
-        return mFileNames;
-    }
-
-    private static List<Integer> initUncalibratedTypes() {
-
-        List<Integer> lTypes = new ArrayList<>();
-
-        if (SDK_INT >= ANDROID_VERSION_UNCALIB_SENSORS) {
-
-            lTypes = Arrays.asList(
-                    Sensor.TYPE_ACCELEROMETER_UNCALIBRATED,
-                    Sensor.TYPE_GYROSCOPE_UNCALIBRATED,
-                    Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED
-            );
-        }
-
-        return lTypes;
+    @Override
+    protected boolean hasAllPermissions(Context context) {
+        return true;
     }
 
     /*-------------------------------------- Availability ----------------------------------------*/
 
-    @Override
-    public void checkAvailability(Context context) {
-
-        // for this to be available:
-        // 1. has at least one type of sensor
-        boolean hasMotionSensors = MySensorGroup.countAvailableSensors(mlSensorGroup, mSupportedSensorTypes) > 0;
-
-        // 2. can write sensor data
-        boolean canWrite = mStorageListener != null;
-
-        mIsAvailable = canWrite && hasMotionSensors;
-    }
-
-    @Override
-    public void resolveAvailability(Context context) {
-
-    }
-
-    /*-------------------------------------- Requirements ----------------------------------------*/
-
-    @Override
-    public void onActivityResult(Context context, ActivityResult result) {
-
-    }
-
-    @Override
-    public void onPermissionsResult(Context context, Map<String, Boolean> permissions) {
-
-    }
-
     /*------------------------------------- Setters/Getters --------------------------------------*/
 
-    private int getStorageChannelId(int sensorType) {
+    private SensorManager getStorageManager(Context context) {
 
-        Integer idObj = -1;
-
-        if (!this.isAvailable() || mmPublishers == null) {
-            return idObj;
+        if (mSensorManager != null) {
+            return mSensorManager;
         }
-
-        idObj = mmPublishers.get(sensorType);
-
-        if (idObj == null) {
-            return -1;
-        }
-        return idObj;
-    }
-
-    /**
-     * Requirements: Availability, Storage listener, Map of file names, Map of channels
-     * Depends on: The last state of sensors (availability and checked state)
-     * Opens them for available sensors
-     */
-    private void updateStorageChannels() {
-
-        if (!this.isAvailable() || mStorageListener == null) {
-            Log.w(TAG, "Either sensors are not available or no storage listener found");
-            return;
-        }
-
-        if (mmFileNames == null || mmPublishers == null) {
-            Log.w(TAG, "File names or storage channel maps not initialized");
-            return;
-        }
-
-        for (MySensorGroup sensorGroup : mlSensorGroup) {
-
-            for (MySensorInfo sensorInfo : sensorGroup.getSensors()) {
-
-                if (sensorInfo.isAvailable() && sensorInfo.isChecked() && sensorInfo instanceof MotionSensor) {
-
-                    Sensor sensor = ((MotionSensor) sensorInfo).getSensor();
-                    int sensorType = sensor.getType();
-                    Pair<List<String>, String> filePath = mmFileNames.get(sensorType);
-
-                    if (filePath != null) {
-                        int chId = mStorageListener.getStorageChannel(filePath.first, filePath.second, false);
-                        mmPublishers.put(sensorType, chId);
-                        writeFileHeader(sensorType, chId);
-                    }
-                }
-            }
-        }
-    }
-
-    private void removeAllStorageChannels() {
-
-        if (mmPublishers == null || mStorageListener == null) {
-            Log.w(TAG, "Channels map or storage listener not initialized");
-            return;
-        }
-
-        Iterator<Map.Entry<Integer, Integer>> chIter = mmPublishers.entrySet().iterator();
-
-        while (chIter.hasNext()) {
-
-            Map.Entry<Integer, Integer> chEntry = chIter.next();
-
-            if (chEntry != null) {
-                mStorageListener.removeChannel(chEntry.getValue());
-                chIter.remove();
-            }
-        }
-    }
-
-    public void setStorageListener(Context context) {
-
-        if (context instanceof MyStorageManager.StorageChannel) {
-            mStorageListener = (MyStorageManager.StorageChannel) context;
-        }
+        return (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
     }
 
     /**
@@ -295,18 +196,17 @@ public class MySensorManager extends MyBaseManager {
     @Override
     public void updateState(Context context) {
 
-        checkAvailability(context);
-        removeAllStorageChannels();
-        updateStorageChannels();
+        //removeAllStorageChannels();
+        //updateStorageChannels();
     }
 
-    public List<Integer> getCalibratedTypes() {
+    /*public List<Integer> getCalibratedTypes() {
         return mCalibratedTypes;
     }
 
     public List<Integer> getUncalibratedTypes() {
         return mUncalibratedTypes;
-    }
+    }*/
 
     /*------------------------------------- Init. Sensors ----------------------------------------*/
 
@@ -356,7 +256,7 @@ public class MySensorManager extends MyBaseManager {
                 calibInfo.put("Max_Delay_us", String.format(Locale.US,"%d", sensor.getMaxDelay()));
                 calibInfo.put("Power_mA", String.format(Locale.US,"%.6f", sensor.getPower()));
 
-                MySensorInfo sensorInfo = new MotionSensor(sensorId, name,true, sensor);
+                MySensorInfo sensorInfo = new MotionSensor(sensorId, name, sensor);
                 sensorInfo.setDescInfo(descInfo);
                 sensorInfo.setCalibInfo(calibInfo);
 
@@ -405,32 +305,26 @@ public class MySensorManager extends MyBaseManager {
      * @return list of all supported sensor groups
      */
     @Override
-    public List<MySensorGroup> getSensorRequirements(Context mContext) {
+    public List<MySensorGroup> getSensorGroups(Context mContext) {
 
         if (mlSensorGroup != null) {
             return mlSensorGroup;
         }
 
-        SensorManager sensorManager = mSensorManager;
-        if (sensorManager == null) {
-            sensorManager = (SensorManager) mContext.getSystemService(Context.SENSOR_SERVICE);
-        }
+        SensorManager sensorManager = getStorageManager(mContext);
 
         List<MySensorGroup> sensorGroups = new ArrayList<>();
-
-        List<ActivityRequirements.Requirement> reqs = new ArrayList<>();
-        List<String> perms = new ArrayList<>();
 
         List<MySensorInfo> mImu = getImuSensors(sensorManager);
         List<MySensorInfo> mMag = getMagnetometerSensors(sensorManager);
 
         MySensorGroup imuGrp = new MySensorGroup(MySensorGroup.getNextGlobalId(),
-                SensorType.TYPE_IMU, "IMU", mImu, reqs, perms);
+                SensorType.TYPE_IMU, "IMU", mImu);
         sensorGroups.add(imuGrp);
 
         // Usually, magnetometer is considered a separate sensor
         MySensorGroup magGrp = new MySensorGroup(MySensorGroup.getNextGlobalId(),
-                SensorType.TYPE_MAGNET, "Magnetometer", mMag, reqs, perms);
+                SensorType.TYPE_MAGNET, "Magnetometer", mMag);
         sensorGroups.add(magGrp);
 
         return sensorGroups;
@@ -439,21 +333,61 @@ public class MySensorManager extends MyBaseManager {
     /*---------------------------------- Lifecycle Management ------------------------------------*/
 
     @Override
-    public void start() {
-        startBackgroundThread();
+    public void clean() {}
+
+    @Override
+    protected void init(Context context) {
+
+        updateCheckedSensors(context);
+    }
+
+    private static List<Integer> initUncalibratedTypes() {
+
+        List<Integer> lTypes = new ArrayList<>();
+
+        if (SDK_INT >= ANDROID_VERSION_UNCALIB_SENSORS) {
+
+            lTypes = Arrays.asList(
+                    Sensor.TYPE_ACCELEROMETER_UNCALIBRATED,
+                    Sensor.TYPE_GYROSCOPE_UNCALIBRATED,
+                    Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED
+            );
+        }
+
+        return lTypes;
+    }
+
+    private static List<Integer> initAllSensorTypes() {
+
+        List<Integer> lTypes = new ArrayList<>();
+
+        lTypes.addAll(mCalibratedTypes);
+        lTypes.addAll(mUncalibratedTypes);
+
+        return lTypes;
+    }
+
+    @Override
+    public void start(Context context) {
+
+        super.start(context);
+        openStorageChannels();
+        startBackgroundThread(TAG);
         registerSensors();
     }
 
     @Override
-    public void stop() {
+    public void stop(Context context) {
+
         unregisterSensors();
         stopBackgroundThread();
+        closeStorageChannels();
+        super.stop(context);
     }
 
     private void registerSensors() {
 
-        if (!isAvailable() || mSensorManager == null ||
-                mlSensorGroup == null || mlSensorGroup.isEmpty()) {
+        if (mSensorManager == null || mlSensorGroup == null || mlSensorGroup.isEmpty()) {
             return;
         }
 
@@ -461,7 +395,7 @@ public class MySensorManager extends MyBaseManager {
 
             for (MySensorInfo sensor : sensorGroup.getSensors()) {
 
-                if (sensor.isAvailable() && sensor.isChecked() && sensor instanceof MotionSensor) {
+                if (sensor.isChecked() && sensor instanceof MotionSensor) {
 
                     MotionSensor motionSensor = (MotionSensor) sensor;
                     mSensorManager.registerListener(mSensorCallback, motionSensor.getSensor(),
@@ -475,40 +409,85 @@ public class MySensorManager extends MyBaseManager {
         mSensorManager.unregisterListener(mSensorCallback);
     }
 
-    // TODO: Maybe move these two methods to the base class
-    /**
-     * Starts a background thread and its {@link Handler}.
-     */
-    private void startBackgroundThread() {
+    /* ----------------------------------- Message Passing -------------------------------------- */
 
-        mBackgroundThread = new HandlerThread(TAG);
-        mBackgroundThread.start();
-        mSensorHandler = new Handler(mBackgroundThread.getLooper());
+    private int mapSensorTypeToId(int sensorType) {
+
+        return sensorType;
+    }
+
+    @Override
+    protected Map<Integer, MyStorageManager.StorageInfo> initStorageChannels() {
+
+        Map<Integer, StorageInfo> mFileNames = new HashMap<>();
+
+        List<String> imuDirs = Collections.singletonList("imu");
+        List<String> magDirs = Collections.singletonList("magnetic_field");
+
+        if (SDK_INT >= ANDROID_VERSION_UNCALIB_SENSORS) {
+            mFileNames.put(
+                    mapSensorTypeToId(Sensor.TYPE_ACCELEROMETER_UNCALIBRATED),
+                    new StorageInfo(imuDirs, "accel_raw.txt"));
+            mFileNames.put(
+                    mapSensorTypeToId(Sensor.TYPE_GYROSCOPE_UNCALIBRATED),
+                    new StorageInfo(imuDirs, "gyro_raw.txt"));
+            mFileNames.put(
+                    mapSensorTypeToId(Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED),
+                    new StorageInfo(magDirs, "mag_raw.txt"));
+        }
+        mFileNames.put(
+                mapSensorTypeToId(Sensor.TYPE_ACCELEROMETER),
+                new StorageInfo(imuDirs, "accel.txt"));
+        mFileNames.put(
+                mapSensorTypeToId(Sensor.TYPE_GYROSCOPE),
+                new StorageInfo(imuDirs, "gyro.txt"));
+        mFileNames.put(
+                mapSensorTypeToId(Sensor.TYPE_MAGNETIC_FIELD),
+                new StorageInfo(magDirs, "mag.txt"));
+
+        return mFileNames;
     }
 
     /**
-     * Stops the background thread and its {@link Handler}.
+     * Requirements: Availability, Storage listener, Map of file names, Map of channels
+     * Depends on: The last state of sensors (availability and checked state)
+     * Opens them for available sensors
      */
-    private void stopBackgroundThread() {
+    @Override
+    protected void openStorageChannels() {
 
-        if (mBackgroundThread == null) {
+        if (mStorageListener == null || mmStorageChannels == null || mlSensorGroup == null) {
+            Log.w(TAG, "Either sensors are not available or no storage listener found");
             return;
         }
 
-        mBackgroundThread.quitSafely();
-        try {
-            mBackgroundThread.join();
-            mBackgroundThread = null;
-            mSensorHandler = null;
-        }
-        catch (InterruptedException e) {
-            e.printStackTrace();
+        for (MySensorGroup sensorGroup : mlSensorGroup) {
+
+            for (MySensorInfo sensorInfo : sensorGroup.getSensors()) {
+
+                if (sensorInfo.isChecked() && sensorInfo instanceof MotionSensor) {
+
+                    Sensor sensor = ((MotionSensor) sensorInfo).getSensor();
+
+                    int sensorType = sensor.getType();
+                    int sensorId = mapSensorTypeToId(sensorType);
+                    StorageInfo storageInfo = mmStorageChannels.get(sensorId);
+
+                    if (storageInfo != null) {
+
+                        int chId = mStorageListener.getStorageChannel(
+                                storageInfo.getFolders(), storageInfo.getFileName(), false);
+                        storageInfo.setChannelId(chId);
+                        writeFileHeader(sensorType, chId);
+                    }
+                }
+            }
         }
     }
 
     /*========================================= Helpers ==========================================*/
 
-    public void filterBySensorTypeCode(List<Integer> lFilteredTypes) {
+    /*public void filterBySensorTypeCode(List<Integer> lFilteredTypes) {
 
         if (mlSensorGroup == null) {
             Log.w(TAG, "Empty sensor groups, abort");
@@ -525,13 +504,13 @@ public class MySensorManager extends MyBaseManager {
 
                     if (lFilteredTypes.contains(sensor.getSensor().getType())) {
 
-                        sensor.setAvailability(false);
+                        //sensor.setAvailability(false);
                     }
                 }
             }
         }
         // TODO: Maybe update other things like the availability of group or manager's state???
-    }
+    }*/
 
     private void writeFileHeader(int sensorType, int channelId) {
 
@@ -585,14 +564,14 @@ public class MySensorManager extends MyBaseManager {
 
     private static class MotionSensor extends MySensorInfo {
 
-        public MotionSensor(int id, String name, boolean isAvailable) {
+        public MotionSensor(int id, String name) {
 
-            super(id, name, isAvailable);
+            super(id, name);
         }
 
-        public MotionSensor(int id, String name, boolean isAvailable, Sensor sensor) {
+        public MotionSensor(int id, String name, Sensor sensor) {
 
-            this(id, name, isAvailable);
+            this(id, name);
             mMotionSensor = sensor;
         }
 

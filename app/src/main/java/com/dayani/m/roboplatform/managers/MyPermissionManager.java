@@ -428,27 +428,40 @@ public class MyPermissionManager {
     /**
      * This is only a check on all permissions (no request)
      * And it also updates the saved permission states
-     * @param context
-     * @param permissions
-     * @return
+     * @param context required activity context
+     * @param permissions array string all permissions
+     * @return boolean: true if all permissions granted,
+     *                  false if at least one permission is not granted
      */
-    public static boolean hasAllPermissions(Context context, String[] permissions,
-                                            String permissionKey) {
+    public static boolean hasAllPermissions(@NonNull Context context, String[] permissions) {
+
         Log.i(TAG, "Check and update permission states.");
         boolean flag = true;
+
         for (String permission : permissions) {
+
             //for each check, also update saved prefs
             if (ActivityCompat.checkSelfPermission(context, permission)
                     != PackageManager.PERMISSION_GRANTED) {
-                //requestPermissions(context, permissions, permCode);
+
                 MyStateManager.setBoolPref(context,getPermissionKey(permission),false);
                 flag = false;
-            } else {
+            }
+            else {
                 MyStateManager.setBoolPref(context,getPermissionKey(permission),true);
             }
         }
-        //update the universal key for the group
-        MyStateManager.setBoolPref(context,permissionKey,flag);
+
+        return flag;
+    }
+
+    public static boolean hasAllPermissions(Context context, String[] permissions, String permKey) {
+
+        boolean flag = hasAllPermissions(context, permissions);
+
+        // update the universal key for the group -> better to do it separately
+        MyStateManager.setBoolPref(context, permKey, flag);
+
         return flag;
     }
 

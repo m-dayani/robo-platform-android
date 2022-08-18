@@ -1,6 +1,8 @@
 package com.dayani.m.roboplatform;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -71,4 +73,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             startActivity(intent);
         }
     }
+
+    public static void startNewFragment(FragmentManager fragmentManager, int viewId, Fragment frag, String tag) {
+
+        fragmentManager.beginTransaction()
+                .replace(viewId, frag, null)
+                .setReorderingAllowed(true)
+                .addToBackStack(tag)
+                .commit();
+    }
+
 }

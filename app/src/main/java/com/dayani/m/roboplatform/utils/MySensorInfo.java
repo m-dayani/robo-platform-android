@@ -1,4 +1,8 @@
 package com.dayani.m.roboplatform.utils;
+/*
+ * If a sensor is not available, don't add it to the list (sensor availability means the device
+ * has it all the time and can be determined initially)
+ */
 
 import androidx.annotation.NonNull;
 
@@ -13,7 +17,6 @@ public class MySensorInfo {
     private Map<String, String> mCalibInfo;
     private Map<String, String> mDescInfo;
 
-    private boolean mIsAvailable;
     private boolean mIsChecked;
 
     /* ------------------------------------------------------------------------------------------ */
@@ -22,9 +25,10 @@ public class MySensorInfo {
 
         mId = -1;
         mName = "unknown";
+
         mDescInfo = new HashMap<>();
         mCalibInfo = new HashMap<>();
-        mIsAvailable = false;
+
         mIsChecked = true;
     }
 
@@ -33,12 +37,6 @@ public class MySensorInfo {
         this();
         mId = id;
         mName = name;
-    }
-
-    public MySensorInfo(int id, String name, boolean isAvailable) {
-
-        this(id, name);
-        mIsAvailable = isAvailable;
     }
 
     /* ------------------------------------------------------------------------------------------ */
@@ -63,13 +61,6 @@ public class MySensorInfo {
         return serializeInfoMap(prefix, mDescInfo);
     }
     public void setDescInfo(Map<String, String> info) { mDescInfo = info; }
-
-    public boolean isAvailable() {
-        return mIsAvailable;
-    }
-    public void setAvailability(boolean state) {
-        mIsAvailable = state;
-    }
 
     public boolean isChecked() { return mIsChecked; }
     public void setChecked(boolean checked) { mIsChecked = checked; }
@@ -100,8 +91,7 @@ public class MySensorInfo {
     public String toString() {
 
         return "{Id: " + mId + ", Name: " + mName + ", CalibInfo: " +
-                mCalibInfo + ", DescInfo: " + mDescInfo + ", Available: " +
-                mIsAvailable + ", isChecked: " + mIsChecked + "}";
+                mCalibInfo + ", DescInfo: " + mDescInfo + ", isChecked: " + mIsChecked + "}";
     }
 }
 

@@ -705,23 +705,23 @@ public class CameraFlyVideo /*implements MyPermissionManager.PermissionsInterfac
     public static ArrayList<MySensorGroup> getSensorRequirements(Context mContext) {
 
         ArrayList<MySensorGroup> sensorGroups = new ArrayList<>();
-        ArrayList<ActivityRequirements.Requirement> reqs = new ArrayList<>();
-        ArrayList<String> perms = new ArrayList<>();
+//        ArrayList<ActivityRequirements.Requirement> reqs = new ArrayList<>();
+//        ArrayList<String> perms = new ArrayList<>();
         ArrayList<MySensorInfo> sensors = new ArrayList<>();
 
-        if (!MyPermissionManager.hasAllPermissions(mContext, VIDEO_PERMISSIONS, KEY_VIDEO_PERMISSION)) {
-
-            reqs.add(ActivityRequirements.Requirement.PERMISSIONS);
-            perms = new ArrayList<>(Arrays.asList(VIDEO_PERMISSIONS));
-        }
+//        if (!MyPermissionManager.hasAllPermissions(mContext, VIDEO_PERMISSIONS, KEY_VIDEO_PERMISSION)) {
+//
+//            reqs.add(ActivityRequirements.Requirement.PERMISSIONS);
+//            perms = new ArrayList<>(Arrays.asList(VIDEO_PERMISSIONS));
+//        }
 
         // add sensors:
-        sensors.add(new MySensorInfo(0, "cam0", true));
-        sensors.add(new MySensorInfo(1, "cam1", true));
-        sensors.add(new MySensorInfo(2, "cam2", true));
+        sensors.add(new MySensorInfo(0, "cam0"));
+        sensors.add(new MySensorInfo(1, "cam1"));
+        sensors.add(new MySensorInfo(2, "cam2"));
 
         sensorGroups.add(new MySensorGroup(MySensorGroup.getNextGlobalId(),
-                MySensorGroup.SensorType.TYPE_CAMERA, "Camera", sensors, reqs, perms));
+                MySensorGroup.SensorType.TYPE_CAMERA, "Camera", sensors));
 
         return sensorGroups;
     }

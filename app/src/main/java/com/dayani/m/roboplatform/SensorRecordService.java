@@ -155,7 +155,7 @@ public class SensorRecordService extends Service {
             mGnss = new GnssContainer(this, mFileLogger, mUiLogger);
         }
         else {
-            mLocation = new MyLocationManager(this, mSensorString);
+            //mLocation = new MyLocationManager(this, mSensorString);
         }
 
         mSensorManager = new MySensorManager(this);
@@ -200,11 +200,11 @@ public class SensorRecordService extends Service {
         //Keep the device screen on while recording
         //getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         //Registers sensor callbacks
-        mSensorManager.start();
+        mSensorManager.start(this);
         //mUsb.startPeriodicSensorPoll();
         //while we're not saving files, use our handlerThread for location updates
         if (mLocation != null) {
-            mLocation.startLocationUpdates(mSensorLooper);
+            //mLocation.startLocationUpdates(mSensorLooper);
         }
         if (mGnss != null) {
             mFileLogger.startNewLog();
@@ -217,10 +217,10 @@ public class SensorRecordService extends Service {
         //stopSensorThread();
         //Allow device screen to be turned off
         //getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        mSensorManager.stop();
+        mSensorManager.stop(this);
         //mUsb.stopPeriodicSensorPoll();
         if (mLocation != null) {
-            mLocation.stopLocationUpdates();
+            //mLocation.stopLocationUpdates(context);
         }
         if (mGnss != null) {
             mGnss.unregisterLocation();

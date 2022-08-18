@@ -1,17 +1,11 @@
 package com.dayani.m.roboplatform.utils;
 
-import android.util.Pair;
-
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
 
 
 public class MySensorGroup {
@@ -36,8 +30,6 @@ public class MySensorGroup {
     private String mTitle;
 
     private final Map<Integer, MySensorInfo> mSensors;
-    private List<Requirement> mRequirements;
-    private List<String> mPermissions;
 
     /* ------------------------------------------------------------------------------------------ */
 
@@ -48,8 +40,6 @@ public class MySensorGroup {
         mTitle = "Unknown";
         mType = SensorType.TYPE_UNKNOWN;
         mSensors =  new HashMap<>();
-        mRequirements = new ArrayList<>();
-        mPermissions = new ArrayList<>();
     }
 
     public MySensorGroup(int id, SensorType type, String title, List<MySensorInfo> sensors) {
@@ -60,15 +50,6 @@ public class MySensorGroup {
         mTitle = title;
 
         this.setSensors(sensors);
-    }
-
-    public MySensorGroup(int id, SensorType type, String title, List<MySensorInfo> sensors,
-                         List<Requirement> reqs, List<String> perms) {
-
-        this(id, type, title, sensors);
-
-        mRequirements = reqs;
-        mPermissions = perms;
     }
 
     /* ------------------------------------------------------------------------------------------ */
@@ -106,20 +87,6 @@ public class MySensorGroup {
         return mIsAvailable;
     }
 
-    public List<Requirement> getRequirements() {
-        return mRequirements;
-    }
-    public void setRequirements(List<Requirement> reqs) {
-        mRequirements = reqs;
-    }
-
-    public List<String> getPermissions() {
-        return mPermissions;
-    }
-    public void setPermissions(List<String> perms) {
-        mPermissions = perms;
-    }
-
     public MySensorInfo getSensorInfo(int sensorId) {
 
         MySensorInfo sensorInfo = null;
@@ -153,92 +120,44 @@ public class MySensorGroup {
         return outSensors;
     }
 
-    public static List<Requirement> getUniqueRequirements(List<MySensorGroup> sensorGroups) {
-
-        List<Requirement> requirements = new ArrayList<>();
-
-        for (MySensorGroup sensorGroup : sensorGroups) {
-
-            for (Requirement req : sensorGroup.getRequirements()) {
-
-                if (!requirements.contains(req)) {
-                    requirements.add(req);
-                }
-            }
-        }
-
-        return requirements;
-    }
-
-    public static List<String> getUniquePermissions(List<MySensorGroup> sensorGroups) {
-
-        List<String> permissions = new ArrayList<>();
-
-        for (MySensorGroup sensorGroup : sensorGroups) {
-
-            for (String perm : sensorGroup.getPermissions()) {
-
-                if (!permissions.contains(perm)) {
-                    permissions.add(perm);
-                }
-            }
-        }
-
-        return permissions;
-    }
-
     /**
      * Count available and checked sensors
      * TODO: Maybe check each criterion independently
-     * @return Pair(int available count, int checked count)
+     * @return int number of checked sensors in the group
      */
-    public Pair<Integer, Integer> countAvailableAndCheckedSensors() {
+    public int countCheckedSensors() {
 
-        int countAvailable = 0;
         int countChecked = 0;
 
         for (MySensorInfo sensorInfo : mSensors.values()) {
 
-            if (sensorInfo.isAvailable()) {
-                countAvailable++;
-                if (sensorInfo.isChecked()) {
-                    countChecked++;
-                }
+            if (sensorInfo.isChecked()) {
+                countChecked++;
             }
         }
 
-        return new Pair<>(countAvailable, countChecked);
+        return countChecked;
     }
 
-    public static int countAvailableSensors(List<MySensorGroup> sensors,
-                                            @Nullable List<SensorType> supportedSensors) {
+    public static int countCheckedSensors(List<MySensorGroup> sensorGroups) {
 
-        int count = 0;
-        if (supportedSensors == null) {
-            supportedSensors = new ArrayList<>();
+        int totalCount = 0;
+
+        for (MySensorGroup sensorGroup : sensorGroups) {
+
+            totalCount += sensorGroup.countCheckedSensors();
         }
 
-        for (MySensorGroup sensorGroup : sensors) {
-
-            SensorType sensorType = sensorGroup.getType();
-            if (supportedSensors.contains(sensorType)) {
-
-                for (MySensorInfo sensor : sensorGroup.getSensors()) {
-
-                    if (sensor.isAvailable() && sensor.isChecked()) {
-                        count++;
-                    }
-                }
-            }
-        }
-
-        return count;
+        return totalCount;
     }
 
     public static MySensorGroup findSensorGroupById(List<MySensorGroup> lSensorGroup, int id) {
 
         for (MySensorGroup sGroup : lSensorGroup) {
 
+            if (sGroup == null) {
+                continue;
+            }
             if (id == sGroup.getId()) {
                 return sGroup;
             }
@@ -254,15 +173,14 @@ public class MySensorGroup {
         sb.append("{Id: ").append(mId).append(", Type: ").append(mType).append(", Title: ")
                 .append(mTitle).append(", Sensors: [");
 
-        for (int skey : mSensors.keySet()) {
-            MySensorInfo sensor = mSensors.get(skey);
+        for (int sKey : mSensors.keySet()) {
+            MySensorInfo sensor = mSensors.get(sKey);
             if (sensor != null) {
                 sb.append(sensor).append(", ");
             }
         }
 
-        sb.append("], Requirements: ").append(Arrays.toString(mRequirements.toArray()))
-                .append(", Permissions: ").append(Arrays.toString(mPermissions.toArray())).append("}");
+        sb.append("]}");
 
         return sb.toString();
     }

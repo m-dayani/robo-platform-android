@@ -151,7 +151,7 @@ public class RecordingFragment extends Fragment implements View.OnClickListener 
 
         updateRecordingUI(mbIsRecording);
 
-        mSensorManager.start();
+        mSensorManager.start(requireActivity());
     }
 
     private void stop() {
@@ -160,7 +160,7 @@ public class RecordingFragment extends Fragment implements View.OnClickListener 
 
         updateRecordingUI(mbIsRecording);
 
-        mSensorManager.stop();
+        mSensorManager.stop(requireActivity());
     }
 
     private void updateRecordingUI(boolean state) {

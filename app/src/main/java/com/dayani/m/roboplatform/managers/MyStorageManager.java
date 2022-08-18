@@ -14,7 +14,6 @@ import android.provider.DocumentsContract;
 import android.util.Log;
 
 import androidx.activity.result.ActivityResult;
-import androidx.activity.result.ActivityResultLauncher;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
@@ -29,7 +28,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -39,6 +37,8 @@ import java.util.Map;
 
 
 public class MyStorageManager extends MyBaseManager {
+
+    /* ===================================== Variables ========================================== */
 
     private static final String PACKAGE_NAME = AppGlobals.PACKAGE_BASE_NAME;
 
@@ -60,18 +60,10 @@ public class MyStorageManager extends MyBaseManager {
 
     private static final int ANDROID_SCOPED_STORAGE_VERSION = Build.VERSION_CODES.R;
 
-    private static final String[] PERMISSIONS = {
-            Manifest.permission.WRITE_EXTERNAL_STORAGE,
-            // Manifest.permission.READ_EXTERNAL_STORAGE,
-    };
-
-
     private static int mStorageId = 0;
     private final HashMap<Integer, StorageHandle> mMapStorage  = new HashMap<>();
 
-    private StorageState mState;
-
-    /*==================================== Initialization ========================================*/
+    /* ==================================== Construction ======================================== */
 
     /**
      * Permission checking is now done implicitly.
@@ -82,10 +74,185 @@ public class MyStorageManager extends MyBaseManager {
     public MyStorageManager(Context context) {
 
         super(context);
-
         init(context);
-        checkAvailability(context);
     }
+
+    /* ===================================== Core Tasks ========================================= */
+
+    /* -------------------------------------- Support ------------------------------------------- */
+
+    /**
+     * Storage is supported if there is at least an available volume
+     * TODO: Need to check for available space too??
+     * @param context activity context
+     * @return boolean, false: storage is permanently disabled in the device (possible?!)
+     */
+    @Override
+    protected boolean resolveSupport(Context context) {
+
+        List<String> volumes = getAvailableVolumes(context);
+        return !volumes.isEmpty();
+    }
+
+    /* ----------------------------- Requirements & Permissions --------------------------------- */
+
+    @Override
+    public List<Requirement> getRequirements() {
+
+        List<Requirement> requirements = Collections.singletonList(
+                Requirement.BASE_PATH_WRITABLE
+        );
+
+        if (SDK_INT < ANDROID_SCOPED_STORAGE_VERSION) {
+            requirements.add(Requirement.PERMISSIONS);
+        }
+
+        return requirements;
+    }
+
+    @Override
+    protected boolean hasAllRequirements(Context context) {
+
+        List<Requirement> requirements = getRequirements();
+
+        // permissions
+        boolean resPerms = true;
+        if (requirements.contains(Requirement.PERMISSIONS)) {
+            resPerms = hasAllPermissions(context);
+        }
+
+        // writable base path
+        boolean resBasePathWritable = true;
+        if (requirements.contains(Requirement.BASE_PATH_WRITABLE)) {
+            resBasePathWritable = canWriteBasePath(context);
+        }
+
+        return resPerms && resBasePathWritable;
+    }
+
+    private boolean canWriteBasePath(Context context) {
+
+        return testTargetPathWritable(resolveBaseWorkingPath(context));
+    }
+
+    @Override
+    protected void resolveRequirements(Context context) {
+
+        List<Requirement> requirements = getRequirements();
+
+        // permissions
+        if (requirements.contains(Requirement.PERMISSIONS)) {
+            if (!hasAllPermissions(context)) {
+                resolvePermissions();
+                return;
+            }
+        }
+
+        // writable base path
+        if (requirements.contains(Requirement.BASE_PATH_WRITABLE)) {
+            if (!canWriteBasePath(context)) {
+                resolveWriteBasePath(context);
+            }
+        }
+    }
+
+    private void resolveWriteBasePath(Context context) {
+
+
+        if (SDK_INT < ANDROID_SCOPED_STORAGE_VERSION || mRequirementRequestListener == null) {
+
+            Log.w(TAG, "Not supported Android version or null activity result launcher");
+            return;
+        }
+
+        List<String> paths = getAvailableVolumes(context);
+        File suggestedPath = new File(paths.get(0), BASE_STORAGE_PATH);
+
+        // Prompt user for a base path in higher versions of Android:
+        // Choose a directory using the system's file picker.
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+
+        // Put the tag of current manager for later resolutions
+        intent.putExtra(KEY_INTENT_ACTIVITY_LAUNCHER, TAG);
+
+        // Optionally, specify a URI for the directory that should be opened in
+        // the system file picker when it loads.
+        intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, Uri.fromFile(suggestedPath));
+
+        Log.d(TAG, "Requesting a base path from user");
+        mRequirementRequestListener.requestResolution(intent);
+    }
+
+    @Override
+    public void onActivityResult(Context context, ActivityResult result) {
+
+        Intent resultData = result.getData();
+
+        if (resultData == null) {
+            Log.w(TAG, "Result intent is null");
+            return;
+        }
+
+        if (resultData.getAction().equals(Intent.ACTION_OPEN_DOCUMENT_TREE)) {
+            if (result.getResultCode() == Activity.RESULT_OK) {
+
+                // The result data contains a URI for the document or directory that
+                // the user selected.
+                Uri uri = resultData.getData();
+                String uriAbsPath = convertUriToPath(uri);
+                Log.d(TAG, "The permitted path: " + uriAbsPath);
+
+                // save base path
+                saveBasePath(context, uriAbsPath);
+            }
+        }
+    }
+
+    @Override
+    public List<String> getPermissions() {
+
+        if (SDK_INT >= ANDROID_SCOPED_STORAGE_VERSION) {
+            return new ArrayList<>();
+        }
+
+        return Collections.singletonList(
+                Manifest.permission.WRITE_EXTERNAL_STORAGE
+                // Manifest.permission.READ_EXTERNAL_STORAGE,
+        );
+    }
+
+    // deprecated
+    public static boolean isStoragePermission(String qPerm) {
+
+        if (SDK_INT >= ANDROID_SCOPED_STORAGE_VERSION) {
+            return false;
+        }
+
+        return qPerm.equals(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+    }
+
+    // deprecated
+    public static boolean checkManageAllFilesPermission(Context context) {
+
+        if (SDK_INT >= ANDROID_SCOPED_STORAGE_VERSION) {
+            return Environment.isExternalStorageManager();
+        }
+        else {
+            String[] PERMISSIONS = {Manifest.permission.WRITE_EXTERNAL_STORAGE};
+            return MyPermissionManager.hasAllPermissions(context, PERMISSIONS, KEY_STORAGE_PERMISSION);
+        }
+    }
+
+    /* ------------------------------------ Availability ---------------------------------------- */
+
+    /* --------------------------------------- State -------------------------------------------- */
+
+    @Override
+    protected boolean hasCheckedSensors() {
+        return true;
+    }
+
+    /* -------------------------------------- Lifecycle ----------------------------------------- */
 
     @Override
     protected void init(Context context) {}
@@ -102,130 +269,10 @@ public class MyStorageManager extends MyBaseManager {
         }
     }
 
-    /*============================== Permissions & Availability ==================================*/
+    /* -------------------------------------- Resources ----------------------------------------- */
 
     @Override
-    public void checkAvailability(Context appContext) {
-
-        mState = StorageState.NOT_AVAILABLE;
-
-        // Android 10+ uses scoped storage -> no permission required
-        if (SDK_INT >= ANDROID_SCOPED_STORAGE_VERSION) {
-
-            // if already asked for base path, storage is available
-            String basePath = getSavedBasePath(appContext);
-            if (testTargetPathWritable(basePath)) {
-                mState = StorageState.AVAILABLE;
-            }
-            else {
-                mState = StorageState.NEED_PATH_REQ;
-            }
-        }
-        else {
-            // in older versions, check the permissions
-            if (checkManageAllFilesPermission(appContext)) {
-
-                List<String> listWritablePaths = getAvailableVolumes(appContext);
-                if (listWritablePaths.size() > 0) {
-                    mState = StorageState.AVAILABLE;
-                }
-            }
-            else {
-                mState = StorageState.NEED_PERMS;
-            }
-        }
-    }
-
-    @Override
-    public boolean isAvailable() {
-        return mState == StorageState.AVAILABLE;
-    }
-
-    @Override
-    public void resolveAvailability(Context appContext) {
-
-        if (mState.equals(StorageState.NEED_PATH_REQ) && mActivityResultLauncher != null) {
-            this.requestBasePath(appContext, mActivityResultLauncher);
-        }
-        else if (mState.equals(StorageState.NEED_PERMS) && mPermsLauncher != null) {
-            this.requestPermissions(mPermsLauncher);
-        }
-    }
-
-    public void requestBasePath(Context appContext, ActivityResultLauncher<Intent> mDirSelLauncher) {
-
-        if (SDK_INT >= ANDROID_SCOPED_STORAGE_VERSION) {
-
-            List<String> paths = getAvailableVolumes(appContext);
-            File suggestedPath = new File(paths.get(0), BASE_STORAGE_PATH);
-
-            // Prompt user for a base path in higher versions of Android:
-            // Choose a directory using the system's file picker.
-            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-
-            // Optionally, specify a URI for the directory that should be opened in
-            // the system file picker when it loads.
-            intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, Uri.fromFile(suggestedPath));
-
-            Log.d(TAG, "Requesting a base path from user");
-            mDirSelLauncher.launch(intent);
-        }
-    }
-
-    public void requestPermissions(ActivityResultLauncher<String[]> permsLauncher) {
-
-        permsLauncher.launch(getPermissions());
-    }
-
-    public static boolean isStoragePermission(String qperm) {
-
-        boolean res = false;
-
-        for (String perm : PERMISSIONS) {
-
-            if (perm.equals(qperm)) {
-                res = true;
-                break;
-            }
-        }
-
-        return res;
-    }
-
-    public static boolean checkManageAllFilesPermission(Context context) {
-
-        if (SDK_INT >= ANDROID_SCOPED_STORAGE_VERSION) {
-            return Environment.isExternalStorageManager();
-        } else {
-            return MyPermissionManager.hasAllPermissions(context, PERMISSIONS, KEY_STORAGE_PERMISSION);
-        }
-    }
-
-    @Override
-    public void onPermissionsResult(Context context, Map<String, Boolean> permissions) {
-
-        boolean res = true;
-        for (String perm : permissions.keySet()) {
-
-            Boolean permitted = permissions.get(perm);
-            if (permitted == null || !permitted) {
-                // no removal problem because removing from another list
-                res = false;
-                break;
-            }
-        }
-        if (res) {
-            checkAvailability(context);
-        }
-    }
-
-    @Override
-    public void updateState(Context context) {
-
-    }
-
-    @Override
-    public List<MySensorGroup> getSensorRequirements(Context context) {
+    public List<MySensorGroup> getSensorGroups(Context context) {
 
         if (mlSensorGroup != null) {
             return mlSensorGroup;
@@ -233,78 +280,21 @@ public class MyStorageManager extends MyBaseManager {
 
         ArrayList<MySensorGroup> sensorGroups = new ArrayList<>();
         ArrayList<MySensorInfo> sensors = new ArrayList<>();
-        ArrayList<Requirement> reqs = new ArrayList<>();
-        ArrayList<String> perms = new ArrayList<>();
-
-        if (SDK_INT < ANDROID_SCOPED_STORAGE_VERSION) {
-
-            reqs = new ArrayList<>(Collections.singletonList(Requirement.PERMISSIONS));
-            perms = new ArrayList<>(Arrays.asList(PERMISSIONS));
-        }
 
         MySensorGroup storeGrp = new MySensorGroup(MySensorGroup.getNextGlobalId(),
-                SensorType.TYPE_STORAGE, "Storage", sensors, reqs, perms);
+                SensorType.TYPE_STORAGE, "Storage", sensors);
         sensorGroups.add(storeGrp);
 
         return sensorGroups;
     }
 
-    @Override
-    public void onActivityResult(Context context, ActivityResult result) {
-
-        Log.i(TAG, "Back from select dir activity, result code: "+result.getResultCode());
-
-        if (result.getResultCode() == Activity.RESULT_OK) {
-
-            // The result data contains a URI for the document or directory that
-            // the user selected.
-            Intent resultData = result.getData();
-            if (resultData != null) {
-                Uri uri = resultData.getData();
-                String uriAbsPath = convertUriToPath(uri);
-                Log.i(TAG, "The permitted path: " + uriAbsPath);
-
-                // save base path
-                saveBasePath(context, uriAbsPath);
-
-                // update storage state
-                //mState = StorageState.AVAILABLE;
-                checkAvailability(context);
-            }
-        }
-    }
-
-    /*=================================== Lifecycle & State ======================================*/
+    /* ----------------------------------- Message Passing -------------------------------------- */
 
     @Override
-    public void start() {
-
-    }
+    protected Map<Integer, StorageInfo> initStorageChannels() { return new HashMap<>(); }
 
     @Override
-    public void stop() {
-
-    }
-
-    /*======================================== Helpers ===========================================*/
-
-    public static String getTimePrefix() {
-        // also 'SSS' ?
-        return new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.US).format(new Date());
-    }
-
-    public static String getStorageRootDir(String uriPath) {
-
-        if (uriPath.contains("primary")) {
-            return "/storage/self/";
-        }
-        return "/storage/";
-    }
-
-    public static String convertUriToPath(Uri uri) {
-
-        return getStorageRootDir(uri.getPath())+uri.getLastPathSegment().replace(':', '/');
-    }
+    protected void openStorageChannels() {}
 
     /*======================================== Storage ===========================================*/
 
@@ -380,13 +370,13 @@ public class MyStorageManager extends MyBaseManager {
         return null;
     }
 
-    public String resolveFilePath(Context appContext, String[] folders, String fileName) {
+    public String resolveFilePath(Context context, String[] folders, String fileName) {
 
         // Resolve base working path
-        String basePath = resolveBaseWorkingPath(appContext);
+        String basePath = resolveBaseWorkingPath(context);
         String fullPath = null;
 
-        if (this.isAvailable() && basePath != null) {
+        if (this.isAvailable(context) && basePath != null) {
 
             File lastDir = new File(basePath);
             if (lastDir.exists() || lastDir.mkdir()) {
@@ -435,9 +425,9 @@ public class MyStorageManager extends MyBaseManager {
     }
 
 
-    public int subscribeStorageChannel(String path, boolean append) {
+    public int subscribeStorageChannel(Context context, String path, boolean append) {
 
-        if (!this.isAvailable()) {
+        if (!this.isAvailable(context)) {
             return -1;
         }
 
@@ -447,9 +437,9 @@ public class MyStorageManager extends MyBaseManager {
         return newId;
     }
 
-    public void publishMessage(int id, String msg) {
+    public void publishMessage(Context context, int id, String msg) {
 
-        if (this.isAvailable()) {
+        if (this.isAvailable(context)) {
             StorageHandle store = mMapStorage.get(id);
             if (store != null) {
                 store.write(msg);
@@ -457,9 +447,9 @@ public class MyStorageManager extends MyBaseManager {
         }
     }
 
-    public String getFullFilePath(int id) {
+    public String getFullFilePath(Context context, int id) {
 
-        if (this.isAvailable()) {
+        if (this.isAvailable(context)) {
             StorageHandle store = mMapStorage.get(id);
             if (store != null) {
                 return store.getFullPath();
@@ -469,9 +459,9 @@ public class MyStorageManager extends MyBaseManager {
         return "";
     }
 
-    public void resetStorageChannel(int id) {
+    public void resetStorageChannel(Context context, int id) {
 
-        if (this.isAvailable()) {
+        if (this.isAvailable(context)) {
             StorageHandle store = mMapStorage.get(id);
             if (store != null) {
                 store.resetContent();
@@ -479,9 +469,9 @@ public class MyStorageManager extends MyBaseManager {
         }
     }
 
-    public void removeChannel(int id) {
+    public void removeChannel(Context context, int id) {
 
-        if (this.isAvailable()) {
+        if (this.isAvailable(context)) {
             StorageHandle store = mMapStorage.get(id);
             if (store != null) {
                 store.close();
@@ -490,14 +480,27 @@ public class MyStorageManager extends MyBaseManager {
         }
     }
 
-    /*=================================== Types & Interfaces =====================================*/
+    /*======================================== Helpers ===========================================*/
 
-    public enum StorageState {
-        NOT_AVAILABLE,
-        NEED_PATH_REQ,
-        NEED_PERMS,
-        AVAILABLE
+    public static String getTimePrefix() {
+        // also 'SSS' ?
+        return new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.US).format(new Date());
     }
+
+    public static String getStorageRootDir(String uriPath) {
+
+        if (uriPath.contains("primary")) {
+            return "/storage/self/";
+        }
+        return "/storage/";
+    }
+
+    public static String convertUriToPath(Uri uri) {
+
+        return getStorageRootDir(uri.getPath())+uri.getLastPathSegment().replace(':', '/');
+    }
+
+    /*=================================== Types & Interfaces =====================================*/
 
     private static class StorageHandle {
 
@@ -550,6 +553,43 @@ public class MyStorageManager extends MyBaseManager {
         private final File mFile;
         private final boolean mbAppend;
         private FileOutputStream mOs;
+    }
+
+    public static class StorageInfo {
+
+        private final List<String> mlFolders;
+        private final String mFileName;
+
+        private int channelId;
+
+        public StorageInfo(List<String> folders, String fileName) {
+
+            mlFolders = folders;
+            mFileName = fileName;
+            channelId = -1;
+        }
+
+        /*public StorageInfo(List<String> folders, String fileName, int channel) {
+
+            this(folders, fileName);
+            channelId = channel;
+        }*/
+
+        public List<String> getFolders() {
+            return mlFolders;
+        }
+
+        public String getFileName() {
+            return mFileName;
+        }
+
+        public int getChannelId() {
+            return channelId;
+        }
+
+        public void setChannelId(int channelId) {
+            this.channelId = channelId;
+        }
     }
 
     public interface StorageChannel {

@@ -2,6 +2,7 @@ package com.dayani.m.roboplatform.utils;
 
 import android.content.Context;
 import android.util.Log;
+import android.util.Pair;
 
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
@@ -17,15 +18,15 @@ import java.util.Map;
 
 public class SensorsViewModel extends ViewModel {
 
+    public static class SensorManagerGroup extends HashMap<Integer, Pair<MyBaseManager, MySensorGroup>> {}
+
     /* -------------------------------------- Variables ----------------------------------------- */
 
     private static final String TAG = SensorsViewModel.class.getSimpleName();
 
     private final List<MyBaseManager> mlManagers;
 
-    private final MutableLiveData<Map<Integer, MySensorGroup>> mSensors;
-    private final MutableLiveData<List<Requirement>> mRequirements;
-    private final MutableLiveData<List<String>> mPermissions;
+    private final MutableLiveData<SensorManagerGroup> mSensors;
 
     private final MutableLiveData<String> mDsPath;
 
@@ -34,13 +35,7 @@ public class SensorsViewModel extends ViewModel {
     public SensorsViewModel() {
 
         mSensors = new MutableLiveData<>();
-        mSensors.setValue(new HashMap<>());
-
-        mRequirements = new MutableLiveData<>();
-        mRequirements.setValue(new ArrayList<>());
-
-        mPermissions = new MutableLiveData<>();
-        mPermissions.setValue(new ArrayList<>());
+        mSensors.setValue(new SensorManagerGroup());
 
         mDsPath = new MutableLiveData<>();
 
@@ -51,11 +46,17 @@ public class SensorsViewModel extends ViewModel {
 
     public List<MySensorGroup> getSensorGroups() {
 
-        Map<Integer, MySensorGroup> sensorsMap = mSensors.getValue();
+        SensorManagerGroup sensorsMap = mSensors.getValue();
         List<MySensorGroup> sensors = new ArrayList<>();
 
         if (sensorsMap != null) {
-            sensors = new ArrayList<>(sensorsMap.values());
+
+            for (Pair<MyBaseManager, MySensorGroup> managerSensorPair : sensorsMap.values()) {
+
+                if (managerSensorPair != null) {
+                    sensors.add(managerSensorPair.second);
+                }
+            }
         }
         else {
             Log.w(TAG, "Sensors map is null, forgot to initialize it?");
@@ -65,37 +66,39 @@ public class SensorsViewModel extends ViewModel {
     }
 
     public MutableLiveData<List<Requirement>> getRequirements() {
-        return mRequirements;
+
+        List<Requirement> mRequirements = new ArrayList<>();
+
+        for (MyBaseManager manager : mlManagers) {
+            mRequirements.addAll(manager.getRequirements());
+        }
+
+        return new MutableLiveData<>(mRequirements);
     }
 
     public MutableLiveData<List<String>> getPermissions() {
-        return mPermissions;
+
+        List<String> perms = new ArrayList<>();
+
+        for (MyBaseManager manager : mlManagers) {
+            perms.addAll(manager.getPermissions());
+        }
+
+        return new MutableLiveData<>(perms);
     }
 
-    private void updateSensorGroups(List<MySensorGroup> sensorGrps) {
+    private void updateSensorGroups(MyBaseManager manager, List<MySensorGroup> sensorGrps) {
 
-            Map<Integer, MySensorGroup> mapSensor = mSensors.getValue();
+            SensorManagerGroup mapSensor = mSensors.getValue();
             if (mapSensor == null) {
-                mapSensor = new HashMap<>();
+                mapSensor = new SensorManagerGroup();
             }
 
             for (MySensorGroup sensor : sensorGrps) {
-                mapSensor.put(sensor.getId(), sensor);
+                mapSensor.put(sensor.getId(), new Pair<>(manager, sensor));
             }
 
             mSensors.setValue(mapSensor);
-    }
-
-    private void updateRequirements(List<MySensorGroup> sensors) {
-
-        List<Requirement> requirements = MySensorGroup.getUniqueRequirements(sensors);
-        mRequirements.setValue(requirements);
-    }
-
-    private void updatePermissions(List<MySensorGroup> sensors) {
-
-        List<String> perms = MySensorGroup.getUniquePermissions(sensors);
-        mPermissions.setValue(perms);
     }
 
     public MutableLiveData<String> getDsPath() {
@@ -122,12 +125,50 @@ public class SensorsViewModel extends ViewModel {
 
         MySensorGroup sensorGroup = null;
 
-        Map<Integer, MySensorGroup> sensorGrps = mSensors.getValue();
-        if (sensorGrps != null) {
-            sensorGroup = sensorGrps.get(grpId);
+        SensorManagerGroup sensorGrps = mSensors.getValue();
+        if (sensorGrps != null && sensorGrps.containsKey(grpId)) {
+
+            Pair<MyBaseManager, MySensorGroup> managerSensorPair = sensorGrps.get(grpId);
+            if (managerSensorPair != null) {
+                sensorGroup = managerSensorPair.second;
+            }
         }
 
         return sensorGroup;
+    }
+
+    public MyBaseManager getManagerBySensorGroup(int grpId) {
+
+        MyBaseManager manager = null;
+
+        SensorManagerGroup sensorGrps = mSensors.getValue();
+        if (sensorGrps != null && sensorGrps.containsKey(grpId)) {
+
+            Pair<MyBaseManager, MySensorGroup> managerSensorPair = sensorGrps.get(grpId);
+            if (managerSensorPair != null) {
+                manager = managerSensorPair.first;
+            }
+        }
+
+        return manager;
+    }
+
+    public MySensorInfo getManagerSensor(Context context, String managerClassName, int grpId, int sensorId) {
+
+        MySensorGroup sensorGroup = getManagerSensorGroup(context, managerClassName, grpId);
+        if (sensorGroup != null) {
+            return sensorGroup.getSensorInfo(sensorId);
+        }
+        return null;
+    }
+
+    public MySensorGroup getManagerSensorGroup(Context context, String managerClassName, int grpId) {
+
+        MyBaseManager manager = getManager(managerClassName);
+        if (manager != null) {
+            return MySensorGroup.findSensorGroupById(manager.getSensorGroups(context), grpId);
+        }
+        return null;
     }
 
     public MyBaseManager getManager(String className) {
@@ -145,14 +186,8 @@ public class SensorsViewModel extends ViewModel {
         mlManagers.add(manager);
 
         // update sensors
-        List<MySensorGroup> sensorGroups = manager.getSensorRequirements(context);
-        updateSensorGroups(sensorGroups);
-
-        // update requirements
-        updateRequirements(sensorGroups);
-
-        // update permissions
-        updatePermissions(sensorGroups);
+        List<MySensorGroup> sensorGroups = manager.getSensorGroups(context);
+        updateSensorGroups(manager, sensorGroups);
     }
 
     /* ----------------------------------- State Management ------------------------------------- */
@@ -171,40 +206,20 @@ public class SensorsViewModel extends ViewModel {
             // update each manager
             manager.updateState(context);
 
-            List<MySensorGroup> sensorGroups = manager.getSensorRequirements(context);
+            List<MySensorGroup> sensorGroups = manager.getSensorGroups(context);
 
             // update sensors
-            updateSensorGroups(sensorGroups);
-
-            // update requirements
-            updateRequirements(sensorGroups);
-
-            // update permissions
-            updatePermissions(sensorGroups);
+            updateSensorGroups(manager, sensorGroups);
         }
     }
 
     private void deleteState() {
 
         // remove sensors
-        Map<Integer, MySensorGroup> sensorsMap = mSensors.getValue();
+        SensorManagerGroup sensorsMap = mSensors.getValue();
         if (sensorsMap != null) {
             sensorsMap.clear();
             mSensors.setValue(sensorsMap);
-        }
-
-        // remove requirements
-        List<Requirement> requirements = mRequirements.getValue();
-        if (requirements != null) {
-            requirements.clear();
-            mRequirements.setValue(requirements);
-        }
-
-        // remove permissions
-        List<String> perms = mPermissions.getValue();
-        if (perms != null) {
-            perms.clear();
-            mPermissions.setValue(perms);
         }
     }
 
@@ -212,11 +227,9 @@ public class SensorsViewModel extends ViewModel {
 
     public String printState() {
 
-        if (mSensors.getValue() != null & mRequirements.getValue() != null && mPermissions.getValue() != null) {
+        if (mSensors.getValue() != null) {
             return "Size of managers: " + mlManagers.size() + ", Size of sensors: " +
-                    mSensors.getValue().size() + ", Size of requirements: " +
-                    mRequirements.getValue().size() + ", Size of permissions: " +
-                    mPermissions.getValue().size() + ", Ds path: " + mDsPath.getValue();
+                    mSensors.getValue().size() + ", Ds path: " + mDsPath.getValue();
         }
         return "";
     }

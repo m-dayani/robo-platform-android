@@ -33,7 +33,7 @@ import com.dayani.m.roboplatform.utils.SensorsContainer;
 
 
 public class RecordSensorsActivity_old extends AppCompatActivity
-        implements View.OnClickListener, ActivityRequirements,
+        implements View.OnClickListener,
         MyUSBManager.OnUsbConnectionListener {
 
     private static final String TAG = "RecordSensorsActivity";

@@ -284,7 +284,7 @@ public class RequirementsActivity extends AppCompatActivity
     }
 
     private boolean isLocationSettingsGood() {
-        return mLocation.checkAvailability();
+        return false; //mLocation.checkAvailability(this);
     }
 
     /*private void testUsbAvailability() {
