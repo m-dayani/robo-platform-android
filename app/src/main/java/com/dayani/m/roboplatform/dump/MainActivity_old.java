@@ -31,7 +31,7 @@ import com.dayani.m.roboplatform.R;
 import com.dayani.m.roboplatform.RequirementsFragment;
 import com.dayani.m.roboplatform.SettingsActivity;
 import com.dayani.m.roboplatform.utils.AppGlobals;
-import com.dayani.m.roboplatform.utils.MyFragmentInteraction;
+import com.dayani.m.roboplatform.utils.interfaces.MyFragmentInteraction;
 
 
 public class MainActivity_old extends AppCompatActivity

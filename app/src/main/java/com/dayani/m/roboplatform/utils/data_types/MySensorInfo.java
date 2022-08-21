@@ -1,4 +1,4 @@
-package com.dayani.m.roboplatform.utils;
+package com.dayani.m.roboplatform.utils.data_types;
 /*
  * If a sensor is not available, don't add it to the list (sensor availability means the device
  * has it all the time and can be determined initially)

@@ -1,4 +1,4 @@
-package com.dayani.m.roboplatform.utils;
+package com.dayani.m.roboplatform.utils.adapters;
 
 import android.content.Context;
 import android.util.Log;
@@ -14,8 +14,11 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 
 import com.dayani.m.roboplatform.R;
+import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
+import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
 
 import java.util.List;
+
 
 public class SensorsAdapter extends ArrayAdapter<MySensorGroup> {
 
@@ -67,10 +70,10 @@ public class SensorsAdapter extends ArrayAdapter<MySensorGroup> {
 
                 View vSensor = LayoutInflater.from(getContext()).inflate(R.layout.sensor_item, par, false);
 
-                CheckBox chbxSensorItem = vSensor.findViewById(R.id.chbx_sensor_item);
-                chbxSensorItem.setText(sensor.getName());
-                chbxSensorItem.setChecked(sensor.isChecked());
-                chbxSensorItem.setOnCheckedChangeListener((compoundButton, b) -> {
+                CheckBox chBxSensorItem = vSensor.findViewById(R.id.chbx_sensor_item);
+                chBxSensorItem.setText(sensor.getName());
+                chBxSensorItem.setChecked(sensor.isChecked());
+                chBxSensorItem.setOnCheckedChangeListener((compoundButton, b) -> {
 
                     if (mSensorItemListener != null) {
                         mSensorItemListener.onSensorCheckedListener(compoundButton, currSensorObj.getId(), sensor.getId(), b);
@@ -80,8 +83,8 @@ public class SensorsAdapter extends ArrayAdapter<MySensorGroup> {
                     }
                 });
 
-                ImageButton ibtnSensorInfo = vSensor.findViewById(R.id.btn_sensor_details);
-                ibtnSensorInfo.setOnClickListener(view -> {
+                ImageButton iBtnSensorInfo = vSensor.findViewById(R.id.btn_sensor_details);
+                iBtnSensorInfo.setOnClickListener(view -> {
 
                     if (mSensorItemListener != null) {
                         mSensorItemListener.onSensorInfoClickListener(view, currSensorObj.getId(), sensor.getId());

@@ -18,20 +18,23 @@ package com.dayani.m.roboplatform.managers;
 
 
 import android.content.Context;
+import android.content.Intent;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
 
 import androidx.activity.result.ActivityResult;
 
-import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
-import com.dayani.m.roboplatform.utils.ActivityRequirements.RequirementResolution;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.RequirementResolution;
 import com.dayani.m.roboplatform.utils.AppGlobals;
-import com.dayani.m.roboplatform.utils.MySensorGroup;
+import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
 import com.dayani.m.roboplatform.managers.MyStorageManager.StorageInfo;
-import com.dayani.m.roboplatform.managers.MyStorageManager.StorageChannel;
-import com.dayani.m.roboplatform.utils.MySensorInfo;
+import com.dayani.m.roboplatform.utils.interfaces.MessageChannel;
+import com.dayani.m.roboplatform.utils.interfaces.MessageChannel.MyMessage;
+import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -42,10 +45,13 @@ public abstract class MyBaseManager {
 
     private static final String TAG = MyBaseManager.class.getSimpleName();
 
-    protected static final String KEY_INTENT_ACTIVITY_LAUNCHER =
-            AppGlobals.PACKAGE_BASE_NAME + "key_intent_activity_launcher";
+    public static final String KEY_INTENT_ACTIVITY_LAUNCHER =
+            AppGlobals.PACKAGE_BASE_NAME + ".key_intent_activity_launcher";
 
-    protected final boolean mIsSupported;
+    protected final boolean mbIsSupported;
+    // requirements consist of other booleans
+    protected boolean mbIsPermitted;
+    protected boolean mbIsChecked;
 
     protected boolean mIsProcessing;
 
@@ -55,7 +61,7 @@ public abstract class MyBaseManager {
     protected final List<MySensorGroup> mlSensorGroup;
 
     protected RequirementResolution mRequirementRequestListener;
-    protected StorageChannel mStorageListener;
+    protected final List<MessageChannel<?>> mlChannelTransactions;
 
     protected final Map<Integer, StorageInfo> mmStorageChannels;
 
@@ -63,39 +69,45 @@ public abstract class MyBaseManager {
 
     public MyBaseManager(Context context) {
 
-        mIsSupported = resolveSupport(context);
+        mbIsSupported = resolveSupport(context);
         mIsProcessing = false;
+        mlChannelTransactions = new ArrayList<>();
 
         if (context instanceof RequirementResolution) {
             setRequirementResolutionListener((RequirementResolution) context);
         }
-        if (context instanceof StorageChannel) {
-            setStorageListener((StorageChannel) context);
+        if (context instanceof MessageChannel) {
+            addChannelTransaction((MessageChannel<?>) context);
         }
 
         mmStorageChannels = initStorageChannels();
         mlSensorGroup = getSensorGroups(context);
+
+        //updateAvailabilityAndCheckedSensors(context);
     }
 
     // Support
 
     protected abstract boolean resolveSupport(Context context);
-    protected boolean isSupported() { return mIsSupported; }
+    protected boolean isSupported() { return mbIsSupported; }
 
     // Requirements & Permissions
 
-    public abstract List<Requirement> getRequirements();
-    protected boolean hasAllRequirements(Context context) {
+    protected abstract List<Requirement> getRequirements();
+
+    public boolean passedAllRequirements() { return hasAllPermissions(); }
+    protected void updateRequirementsState(Context context) {
 
         List<Requirement> requirements = getRequirements();
-
-        // permissions
-        boolean resPerms = true;
-        if (requirements.contains(Requirement.PERMISSIONS)) {
-            resPerms = hasAllPermissions(context);
+        if (requirements == null || requirements.isEmpty()) {
+            Log.d(TAG, "No requirements to update");
+            return;
         }
 
-        return resPerms;
+        // permissions
+        if (requirements.contains(Requirement.PERMISSIONS)) {
+            updatePermissionsState(context);
+        }
     }
 
     // respond requirements
@@ -103,20 +115,39 @@ public abstract class MyBaseManager {
     // request requirements
     protected void resolveRequirements(Context context) {
 
+        List<Requirement> requirements = getRequirements();
+        if (requirements == null || requirements.isEmpty()) {
+            Log.d(TAG, "No requirements to resolve");
+            return;
+        }
+
         // resolve permissions
-        resolvePermissions();
+        if (requirements.contains(Requirement.PERMISSIONS)) {
+            resolvePermissions();
+        }
     }
 
-    public abstract List<String> getPermissions();
-    protected boolean hasAllPermissions(Context context) {
+    protected abstract List<String> getPermissions();
 
-        String[] perms = getPermissions().toArray(new String[0]);
-        return MyPermissionManager.hasAllPermissions(context, perms);
+    public boolean hasAllPermissions() { return mbIsPermitted; }
+    public void updatePermissionsState(Context context) {
+
+        List<String> lPerms = getPermissions();
+        if (lPerms != null && !lPerms.isEmpty()) {
+            String[] perms = lPerms.toArray(new String[0]);
+            mbIsPermitted = MyPermissionManager.hasAllPermissions(context, perms);
+        }
+        else {
+            mbIsPermitted = true;
+        }
     }
 
     // respond permissions
     // Nothing needs to be done! (because if permitted hasAllPermissions yields true)
-    public void onPermissionsResult(Context context, Map<String, Boolean> permissions) {}
+    public void onPermissionsResult(Context context, Map<String, Boolean> permissions) {
+
+        updatePermissionsState(context);
+    }
     // request permissions
     protected void resolvePermissions() {
 
@@ -133,16 +164,25 @@ public abstract class MyBaseManager {
         mRequirementRequestListener = requestListener;
     }
 
+    public void onBroadcastReceived(Context context, Intent intent) {}
+
     // Availability
 
-    public boolean isAvailable(Context context) {
+    public boolean hasCheckedSensors() {
+        return mbIsChecked;
+    }
+    public void updateCheckedSensors() {
+        mbIsChecked = MySensorGroup.countCheckedSensors(mlSensorGroup) > 0;
+    }
 
-        boolean resSupport = isSupported();
-        boolean resRequirements = hasAllRequirements(context);
-        boolean resPerms = hasAllPermissions(context);
-        boolean resChecked = hasCheckedSensors();
+    public boolean isAvailableAndChecked() { return isAvailable() && hasCheckedSensors(); }
+    public boolean isAvailable() {
+        return isSupported() && passedAllRequirements();
+    }
+    public void updateAvailabilityAndCheckedSensors(Context context) {
 
-        return resSupport && resRequirements && resPerms && resChecked;
+        updateRequirementsState(context);
+        updateCheckedSensors();
     }
     public void resolveAvailability(Context context) {
 
@@ -160,7 +200,7 @@ public abstract class MyBaseManager {
     // Lifecycle
 
     protected void init(Context context) {}
-    public void clean() {}
+    public void clean(Context context) {}
 
     public void start(Context context) {
         if (!isProcessing()) {
@@ -177,14 +217,14 @@ public abstract class MyBaseManager {
 
     public boolean isProcessing() { return mIsProcessing; }
 
-    public void updateState(Context context) {}
-    protected void updateCheckedSensors(Context context) {
+    //public void updateState(Context context) {}
+    public void updateCheckedSensorsWithAvailability() {
 
         if (mlSensorGroup == null) {
             return;
         }
 
-        final boolean isAvailable = isAvailable(context);
+        final boolean isAvailable = isAvailable();
 
         for (MySensorGroup sensorGroup : mlSensorGroup) {
             if (sensorGroup != null) {
@@ -195,11 +235,6 @@ public abstract class MyBaseManager {
                 }
             }
         }
-    }
-
-    protected boolean hasCheckedSensors() {
-
-        return MySensorGroup.countCheckedSensors(mlSensorGroup) > 0;
     }
 
     // Resources
@@ -237,7 +272,7 @@ public abstract class MyBaseManager {
 
     // Message passing
     protected abstract Map<Integer, StorageInfo> initStorageChannels();
-    protected abstract void openStorageChannels();
+    protected abstract void openStorageChannels(Context context);
 
     protected int getChannelId(int sensorId) {
 
@@ -253,16 +288,20 @@ public abstract class MyBaseManager {
 
         return -1;
     }
-    protected void writeStorageChannel(int sensorId, String msg) {
+    protected void publish(int sensorId, MyMessage msg) {
 
-        if (mStorageListener != null) {
-            mStorageListener.publishMessage(getChannelId(sensorId), msg);
+        if (mlChannelTransactions == null) {
+            return;
+        }
+
+        for (MessageChannel<?> channel : mlChannelTransactions) {
+            channel.publishMessage(getChannelId(sensorId), msg);
         }
     }
 
     protected void closeStorageChannels() {
 
-        if (mStorageListener == null || mmStorageChannels == null) {
+        if (mlChannelTransactions == null || mmStorageChannels == null) {
             return;
         }
 
@@ -270,19 +309,29 @@ public abstract class MyBaseManager {
 
             int chId = storageInfo.getChannelId();
             if (chId >= 0) {
-                mStorageListener.removeChannel(chId);
-                storageInfo.setChannelId(-1);
+                for (MessageChannel<?> channel : mlChannelTransactions) {
+
+                    channel.closeChannel(chId);
+                    storageInfo.setChannelId(-1);
+                }
             }
         }
     }
 
-    public void setStorageListener(StorageChannel storageListener) {
-        mStorageListener = storageListener;
+    public void addChannelTransaction(MessageChannel<?> channel) {
+
+        if (mlChannelTransactions != null) {
+            mlChannelTransactions.add(channel);
+        }
     }
 
     // Helpers
 
     public static MyBaseManager getManager(List<MyBaseManager> lManagers, String className) {
+
+        if (lManagers == null || className == null || className.isEmpty()) {
+            return null;
+        }
 
         for (MyBaseManager manager : lManagers) {
 
@@ -292,6 +341,11 @@ public abstract class MyBaseManager {
                 return manager;
             }
         }
+
         return null;
+    }
+
+    private void logMessage(String logMessage) {
+
     }
 }

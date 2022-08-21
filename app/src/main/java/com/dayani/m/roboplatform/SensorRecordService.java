@@ -27,9 +27,9 @@ import com.dayani.m.roboplatform.managers.MyLocationManager;
 import com.dayani.m.roboplatform.managers.MySensorManager;
 import com.dayani.m.roboplatform.managers.MyStateManager;
 import com.dayani.m.roboplatform.managers.MyStorageManager;
-import com.dayani.m.roboplatform.utils.FileLogger;
+import com.dayani.m.roboplatform.utils.loggers.FileLogger;
 import com.dayani.m.roboplatform.utils.android_gnss.GnssContainer;
-import com.dayani.m.roboplatform.utils.UiLogger;
+import com.dayani.m.roboplatform.utils.loggers.UiLogger;
 
 import java.io.File;
 

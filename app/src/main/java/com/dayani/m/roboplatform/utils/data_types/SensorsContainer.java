@@ -1,10 +1,10 @@
-package com.dayani.m.roboplatform.utils;
-
-import androidx.lifecycle.LiveData;
+package com.dayani.m.roboplatform.utils.data_types;
 
 import java.util.ArrayList;
 
-import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
+import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
 
 public class SensorsContainer {
 

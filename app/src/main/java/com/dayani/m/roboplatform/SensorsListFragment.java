@@ -17,12 +17,15 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.managers.MyStorageManager;
+import com.dayani.m.roboplatform.managers.MyStorageManager.StorageInfo;
 import com.dayani.m.roboplatform.utils.AppGlobals;
-import com.dayani.m.roboplatform.utils.MySensorGroup;
-import com.dayani.m.roboplatform.utils.MySensorGroup.SensorType;
-import com.dayani.m.roboplatform.utils.MySensorInfo;
-import com.dayani.m.roboplatform.utils.SensorsAdapter;
-import com.dayani.m.roboplatform.utils.SensorsViewModel;
+import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
+import com.dayani.m.roboplatform.utils.data_types.MySensorGroup.SensorType;
+import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
+import com.dayani.m.roboplatform.utils.adapters.SensorsAdapter;
+import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
+import com.dayani.m.roboplatform.utils.interfaces.MessageChannel.MyMessage;
+import com.dayani.m.roboplatform.utils.interfaces.StorageChannel;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +41,7 @@ public class SensorsListFragment extends Fragment implements View.OnClickListene
     private SensorsViewModel mVM_Sensors;
 
     private MyStorageManager mStorageManager;
-    private MyStorageManager.StorageChannel mStorageChannel;
+    private StorageChannel mStorageChannel;
     private int mCalibStorageId = -1;
 
     //private List<MyBaseManager> mlSensorManagers;
@@ -71,16 +74,10 @@ public class SensorsListFragment extends Fragment implements View.OnClickListene
         // get sensors view model object
         mVM_Sensors = new ViewModelProvider(activityContext).get(SensorsViewModel.class);
 
-        if (activityContext instanceof MyStorageManager.StorageChannel) {
-            mStorageChannel = (MyStorageManager.StorageChannel) activityContext;
-        }
-
         // retrieve storage manager
         mStorageManager = (MyStorageManager) RecordSensorsActivity.getOrCreateManager(
                 activityContext, mVM_Sensors, MyStorageManager.class.getSimpleName());
-
-//        mLocationManager = (MyLocationManager) RecordSensorsActivity.getOrCreateManager(
-//                activityContext, mVM_Sensors, MyLocationManager.class.getSimpleName());
+        mStorageChannel = mStorageManager;
     }
 
     @Override
@@ -105,6 +102,16 @@ public class SensorsListFragment extends Fragment implements View.OnClickListene
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+
+        // update checked sensors in case settings are changed
+        for (MyBaseManager manager : mVM_Sensors.getAllManagers()) {
+            manager.updateCheckedSensorsWithAvailability();
+        }
+    }
+
+    @Override
     public void onClick(View view) {
 
         int id = view.getId();
@@ -122,54 +129,56 @@ public class SensorsListFragment extends Fragment implements View.OnClickListene
 
     private void launchRecordingFrag() {
 
-        if (mStorageManager != null && mStorageManager.isAvailable(requireActivity())) {
+        if (isStorageManagerBad()) {
+            return;
+        }
 
-            startNewFragment(RecordingFragment.newInstance());
-        }
-        else if (mStorageManager != null) {
-
-            Log.d(TAG, "Storage manager is not available, request resolving the issues");
-            mStorageManager.resolveAvailability(requireActivity());
-        }
-        else {
-            Log.w(TAG, "Storage manager is not initialized");
-        }
+        startNewFragment(RecordingFragment.newInstance());
     }
 
     private void saveSensorsInfo() {
 
+        if (isStorageManagerBad() || mStorageChannel == null || mVM_Sensors == null) {
+            Log.w(TAG, "Cannot save sensor info, abort");
+            return;
+        }
+
         FragmentActivity context = requireActivity();
 
-        if (mStorageManager != null && mStorageManager.isAvailable(context) && mStorageChannel != null) {
+        if (mCalibStorageId < 0) {
 
-            if (mCalibStorageId < 0) {
-
-                Log.d(TAG, "Getting a storage channel for file: "+ CALIB_FILE_NAME);
-                mCalibStorageId = mStorageChannel.getStorageChannel(new ArrayList<>(), CALIB_FILE_NAME, false);
-            }
-
-            if (mVM_Sensors != null) {
-
-                // reset the contents before each write
-                mStorageChannel.resetChannel(mCalibStorageId);
-
-                List<MySensorGroup> sensors = mVM_Sensors.getSensorGroups();
-                sensors = MySensorGroup.filterSensorGroups(sensors, SensorType.TYPE_STORAGE);
-
-                mStorageChannel.publishMessage(mCalibStorageId, getAllSensorsInfo(sensors));
-
-                String fullPath = mStorageChannel.getFullFilePath(mCalibStorageId);
-                Toast.makeText(context, "Saved to: "+fullPath, Toast.LENGTH_SHORT).show();
-            }
-            else {
-                Log.w(TAG, "Sensors view model is null");
-            }
+            Log.d(TAG, "Getting a storage channel for file: "+ CALIB_FILE_NAME);
+            StorageInfo storageInfo = new StorageInfo(new ArrayList<>(), CALIB_FILE_NAME);
+            mCalibStorageId = mStorageChannel.openNewChannel(context, storageInfo);
         }
-        else if (mStorageManager != null) {
+
+        // reset the contents before each write
+        mStorageChannel.resetChannel(mCalibStorageId);
+
+        List<MySensorGroup> sensors = mVM_Sensors.getSensorGroups();
+        sensors = MySensorGroup.filterSensorGroups(sensors, SensorType.TYPE_STORAGE);
+
+        MyMessage info = new MyMessage(getAllSensorsInfo(sensors));
+        mStorageChannel.publishMessage(mCalibStorageId, info);
+
+        String fullPath = mStorageChannel.getFullFilePath(mCalibStorageId);
+        Toast.makeText(context, "Saved to: "+fullPath, Toast.LENGTH_SHORT).show();
+    }
+
+    private boolean isStorageManagerBad() {
+
+        if (mStorageManager == null) {
+            return true;
+        }
+
+        if (!mStorageManager.isAvailable()) {
 
             Log.d(TAG, "Storage manager is not available, request resolving the issues");
-            mStorageManager.resolveAvailability(context);
+            mStorageManager.resolveAvailability(requireActivity());
+            return true;
         }
+
+        return false;
     }
 
     /**
@@ -202,29 +211,30 @@ public class SensorsListFragment extends Fragment implements View.OnClickListene
         return sbSensorsInfo.toString();
     }
 
-    // TODO: Complete the implementation with other sensors
     @Override
     public void onSensorCheckedListener(View view, int grpId, int sensorId, boolean b) {
 
-        boolean changeChecked = true;
-        FragmentActivity context = requireActivity();
-
         MyBaseManager manager = mVM_Sensors.getManagerBySensorGroup(grpId);
-        if (manager != null && !manager.isAvailable(context)) {
 
-            // resolve availability
-            manager.resolveAvailability(context);
-            changeChecked = false;
-        }
+        if (manager != null) {
 
-        if (changeChecked) {
-            if (view instanceof CheckBox) {
-                ((CheckBox) view).setChecked(b);
+            if (!manager.isAvailable()) {
+
+                // resolve availability
+                manager.resolveAvailability(requireActivity());
+                updateCheckBox(view, false);
+                return;
             }
+
+            updateCheckBox(view, b);
             mVM_Sensors.getSensor(grpId, sensorId).setChecked(b);
-            // debugging
-//            Log.v(TAG, mVM_Sensors.getManagerSensor(requireActivity(),
-//                    MySensorGroup.class.getSimpleName(), grpId, sensorId).toString());
+        }
+    }
+
+    private void updateCheckBox(View view, boolean state) {
+
+        if (view instanceof CheckBox) {
+            ((CheckBox) view).setChecked(state);
         }
     }
 

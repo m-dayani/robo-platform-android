@@ -13,8 +13,8 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import com.dayani.m.roboplatform.R;
-import com.dayani.m.roboplatform.utils.ActivityRequirements;
-import com.dayani.m.roboplatform.utils.RequirementListRecyclerViewAdapter;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
+import com.dayani.m.roboplatform.utils.adapters.RequirementListRecyclerViewAdapter;
 
 import java.util.ArrayList;
 import java.util.Arrays;

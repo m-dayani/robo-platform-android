@@ -72,18 +72,15 @@ import android.widget.Toast;
 
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
-import com.dayani.m.roboplatform.utils.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.AppGlobals;
-import com.dayani.m.roboplatform.utils.MySensorGroup;
-import com.dayani.m.roboplatform.utils.MySensorInfo;
-import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
+import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
+import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;

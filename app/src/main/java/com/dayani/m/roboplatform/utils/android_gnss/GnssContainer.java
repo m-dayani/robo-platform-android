@@ -16,7 +16,7 @@ import android.os.SystemClock;
 
 import androidx.annotation.RequiresApi;
 
-import com.dayani.m.roboplatform.utils.UiLogger;
+import com.dayani.m.roboplatform.utils.loggers.UiLogger;
 
 import java.util.Arrays;
 import java.util.List;

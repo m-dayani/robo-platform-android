@@ -1,4 +1,4 @@
-package com.dayani.m.roboplatform.utils;
+package com.dayani.m.roboplatform.utils.view_models;
 
 import android.content.Context;
 import android.util.Log;
@@ -8,12 +8,13 @@ import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
 import com.dayani.m.roboplatform.managers.MyBaseManager;
-import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
+import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
+import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 
 public class SensorsViewModel extends ViewModel {
@@ -28,16 +29,12 @@ public class SensorsViewModel extends ViewModel {
 
     private final MutableLiveData<SensorManagerGroup> mSensors;
 
-    private final MutableLiveData<String> mDsPath;
-
     /* ------------------------------------ Construction ---------------------------------------- */
 
     public SensorsViewModel() {
 
         mSensors = new MutableLiveData<>();
         mSensors.setValue(new SensorManagerGroup());
-
-        mDsPath = new MutableLiveData<>();
 
         mlManagers = new ArrayList<>();
     }
@@ -65,24 +62,26 @@ public class SensorsViewModel extends ViewModel {
         return sensors;
     }
 
+    // deprecated
     public MutableLiveData<List<Requirement>> getRequirements() {
 
         List<Requirement> mRequirements = new ArrayList<>();
 
-        for (MyBaseManager manager : mlManagers) {
-            mRequirements.addAll(manager.getRequirements());
-        }
+//        for (MyBaseManager manager : mlManagers) {
+//            mRequirements.addAll(manager.getRequirements());
+//        }
 
         return new MutableLiveData<>(mRequirements);
     }
 
+    // deprecated
     public MutableLiveData<List<String>> getPermissions() {
 
         List<String> perms = new ArrayList<>();
 
-        for (MyBaseManager manager : mlManagers) {
-            perms.addAll(manager.getPermissions());
-        }
+//        for (MyBaseManager manager : mlManagers) {
+//            perms.addAll(manager.getPermissions());
+//        }
 
         return new MutableLiveData<>(perms);
     }
@@ -99,14 +98,6 @@ public class SensorsViewModel extends ViewModel {
             }
 
             mSensors.setValue(mapSensor);
-    }
-
-    public MutableLiveData<String> getDsPath() {
-        return mDsPath;
-    }
-
-    public void setDsPath(String mDsPath) {
-        this.mDsPath.setValue(mDsPath);
     }
 
     public MySensorInfo getSensor(int grpId, int sensorId) {
@@ -153,24 +144,6 @@ public class SensorsViewModel extends ViewModel {
         return manager;
     }
 
-    public MySensorInfo getManagerSensor(Context context, String managerClassName, int grpId, int sensorId) {
-
-        MySensorGroup sensorGroup = getManagerSensorGroup(context, managerClassName, grpId);
-        if (sensorGroup != null) {
-            return sensorGroup.getSensorInfo(sensorId);
-        }
-        return null;
-    }
-
-    public MySensorGroup getManagerSensorGroup(Context context, String managerClassName, int grpId) {
-
-        MyBaseManager manager = getManager(managerClassName);
-        if (manager != null) {
-            return MySensorGroup.findSensorGroupById(manager.getSensorGroups(context), grpId);
-        }
-        return null;
-    }
-
     public MyBaseManager getManager(String className) {
 
         return MyBaseManager.getManager(mlManagers, className);
@@ -204,7 +177,7 @@ public class SensorsViewModel extends ViewModel {
         for (MyBaseManager manager : mlManagers) {
 
             // update each manager
-            manager.updateState(context);
+            //manager.updateState(context);
 
             List<MySensorGroup> sensorGroups = manager.getSensorGroups(context);
 
@@ -228,8 +201,7 @@ public class SensorsViewModel extends ViewModel {
     public String printState() {
 
         if (mSensors.getValue() != null) {
-            return "Size of managers: " + mlManagers.size() + ", Size of sensors: " +
-                    mSensors.getValue().size() + ", Ds path: " + mDsPath.getValue();
+            return "Size of managers: " + mlManagers.size() + ", Size of sensors: " + mSensors.getValue().size();
         }
         return "";
     }

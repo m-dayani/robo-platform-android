@@ -19,8 +19,8 @@ import android.widget.TextView;
 import com.dayani.m.roboplatform.R;
 import com.dayani.m.roboplatform.RequirementsFragment;
 import com.dayani.m.roboplatform.managers.MyUSBManager;
-import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
-import com.dayani.m.roboplatform.utils.SensorsViewModel;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
+import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
 
 import java.util.List;
 

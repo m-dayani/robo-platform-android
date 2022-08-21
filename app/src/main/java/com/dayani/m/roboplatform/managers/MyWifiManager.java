@@ -16,9 +16,9 @@ import android.os.Looper;
 import android.provider.Settings;
 import android.util.Log;
 
-import com.dayani.m.roboplatform.utils.ActivityRequirements;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.AppGlobals;
-import com.dayani.m.roboplatform.utils.SensorsContainer;
+import com.dayani.m.roboplatform.utils.data_types.SensorsContainer;
 
 import java.io.BufferedReader;
 import java.io.IOException;

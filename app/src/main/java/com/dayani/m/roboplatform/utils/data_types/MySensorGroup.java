@@ -1,4 +1,4 @@
-package com.dayani.m.roboplatform.utils;
+package com.dayani.m.roboplatform.utils.data_types;
 
 import androidx.annotation.NonNull;
 
@@ -24,7 +24,6 @@ public class MySensorGroup {
     private static int mIdGenerator = 0;
 
     private int mId;
-    private final boolean mIsAvailable;
 
     private SensorType mType;
     private String mTitle;
@@ -36,7 +35,6 @@ public class MySensorGroup {
     public MySensorGroup() {
 
         mId = -1;
-        mIsAvailable = true;
         mTitle = "Unknown";
         mType = SensorType.TYPE_UNKNOWN;
         mSensors =  new HashMap<>();
@@ -80,11 +78,6 @@ public class MySensorGroup {
 
     public String getTitle() {
         return mTitle;
-    }
-
-    public boolean isAvailable() {
-        //this.updateIsAvailable();
-        return mIsAvailable;
     }
 
     public MySensorInfo getSensorInfo(int sensorId) {

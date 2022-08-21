@@ -438,6 +438,10 @@ public class MyPermissionManager {
         Log.i(TAG, "Check and update permission states.");
         boolean flag = true;
 
+        if (permissions == null || permissions.length <= 0) {
+            return true;
+        }
+
         for (String permission : permissions) {
 
             //for each check, also update saved prefs

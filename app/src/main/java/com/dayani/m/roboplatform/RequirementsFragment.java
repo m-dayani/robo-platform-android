@@ -29,8 +29,8 @@ import android.widget.LinearLayout;
 import com.dayani.m.roboplatform.requirements.LocationReqFragment;
 import com.dayani.m.roboplatform.requirements.PermissionReqFragment;
 import com.dayani.m.roboplatform.requirements.UsbReqFragment;
-import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
-import com.dayani.m.roboplatform.utils.SensorsViewModel;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
+import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
 
 import java.util.List;
 

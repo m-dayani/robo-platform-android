@@ -39,13 +39,11 @@ import com.dayani.m.roboplatform.CarManualControlActivity;
 import com.dayani.m.roboplatform.R;
 import com.dayani.m.roboplatform.SettingsActivity;
 import com.dayani.m.roboplatform.TestActivity;
-import com.dayani.m.roboplatform.managers.CameraFlyVideo;
 import com.dayani.m.roboplatform.managers.MyLocationManager;
 import com.dayani.m.roboplatform.managers.MyPermissionManager;
-import com.dayani.m.roboplatform.managers.MyStorageManager;
 import com.dayani.m.roboplatform.managers.MyUSBManager;
-import com.dayani.m.roboplatform.utils.ActivityRequirements;
-import com.google.android.gms.common.util.ArrayUtils;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
+
 import java.util.Arrays;
 
 

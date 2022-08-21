@@ -21,15 +21,10 @@ import androidx.core.content.ContextCompat;
 
 import com.dayani.m.roboplatform.R;
 import com.dayani.m.roboplatform.SensorRecordService;
-import com.dayani.m.roboplatform.managers.CameraFlyVideo;
-import com.dayani.m.roboplatform.managers.MyLocationManager;
-import com.dayani.m.roboplatform.managers.MySensorManager;
 import com.dayani.m.roboplatform.managers.MyStateManager;
-import com.dayani.m.roboplatform.managers.MyStorageManager;
 import com.dayani.m.roboplatform.managers.MyUSBManager;
-import com.dayani.m.roboplatform.utils.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.AppGlobals;
-import com.dayani.m.roboplatform.utils.SensorsContainer;
+import com.dayani.m.roboplatform.utils.data_types.SensorsContainer;
 
 
 public class RecordSensorsActivity_old extends AppCompatActivity

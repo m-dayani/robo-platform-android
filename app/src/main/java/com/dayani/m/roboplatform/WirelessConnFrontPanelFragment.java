@@ -13,7 +13,7 @@ import android.view.ViewGroup;
 import com.dayani.m.roboplatform.requirements.BluetoothReqFragment;
 import com.dayani.m.roboplatform.requirements.HotspotReqFragment;
 import com.dayani.m.roboplatform.requirements.WiNetReqFragment;
-import com.dayani.m.roboplatform.utils.MyFragmentInteraction;
+import com.dayani.m.roboplatform.utils.interfaces.MyFragmentInteraction;
 
 /**
  * A simple {@link Fragment} subclass.

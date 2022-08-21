@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:background="#FFFFFF">
 
-    <com.dayani.m.roboplatform.utils.AutoFitTextureView
+    <com.dayani.m.roboplatform.utils.cutom_views.AutoFitTextureView
         android:id="@+id/texture"
         android:layout_width="0dp"
         android:layout_height="0dp"

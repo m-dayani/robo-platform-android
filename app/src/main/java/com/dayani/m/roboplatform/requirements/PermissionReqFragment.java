@@ -29,9 +29,9 @@ import com.dayani.m.roboplatform.RequirementsFragment;
 import com.dayani.m.roboplatform.managers.MyPermissionManager;
 import com.dayani.m.roboplatform.managers.MyStateManager;
 import com.dayani.m.roboplatform.managers.MyStorageManager;
-import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
 import com.dayani.m.roboplatform.utils.AppGlobals;
-import com.dayani.m.roboplatform.utils.SensorsViewModel;
+import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
 
 import java.util.Arrays;
 import java.util.Iterator;

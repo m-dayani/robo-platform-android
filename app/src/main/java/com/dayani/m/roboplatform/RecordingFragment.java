@@ -1,34 +1,29 @@
 package com.dayani.m.roboplatform;
 
 import android.content.Context;
-import android.content.pm.ActivityInfo;
 import android.os.Bundle;
 
-import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.lifecycle.ViewModelProvider;
 
 import android.os.SystemClock;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.Chronometer;
 import android.widget.TextView;
 
 import com.dayani.m.roboplatform.managers.MySensorManager;
 import com.dayani.m.roboplatform.managers.MyStorageManager;
-import com.dayani.m.roboplatform.utils.AutoFitTextureView;
-import com.dayani.m.roboplatform.utils.MyScreenOperations;
-import com.dayani.m.roboplatform.utils.SensorsViewModel;
+import com.dayani.m.roboplatform.utils.cutom_views.AutoFitTextureView;
+import com.dayani.m.roboplatform.utils.helpers.MyScreenOperations;
+import com.dayani.m.roboplatform.utils.interfaces.LoggingChannel;
+import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
 
-import java.util.List;
 
-
-public class RecordingFragment extends Fragment implements View.OnClickListener {
+public class RecordingFragment extends Fragment implements View.OnClickListener, LoggingChannel {
 
     private static final String TAG = RecordingFragment.class.getSimpleName();
 
@@ -41,6 +36,8 @@ public class RecordingFragment extends Fragment implements View.OnClickListener 
     private Chronometer mChronometer;
     private AutoFitTextureView mTextureView;
     private TextView mReportTxt;
+
+    public static final int FRAG_RECORDING_LOGGING_IDENTIFIER = 6453;
 
     boolean mbIsRecording = false;
 
@@ -149,7 +146,7 @@ public class RecordingFragment extends Fragment implements View.OnClickListener 
 
         mbIsRecording = true;
 
-        updateRecordingUI(mbIsRecording);
+        updateRecordingUI(true);
 
         mSensorManager.start(requireActivity());
     }
@@ -158,7 +155,7 @@ public class RecordingFragment extends Fragment implements View.OnClickListener 
 
         mbIsRecording = false;
 
-        updateRecordingUI(mbIsRecording);
+        updateRecordingUI(false);
 
         mSensorManager.stop(requireActivity());
     }
@@ -176,5 +173,35 @@ public class RecordingFragment extends Fragment implements View.OnClickListener 
             mChronometer.stop();
             mChronometer.setVisibility(View.INVISIBLE);
         }
+    }
+
+    // Logging channel
+    @Override
+    public int openNewChannel(Context context, Void nothing) {
+        return -1;
+    }
+
+    @Override
+    public void closeChannel(int id) {
+
+    }
+
+    @Override
+    public void publishMessage(int id, MyMessage msg) {
+
+        if (mReportTxt != null && msg instanceof MyLoggingMessage) {
+            // only respond to logging messages
+            mReportTxt.append(msg.toString());
+        }
+    }
+
+    @Override
+    public void resetChannel(int id) {
+
+    }
+
+    @Override
+    public int getChannelIdentifier() {
+        return FRAG_RECORDING_LOGGING_IDENTIFIER;
     }
 }

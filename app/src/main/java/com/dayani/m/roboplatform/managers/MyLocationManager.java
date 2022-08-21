@@ -41,10 +41,13 @@ package com.dayani.m.roboplatform.managers;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.location.Location;
+import android.location.LocationManager;
 import android.os.Looper;
 import android.util.Log;
 import android.widget.Toast;
@@ -55,12 +58,15 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
-import com.dayani.m.roboplatform.utils.ActivityRequirements.Requirement;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
 import com.dayani.m.roboplatform.utils.AppGlobals;
-import com.dayani.m.roboplatform.utils.MySensorGroup;
-import com.dayani.m.roboplatform.utils.MySensorInfo;
+import com.dayani.m.roboplatform.utils.interfaces.MessageChannel;
+import com.dayani.m.roboplatform.utils.interfaces.MessageChannel.MyMessage;
+import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
+import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
 import com.dayani.m.roboplatform.managers.MyStorageManager.StorageInfo;
 
+import com.dayani.m.roboplatform.utils.interfaces.StorageChannel;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.common.api.ResolvableApiException;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -72,8 +78,6 @@ import com.google.android.gms.location.LocationSettingsRequest;
 import com.google.android.gms.location.LocationSettingsStatusCodes;
 import com.google.android.gms.location.Priority;
 import com.google.android.gms.location.SettingsClient;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -177,6 +181,8 @@ public class MyLocationManager extends MyBaseManager {
 
     private boolean mIsLocationEnabled = false;
 
+    private BroadcastReceiver mLocationProviderChangedBR;
+
 
     /* ==================================== Construction ======================================== */
 
@@ -217,37 +223,43 @@ public class MyLocationManager extends MyBaseManager {
         );
     }
 
+    public boolean passedAllRequirements() {
+        return hasAllPermissions() && isLocationEnabled();
+    }
+
     @Override
-    protected boolean hasAllRequirements(Context context) {
+    protected void updateRequirementsState(Context context) {
 
         List<Requirement> requirements = getRequirements();
+        if (requirements == null || requirements.isEmpty()) {
+            Log.d(TAG, "No requirements to update");
+            return;
+        }
 
         // permissions
-        boolean resPerms = true;
         if (requirements.contains(Requirement.PERMISSIONS)) {
-            resPerms = hasAllPermissions(context);
+            updatePermissionsState(context);
         }
 
         // location settings is enabled
-        boolean resEnabled = true;
         if (requirements.contains(Requirement.ENABLE_LOCATION)) {
             // this is an asynch request, so we can't retrieve its result immediately
             changeLocationSettings(context, LocationSettingAction.CHECK_ENABLED, null);
-            // get the last state
-            resEnabled = getLastLocationSettingEnabledState();
         }
-
-        return resPerms && resEnabled;
     }
 
     @Override
     protected void resolveRequirements(Context context) {
 
         List<Requirement> requirements = getRequirements();
+        if (requirements == null || requirements.isEmpty()) {
+            Log.d(TAG, "No requirements to resolve");
+            return;
+        }
 
         // permissions
         if (requirements.contains(Requirement.PERMISSIONS)) {
-            if (!hasAllPermissions(context)) {
+            if (!hasAllPermissions()) {
                 resolvePermissions();
                 return;
             }
@@ -255,7 +267,7 @@ public class MyLocationManager extends MyBaseManager {
 
         // location setting enabled
         if (requirements.contains(Requirement.ENABLE_LOCATION)) {
-            if (!getLastLocationSettingEnabledState()) {
+            if (!isLocationEnabled()) {
                 changeLocationSettings(context, LocationSettingAction.REQUEST_ENABLE, null);
             }
         }
@@ -271,12 +283,14 @@ public class MyLocationManager extends MyBaseManager {
             return;
         }
 
-        if (//resultData.getAction().equals(Constants.REQUEST_CHECK_SETTINGS) ||
-                resultData.getStringExtra(KEY_INTENT_ACTIVITY_LAUNCHER).equals(TAG)) {
+        int activityResultTag = resultData.getIntExtra(KEY_INTENT_ACTIVITY_LAUNCHER, 0);
+
+        if (activityResultTag == Constants.REQUEST_CHECK_SETTINGS) {
             if (result.getResultCode() == Activity.RESULT_OK) {
 
                 Log.i(TAG, "User agreed to make required location settings changes.");
-                mIsLocationEnabled = true;
+                updateLocationEnabledState(true);
+                //updateAvailability(context);
 
                 // TODO: broadcast location settings enabled??
                 //mLocalBrManager.sendBroadcast(new Intent(Constants.ACTION_LOCATION_SETTINGS_AVAILABILITY));
@@ -291,6 +305,33 @@ public class MyLocationManager extends MyBaseManager {
                 Manifest.permission.ACCESS_COARSE_LOCATION
                 //Manifest.permission.ACCESS_BACKGROUND_LOCATION
         );
+    }
+
+    @Override
+    public void onBroadcastReceived(Context context, Intent intent) {
+
+        super.onBroadcastReceived(context, intent);
+
+        if (intent.getAction().matches("android.location.PROVIDERS_CHANGED"))  {
+
+            Log.i(TAG, "Location Providers changed");
+
+            LocationManager locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+            boolean isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+            boolean isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+
+            updateLocationEnabledState(isGpsEnabled || isNetworkEnabled);
+        }
+    }
+
+    private boolean isLocationEnabled() { return mIsLocationEnabled; }
+
+    private void updateLocationEnabledState(boolean state) {
+        mIsLocationEnabled = state;
+    }
+
+    private void resolveLocationSettings(Context context) {
+
     }
 
     /* ------------------------------------ Availability ---------------------------------------- */
@@ -308,14 +349,19 @@ public class MyLocationManager extends MyBaseManager {
         createLocationRequest();
         buildLocationSettingsRequest();
 
-        updateCheckedSensors(context);
+        updateRequirementsState(context);
+        //updateCheckedSensorsWithAvailability();
+
+        mLocationProviderChangedBR = new ManagerRequirementBroadcastReceiver(this);
+        IntentFilter locationFilter = new IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION);
+        context.registerReceiver(mLocationProviderChangedBR, locationFilter);
     }
 
     @Override
     public void start(Context context) {
 
         super.start(context);
-        openStorageChannels();
+        openStorageChannels(context);
         startBackgroundThread(TAG);
         changeLocationSettings(context, LocationSettingAction.REQUEST_UPDATES, null);
     }
@@ -330,13 +376,11 @@ public class MyLocationManager extends MyBaseManager {
     }
 
     @Override
-    public void clean() {
+    public void clean(Context context) {
 
-    }
-
-    @Override
-    public void updateState(Context context) {
-
+        if (mLocationProviderChangedBR != null) {
+            context.unregisterReceiver(mLocationProviderChangedBR);
+        }
     }
 
     /* ----------------------------------- Message Passing -------------------------------------- */
@@ -354,9 +398,9 @@ public class MyLocationManager extends MyBaseManager {
     }
 
     @Override
-    protected void openStorageChannels() {
+    protected void openStorageChannels(Context context) {
 
-        if (mStorageListener == null || mmStorageChannels == null || mlSensorGroup == null) {
+        if (mlChannelTransactions == null || mmStorageChannels == null || mlSensorGroup == null) {
             Log.w(TAG, "Either sensors are not available or no storage listener found");
             return;
         }
@@ -372,10 +416,15 @@ public class MyLocationManager extends MyBaseManager {
 
                     if (storageInfo != null) {
 
-                        int chId = mStorageListener.getStorageChannel(
-                                storageInfo.getFolders(), storageInfo.getFileName(), false);
-                        storageInfo.setChannelId(chId);
-                        writeFileHeader(sensorId, chId);
+                        for (MessageChannel<?> channel : mlChannelTransactions) {
+
+                            if (channel instanceof StorageChannel) {
+
+                                int chId = ((StorageChannel) channel).openNewChannel(context, storageInfo);
+                                storageInfo.setChannelId(chId);
+                                writeFileHeader(sensorId, chId);
+                            }
+                        }
                     }
                 }
             }
@@ -384,9 +433,9 @@ public class MyLocationManager extends MyBaseManager {
 
     /* ======================================= Location ========================================= */
 
-    private static boolean hasGpsSensor(Context mContext) {
+    private static boolean hasGpsSensor(Context context) {
 
-        PackageManager packageManager = mContext.getPackageManager();
+        PackageManager packageManager = context.getPackageManager();
         return packageManager.hasSystemFeature(PackageManager.FEATURE_LOCATION_GPS);
     }
 
@@ -394,11 +443,6 @@ public class MyLocationManager extends MyBaseManager {
 
         // TODO: Implement
         return false;
-    }
-
-    private boolean getLastLocationSettingEnabledState() {
-
-        return mIsLocationEnabled;
     }
 
     private void createLocationRequest() {
@@ -443,6 +487,7 @@ public class MyLocationManager extends MyBaseManager {
             sensorInfo = new MySensorInfo(GPS_ID, "GPS");
             sensorInfo.setDescInfo(descInfo);
             sensorInfo.setCalibInfo(calibInfo);
+            //sensorInfo.setChecked(false);
         }
 
         return sensorInfo;
@@ -463,24 +508,29 @@ public class MyLocationManager extends MyBaseManager {
             sensorInfo = new MySensorInfo(GNSS_ID, "GNSS Raw Measurements");
             sensorInfo.setDescInfo(descInfo);
             sensorInfo.setCalibInfo(calibInfo);
+            //sensorInfo.setChecked(false);
         }
 
         return sensorInfo;
     }
 
     @Override
-    public ArrayList<MySensorGroup> getSensorGroups(Context mContext) {
+    public List<MySensorGroup> getSensorGroups(Context context) {
 
-        ArrayList<MySensorGroup> sensorGroups = new ArrayList<>();
-        ArrayList<MySensorInfo> sensors = new ArrayList<>();
+        if (mlSensorGroup != null) {
+            return mlSensorGroup;
+        }
+
+        List<MySensorGroup> sensorGroups = new ArrayList<>();
+        List<MySensorInfo> sensors = new ArrayList<>();
 
         // add sensors:
-        MySensorInfo gps = getGpsSensor(mContext);
+        MySensorInfo gps = getGpsSensor(context);
         if (gps != null) {
             sensors.add(gps);
         }
 
-        MySensorInfo gnssRaw = getGnssRawSensor(mContext);
+        MySensorInfo gnssRaw = getGnssRawSensor(context);
         if (gnssRaw != null) {
             sensors.add(gnssRaw);
         }
@@ -516,7 +566,7 @@ public class MyLocationManager extends MyBaseManager {
 
                             if (action.equals(LocationSettingAction.CHECK_ENABLED)) {
 
-                                mIsLocationEnabled = true;
+                                updateLocationEnabledState(true);
                             }
                             else if (action.equals(LocationSettingAction.REQUEST_UPDATES)) {
 
@@ -581,22 +631,9 @@ public class MyLocationManager extends MyBaseManager {
 
     private void requestChangeSettings(Exception e) {
 
-        // Show the dialog by calling startResolutionForResult(), and check the
-            // result in onActivityResult().
-//            ResolvableApiException rae = (ResolvableApiException) e;
-//            rae.startResolutionForResult((AppCompatActivity) context,
-//                    Constants.REQUEST_CHECK_SETTINGS);
-
         IntentSenderRequest intentSenderRequest = new IntentSenderRequest
                 .Builder(((ResolvableApiException) e).getResolution()).build();
-
-        Intent intent = intentSenderRequest.getFillInIntent();
-        if (intent != null) {
-            intent.putExtra(KEY_INTENT_ACTIVITY_LAUNCHER, TAG);
-        }
-        //intentSenderRequest.getFillInIntent().setAction(Constants.REQUEST_CHECK_SETTINGS);
-
-        mRequirementRequestListener.requestResolution(intentSenderRequest);
+        mRequirementRequestListener.requestResolution(Constants.REQUEST_CHECK_SETTINGS, intentSenderRequest);
     }
 
     /* ------------------------------------ Last Location --------------------------------------- */
@@ -604,7 +641,7 @@ public class MyLocationManager extends MyBaseManager {
     @SuppressWarnings("MissingPermission")
     public void getLastLocation(Context context) {
 
-        if (!isAvailable(context))
+        if (!isAvailableAndChecked())
             return;
 
         try {
@@ -704,21 +741,41 @@ public class MyLocationManager extends MyBaseManager {
 
     private void writeFileHeader(int sensorId, int channelId) {
 
-        if (mStorageListener == null) {
+        if (mlChannelTransactions == null) {
             return;
         }
 
+        MyMessage header = new MyMessage("# unknown sensor type\n");
+
         if (sensorId == GPS_ID) {
 
-            mStorageListener.publishMessage(channelId,
-                    "# timestamp_ns, latitude_deg, longitude_deg, altitude_deg, velocity_mps");
+            header = new MyMessage("# timestamp_ns, latitude_deg, longitude_deg, altitude_deg, velocity_mps");
         }
         else if (sensorId == GNSS_ID) {
 
-            mStorageListener.publishMessage(channelId,
-                    "# timestamp_ns, latitude_deg, longitude_deg, altitude_deg, velocity_mps, bearing, satellite");
+            header = new MyMessage("# timestamp_ns, latitude_deg, longitude_deg, altitude_deg, velocity_mps, bearing, satellite");
         }
+
+        publish(sensorId, header);
     }
 
+
+    public static class ManagerRequirementBroadcastReceiver extends BroadcastReceiver {
+
+        private final MyBaseManager mManager;
+
+        public ManagerRequirementBroadcastReceiver(MyBaseManager manager) {
+
+            mManager = manager;
+        }
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+
+            if (mManager != null) {
+                mManager.onBroadcastReceived(context, intent);
+            }
+        }
+    }
 
 }

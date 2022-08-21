@@ -12,7 +12,7 @@ import android.widget.ImageButton;
 import androidx.annotation.NonNull;
 
 import com.dayani.m.roboplatform.R;
-import com.dayani.m.roboplatform.utils.MySensorInfo;
+import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
 
 import java.util.ArrayList;
 

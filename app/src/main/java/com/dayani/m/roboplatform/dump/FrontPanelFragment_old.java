@@ -16,8 +16,8 @@ import com.dayani.m.roboplatform.CarManualControlActivity;
 import com.dayani.m.roboplatform.R;
 import com.dayani.m.roboplatform.SensorsListFragment;
 import com.dayani.m.roboplatform.TestActivity;
-import com.dayani.m.roboplatform.utils.SensorsViewModel;
-import com.dayani.m.roboplatform.utils.SensorsContainer;
+import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
+import com.dayani.m.roboplatform.utils.data_types.SensorsContainer;
 
 
 /**

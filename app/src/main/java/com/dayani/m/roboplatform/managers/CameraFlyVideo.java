@@ -43,16 +43,13 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.dayani.m.roboplatform.utils.ActivityRequirements;
-import com.dayani.m.roboplatform.utils.AutoFitTextureView;
-import com.dayani.m.roboplatform.utils.MySensorGroup;
-import com.dayani.m.roboplatform.utils.MySensorInfo;
-import com.dayani.m.roboplatform.utils.SensorsContainer;
+import com.dayani.m.roboplatform.utils.cutom_views.AutoFitTextureView;
+import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
+import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
