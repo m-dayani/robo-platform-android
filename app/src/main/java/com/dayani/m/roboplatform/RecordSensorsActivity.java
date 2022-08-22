@@ -90,11 +90,11 @@ public class RecordSensorsActivity extends AppCompatActivity
         MyStorageManager storageManager = (MyStorageManager) getOrCreateManager(
                 this, vm, MyStorageManager.class.getSimpleName());
 
-        MyBaseManager manager = getOrCreateManager(this, vm, MySensorManager.class.getSimpleName());
-        manager.addChannelTransaction(storageManager);
+        MyBaseManager mManager = getOrCreateManager(this, vm, MySensorManager.class.getSimpleName());
+        mManager.addChannelTransaction(storageManager);
 
-        manager = getOrCreateManager(this, vm, MyLocationManager.class.getSimpleName());
-        manager.addChannelTransaction(storageManager);
+        mManager = getOrCreateManager(this, vm, MyLocationManager.class.getSimpleName());
+        mManager.addChannelTransaction(storageManager);
 
         // TODO: Add the rest [also change getOrCreateManager(...)]
         //manager = getOrCreateManager(this, vm, CameraFlyVideo.class.getSimpleName());
@@ -104,6 +104,11 @@ public class RecordSensorsActivity extends AppCompatActivity
             Log.d(TAG, "USB manager is enabled");
             //manager = getOrCreateManager(this, vm, MyUSBManager.class.getSimpleName());
             //manager.addChannelTransaction(storageManager);
+        }
+
+        // Must always call init. here for symmetry (not in managers' constructor)
+        for (MyBaseManager manager : vm.getAllManagers()) {
+            manager.init(this);
         }
     }
 

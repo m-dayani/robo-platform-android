@@ -367,7 +367,7 @@ public class RequirementsActivity extends AppCompatActivity
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
-            if (MyLocationManager.Constants.ACTION_LOCATION_SETTINGS_AVAILABILITY.equals(action)) {
+            if (MyLocationManager.ACTION_LOCATION_SETTINGS_AVAILABILITY.equals(action)) {
                 //closing the connection is now implicit
                 //If we need the connection, try open explicitly.
                 //updateStates();

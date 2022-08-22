@@ -24,19 +24,27 @@ import android.os.HandlerThread;
 import android.util.Log;
 
 import androidx.activity.result.ActivityResult;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
+import com.dayani.m.roboplatform.RecordingFragment;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.RequirementResolution;
 import com.dayani.m.roboplatform.utils.AppGlobals;
 import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
 import com.dayani.m.roboplatform.managers.MyStorageManager.StorageInfo;
+import com.dayani.m.roboplatform.utils.interfaces.LoggingChannel;
 import com.dayani.m.roboplatform.utils.interfaces.MessageChannel;
 import com.dayani.m.roboplatform.utils.interfaces.MessageChannel.MyMessage;
 import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 
 public abstract class MyBaseManager {
@@ -61,7 +69,7 @@ public abstract class MyBaseManager {
     protected final List<MySensorGroup> mlSensorGroup;
 
     protected RequirementResolution mRequirementRequestListener;
-    protected final List<MessageChannel<?>> mlChannelTransactions;
+    protected final Set<MessageChannel<?>> mlChannelTransactions;
 
     protected final Map<Integer, StorageInfo> mmStorageChannels;
 
@@ -71,19 +79,10 @@ public abstract class MyBaseManager {
 
         mbIsSupported = resolveSupport(context);
         mIsProcessing = false;
-        mlChannelTransactions = new ArrayList<>();
-
-        if (context instanceof RequirementResolution) {
-            setRequirementResolutionListener((RequirementResolution) context);
-        }
-        if (context instanceof MessageChannel) {
-            addChannelTransaction((MessageChannel<?>) context);
-        }
+        mlChannelTransactions = new HashSet<>();
 
         mmStorageChannels = initStorageChannels();
         mlSensorGroup = getSensorGroups(context);
-
-        //updateAvailabilityAndCheckedSensors(context);
     }
 
     // Support
@@ -199,18 +198,47 @@ public abstract class MyBaseManager {
 
     // Lifecycle
 
-    protected void init(Context context) {}
-    public void clean(Context context) {}
+    // these two are called with every activity's onCreate() and onDestroy()
+    public void init(Context context) {
 
-    public void start(Context context) {
-        if (!isProcessing()) {
-            mIsProcessing = true;
+        if (context instanceof RequirementResolution) {
+            setRequirementResolutionListener((RequirementResolution) context);
         }
+        if (context instanceof MessageChannel) {
+            addChannelTransaction((MessageChannel<?>) context);
+        }
+
+        updateAvailabilityAndCheckedSensors(context);
+    }
+    public void clean(Context context) {
+        // no need to clean message channels because it's a set
+    }
+
+    // use these in a fragment's onResume/onPause or onStart/onStop
+    public void start(Context context) {
+
+        if (this.isProcessing()) {
+            stop(context);
+        }
+        mIsProcessing = true;
+
+        String mClassName = getClass().getSimpleName();
+        Log.d(TAG, mClassName + " started successfully");
+        // publish a logging message
+        publish(-1, new LoggingChannel.MyLoggingMessage(
+                "Started " + mClassName + "\n",
+                RecordingFragment.FRAG_RECORDING_LOGGING_IDENTIFIER));
     }
     public void stop(Context context) {
-        if (isProcessing()) {
-            mIsProcessing = false;
-        }
+
+        mIsProcessing = false;
+
+        String mClassName = getClass().getSimpleName();
+        Log.d(TAG, mClassName + " stopped successfully");
+        // publish a logging message
+        publish(-1, new LoggingChannel.MyLoggingMessage(
+                "Stopped " + mClassName + "\n",
+                RecordingFragment.FRAG_RECORDING_LOGGING_IDENTIFIER));
     }
 
     // State
@@ -271,6 +299,7 @@ public abstract class MyBaseManager {
     }
 
     // Message passing
+
     protected abstract Map<Integer, StorageInfo> initStorageChannels();
     protected abstract void openStorageChannels(Context context);
 
@@ -343,9 +372,5 @@ public abstract class MyBaseManager {
         }
 
         return null;
-    }
-
-    private void logMessage(String logMessage) {
-
     }
 }

@@ -14,7 +14,9 @@ import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 
 public class SensorsViewModel extends ViewModel {
@@ -25,7 +27,7 @@ public class SensorsViewModel extends ViewModel {
 
     private static final String TAG = SensorsViewModel.class.getSimpleName();
 
-    private final List<MyBaseManager> mlManagers;
+    private final Set<MyBaseManager> mlManagers;
 
     private final MutableLiveData<SensorManagerGroup> mSensors;
 
@@ -36,7 +38,7 @@ public class SensorsViewModel extends ViewModel {
         mSensors = new MutableLiveData<>();
         mSensors.setValue(new SensorManagerGroup());
 
-        mlManagers = new ArrayList<>();
+        mlManagers = new HashSet<>();
     }
 
     /* ----------------------------------- Getters/Setters -------------------------------------- */
@@ -146,11 +148,12 @@ public class SensorsViewModel extends ViewModel {
 
     public MyBaseManager getManager(String className) {
 
-        return MyBaseManager.getManager(mlManagers, className);
+        return MyBaseManager.getManager(getAllManagers(), className);
     }
 
     public List<MyBaseManager> getAllManagers() {
-        return mlManagers;
+
+        return new ArrayList<>(mlManagers);
     }
 
     public void addManagerAndSensors(Context context, MyBaseManager manager) {

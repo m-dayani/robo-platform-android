@@ -2,12 +2,8 @@ package com.dayani.m.roboplatform;
 
 import android.content.Context;
 import android.os.Bundle;
-
-import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentActivity;
-import androidx.lifecycle.ViewModelProvider;
-
 import android.os.SystemClock;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -15,26 +11,28 @@ import android.widget.Button;
 import android.widget.Chronometer;
 import android.widget.TextView;
 
-import com.dayani.m.roboplatform.managers.MySensorManager;
-import com.dayani.m.roboplatform.managers.MyStorageManager;
-import com.dayani.m.roboplatform.utils.cutom_views.AutoFitTextureView;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentActivity;
+import androidx.lifecycle.ViewModelProvider;
+
+import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.utils.helpers.MyScreenOperations;
 import com.dayani.m.roboplatform.utils.interfaces.LoggingChannel;
 import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
+
+import java.util.List;
 
 
 public class RecordingFragment extends Fragment implements View.OnClickListener, LoggingChannel {
 
     private static final String TAG = RecordingFragment.class.getSimpleName();
 
-    private SensorsViewModel mVM_Sensors;
-
-    private MyStorageManager mStorageManager;
-    private MySensorManager mSensorManager;
+    //private MyStorageManager mStorageManager;
+    private List<MyBaseManager> mlManagers;
 
     private Button mButtonVideo;
     private Chronometer mChronometer;
-    private AutoFitTextureView mTextureView;
+    //private AutoFitTextureView mTextureView;
     private TextView mReportTxt;
 
     public static final int FRAG_RECORDING_LOGGING_IDENTIFIER = 6453;
@@ -59,18 +57,15 @@ public class RecordingFragment extends Fragment implements View.OnClickListener,
         FragmentActivity context = requireActivity();
 
         // Retrieve sensors info to know which one should be operational and ...
-        mVM_Sensors = new ViewModelProvider(context).get(SensorsViewModel.class);
+        SensorsViewModel mVM_Sensors = new ViewModelProvider(context).get(SensorsViewModel.class);
 
         // setup managers
-        mStorageManager = (MyStorageManager) RecordSensorsActivity.getOrCreateManager(
-                context, mVM_Sensors, MyStorageManager.class.getSimpleName());
-        mSensorManager = (MySensorManager) RecordSensorsActivity.getOrCreateManager(
-                context, mVM_Sensors, MySensorManager.class.getSimpleName());
+        mlManagers = mVM_Sensors.getAllManagers();
 
-        // Update view model based on the latest managers' state
-        //Log.d(TAG, mVM_Sensors.printState());
-        mVM_Sensors.updateState(context);
-        //Log.d(TAG, mVM_Sensors.printState());
+        // add recording fragment's logger
+        for (MyBaseManager manager : mlManagers) {
+            manager.addChannelTransaction(this);
+        }
     }
 
     @Override
@@ -86,7 +81,7 @@ public class RecordingFragment extends Fragment implements View.OnClickListener,
 
         mReportTxt = mView.findViewById(R.id.txtReport);
 
-        mTextureView = mView.findViewById(R.id.texture);
+        //mTextureView = mView.findViewById(R.id.texture);
 
         return mView;
     }
@@ -94,6 +89,11 @@ public class RecordingFragment extends Fragment implements View.OnClickListener,
     @Override
     public void onStart() {
         super.onStart();
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
     }
 
     @Override
@@ -119,11 +119,6 @@ public class RecordingFragment extends Fragment implements View.OnClickListener,
     }
 
     @Override
-    public void onStop() {
-        super.onStop();
-    }
-
-    @Override
     public void onDestroy() {
         super.onDestroy();
     }
@@ -145,19 +140,29 @@ public class RecordingFragment extends Fragment implements View.OnClickListener,
     private void start() {
 
         mbIsRecording = true;
-
         updateRecordingUI(true);
 
-        mSensorManager.start(requireActivity());
+        for (MyBaseManager manager : mlManagers) {
+            manager.start(requireActivity());
+        }
+
+        MyScreenOperations.setScreenOn(requireActivity());
+
+        Log.d(TAG, "Managers are started");
     }
 
     private void stop() {
 
-        mbIsRecording = false;
+        MyScreenOperations.unsetScreenOn(requireActivity());
 
+        for (MyBaseManager manager : mlManagers) {
+            manager.stop(requireActivity());
+        }
+
+        mbIsRecording = false;
         updateRecordingUI(false);
 
-        mSensorManager.stop(requireActivity());
+        Log.d(TAG, "Managers are stopped");
     }
 
     private void updateRecordingUI(boolean state) {
@@ -175,7 +180,8 @@ public class RecordingFragment extends Fragment implements View.OnClickListener,
         }
     }
 
-    // Logging channel
+    /* ------------------------------------ Logging channel ------------------------------------- */
+
     @Override
     public int openNewChannel(Context context, Void nothing) {
         return -1;

@@ -50,7 +50,6 @@ public class MyStorageManager extends MyBaseManager implements StorageChannel {
     private static final int REQUEST_WRITE_PERMISSION_CODE = 7769;
     private static final int REQUEST_WRITABLE_STORAGE = 7770;
     private static final int REQUEST_MANAGE_ALL_FILES_PERM = 7771;
-    //private static final int REQUEST_READ_PERMISSION_CODE = 7772;
 
     private static final String KEY_STORAGE_PERMISSION = PACKAGE_NAME+
             ".MyStorageManager_WRITE."+REQUEST_WRITE_PERMISSION_CODE;
@@ -84,10 +83,9 @@ public class MyStorageManager extends MyBaseManager implements StorageChannel {
     public MyStorageManager(Context context) {
 
         super(context);
-
         mDsRoot = initDsPath();
-
-        init(context);
+        //init(context);
+        mBasePath = getBasePath(context);
     }
 
     /* ===================================== Core Tasks ========================================= */
@@ -289,8 +287,6 @@ public class MyStorageManager extends MyBaseManager implements StorageChannel {
         }
     }
 
-    /* ------------------------------------ Availability ---------------------------------------- */
-
     /* --------------------------------------- State -------------------------------------------- */
 
     @Override
@@ -301,10 +297,8 @@ public class MyStorageManager extends MyBaseManager implements StorageChannel {
     /* -------------------------------------- Lifecycle ----------------------------------------- */
 
     @Override
-    protected void init(Context context) {
-
-        mBasePath = getBasePath(context);
-        updateAvailabilityAndCheckedSensors(context);
+    public void init(Context context) {
+        super.init(context);
     }
 
     @Override
@@ -317,6 +311,8 @@ public class MyStorageManager extends MyBaseManager implements StorageChannel {
                 store.close();
             }
         }
+
+        super.clean(context);
     }
 
     /* -------------------------------------- Resources ----------------------------------------- */
@@ -438,7 +434,7 @@ public class MyStorageManager extends MyBaseManager implements StorageChannel {
         return rootPaths;
     }
 
-    private String getSuggestedBasePath(Context context) {
+    private static String getSuggestedBasePath(Context context) {
 
         List<String> paths = getAvailableVolumes(context);
         if (paths.isEmpty()) {
@@ -512,7 +508,7 @@ public class MyStorageManager extends MyBaseManager implements StorageChannel {
     public int openNewChannel(Context context, StorageInfo channelInfo) {
 
         if (!this.isAvailable()) {
-            Log.d(TAG, "Storage not available, abort");
+            Log.w(TAG, "Storage not available, abort");
             return -1;
         }
 
@@ -579,7 +575,6 @@ public class MyStorageManager extends MyBaseManager implements StorageChannel {
                 return store.getFullPath();
             }
         }
-
         return "";
     }
 

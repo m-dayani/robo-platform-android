@@ -55,19 +55,13 @@ public class MySensorManager extends MyBaseManager {
 
     private static final String TAG = MySensorManager.class.getSimpleName();
 
-    private static final int MAX_SENSOR_READ_INTERVAL = SensorManager.SENSOR_DELAY_GAME;
+    private static final int MAX_SENSOR_READ_INTERVAL = SensorManager.SENSOR_DELAY_FASTEST;
 
     private static final int ANDROID_VERSION_UNCALIB_SENSORS = Build.VERSION_CODES.O;
     private static final int ANDROID_VERSION_ACQ_MODE = Build.VERSION_CODES.N;
 
-    private static final List<Integer> mCalibratedTypes = Arrays.asList(
-            Sensor.TYPE_ACCELEROMETER,
-            Sensor.TYPE_GYROSCOPE,
-            Sensor.TYPE_MAGNETIC_FIELD
-    );
-
+    private static final List<Integer> mCalibratedTypes = initCalibratedTypes();
     private static final List<Integer> mUncalibratedTypes = initUncalibratedTypes();
-
     private static final List<Integer> mAllSensorTypes = initAllSensorTypes();
 
 
@@ -114,10 +108,8 @@ public class MySensorManager extends MyBaseManager {
     public MySensorManager(Context context) {
 
         super(context);
-
         mSensorManager = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
-
-        init(context);
+        //init(context);
     }
 
     /* ===================================== Core Tasks ========================================= */
@@ -168,8 +160,6 @@ public class MySensorManager extends MyBaseManager {
         mbIsPermitted = true;
     }
 
-    /*-------------------------------------- Availability ----------------------------------------*/
-
     /*------------------------------------- Setters/Getters --------------------------------------*/
 
     private SensorManager getSensorManager(Context context) {
@@ -181,6 +171,40 @@ public class MySensorManager extends MyBaseManager {
     }
 
     /*------------------------------------- Init. Sensors ----------------------------------------*/
+
+    private static List<Integer> initCalibratedTypes() {
+        return Arrays.asList(
+                Sensor.TYPE_ACCELEROMETER,
+                Sensor.TYPE_GYROSCOPE,
+                Sensor.TYPE_MAGNETIC_FIELD
+        );
+    }
+
+    private static List<Integer> initUncalibratedTypes() {
+
+        List<Integer> lTypes = new ArrayList<>();
+
+        if (SDK_INT >= ANDROID_VERSION_UNCALIB_SENSORS) {
+
+            lTypes = Arrays.asList(
+                    Sensor.TYPE_ACCELEROMETER_UNCALIBRATED,
+                    Sensor.TYPE_GYROSCOPE_UNCALIBRATED,
+                    Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED
+            );
+        }
+
+        return lTypes;
+    }
+
+    private static List<Integer> initAllSensorTypes() {
+
+        List<Integer> lTypes = new ArrayList<>();
+
+        lTypes.addAll(mCalibratedTypes);
+        lTypes.addAll(mUncalibratedTypes);
+
+        return lTypes;
+    }
 
     private static void getSensorsInfo(SensorManager sensorManager, int sensorTypeCode, List<MySensorInfo> lSensorInfo) {
 
@@ -321,42 +345,12 @@ public class MySensorManager extends MyBaseManager {
     /*---------------------------------- Lifecycle Management ------------------------------------*/
 
     @Override
-    public void clean(Context context) {}
-
-    @Override
-    protected void init(Context context) {
-
-        updateAvailabilityAndCheckedSensors(context);
-    }
-
-    private static List<Integer> initUncalibratedTypes() {
-
-        List<Integer> lTypes = new ArrayList<>();
-
-        if (SDK_INT >= ANDROID_VERSION_UNCALIB_SENSORS) {
-
-            lTypes = Arrays.asList(
-                    Sensor.TYPE_ACCELEROMETER_UNCALIBRATED,
-                    Sensor.TYPE_GYROSCOPE_UNCALIBRATED,
-                    Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED
-            );
-        }
-
-        return lTypes;
-    }
-
-    private static List<Integer> initAllSensorTypes() {
-
-        List<Integer> lTypes = new ArrayList<>();
-
-        lTypes.addAll(mCalibratedTypes);
-        lTypes.addAll(mUncalibratedTypes);
-
-        return lTypes;
-    }
-
-    @Override
     public void start(Context context) {
+
+        if (!this.isAvailableAndChecked()) {
+            Log.w(TAG, "Sensors are not available, abort");
+            return;
+        }
 
         super.start(context);
         openStorageChannels(context);
@@ -367,6 +361,11 @@ public class MySensorManager extends MyBaseManager {
     @Override
     public void stop(Context context) {
 
+        if (!this.isAvailableAndChecked() || !this.isProcessing()) {
+            Log.d(TAG, "Sensors are not running");
+            return;
+        }
+
         unregisterSensors();
         stopBackgroundThread();
         closeStorageChannels();
@@ -375,7 +374,9 @@ public class MySensorManager extends MyBaseManager {
 
     private void registerSensors() {
 
-        if (mSensorManager == null || mlSensorGroup == null || mlSensorGroup.isEmpty()) {
+        if (!this.isAvailableAndChecked() || mSensorManager == null ||
+                mlSensorGroup == null || mlSensorGroup.isEmpty()) {
+            Log.d(TAG, "No sensors to register, abort");
             return;
         }
 
@@ -394,6 +395,12 @@ public class MySensorManager extends MyBaseManager {
     }
 
     private void unregisterSensors() {
+
+        if (!this.isAvailableAndChecked() || mSensorManager == null) {
+            Log.d(TAG, "No sensors to unregister");
+            return;
+        }
+
         mSensorManager.unregisterListener(mSensorCallback);
     }
 
@@ -531,11 +538,15 @@ public class MySensorManager extends MyBaseManager {
         private Sensor mMotionSensor;
     }
 
+    // TODO: Transfer to a global Messages interface
     private static class MySensorMessage extends MyMessage {
+
+        private SensorEvent mSensorEvent;
 
         public MySensorMessage(SensorEvent event) {
 
             super(toString(event));
+            mSensorEvent = event;
         }
 
         public static String toString(SensorEvent mSensorEvent) {
@@ -553,6 +564,14 @@ public class MySensorManager extends MyBaseManager {
             res.append('\n');
 
             return res.toString();
+        }
+
+        public SensorEvent getSensorEvent() {
+            return mSensorEvent;
+        }
+
+        public void setSensorEvent(SensorEvent sensorEvent) {
+            this.mSensorEvent = sensorEvent;
         }
     }
 }
