@@ -43,10 +43,11 @@ dependencies {
     def preference_version = "1.2.0"
     def lifecycle_version = "2.5.0"
     def arch_version = "2.1.0"
+    def fragment_version = "1.5.2"
 
 
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-    implementation 'androidx.appcompat:appcompat:1.4.2'
+    implementation 'androidx.appcompat:appcompat:1.4.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'androidx.legacy:legacy-support-v4:1.0.0'
     implementation 'androidx.recyclerview:recyclerview:1.2.1'
@@ -60,6 +61,10 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-extensions:2.2.0'
     implementation "androidx.lifecycle:lifecycle-viewmodel:2.5.0"
     implementation 'androidx.lifecycle:lifecycle-extensions:2.0.0'
+
+    implementation 'com.google.android.gms:play-services-location:20.0.0'
+    implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.1.0'
+    implementation project(':pseudorange')
 
     // ViewModel
     implementation "androidx.lifecycle:lifecycle-viewmodel:$lifecycle_version"

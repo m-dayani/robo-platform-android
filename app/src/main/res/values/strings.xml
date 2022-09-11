@@ -65,4 +65,5 @@
     <string name="sensors_stat">Sensors Stat</string>
     <string name="btn_txt_stop">Stop</string>
     <string name="btn_txt_start">Start</string>
+    <string name="picture">Picture</string>
 </resources>

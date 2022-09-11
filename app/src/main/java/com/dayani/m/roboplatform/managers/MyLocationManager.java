@@ -39,36 +39,59 @@ package com.dayani.m.roboplatform.managers;
  *
  */
 
+import static android.os.Build.VERSION.SDK_INT;
+
 import android.Manifest;
 import android.app.Activity;
+import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.location.GnssMeasurement;
+import android.location.GnssMeasurementsEvent;
+import android.location.GnssNavigationMessage;
+import android.location.GnssStatus;
 import android.location.Location;
 import android.location.LocationManager;
+import android.os.Build;
+import android.os.Bundle;
 import android.os.Looper;
 import android.util.Log;
+import android.util.Pair;
 
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.IntentSenderRequest;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.FragmentActivity;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.dayani.m.roboplatform.RecordingFragment;
-import com.dayani.m.roboplatform.managers.MyStorageManager.StorageInfo;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages;
+import com.dayani.m.thirdparty.google.gnsslogger.DetectedActivitiesIntentReceiver;
+import com.dayani.m.thirdparty.google.gnsslogger.MeasurementListener;
+import com.dayani.m.thirdparty.google.gnsslogger.MeasurementProvider;
+import com.dayani.m.thirdparty.google.gnsslogger.RealTimePositionVelocityCalculator;
 import com.dayani.m.roboplatform.utils.AppGlobals;
 import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
 import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
-import com.dayani.m.roboplatform.utils.interfaces.LoggingChannel;
-import com.dayani.m.roboplatform.utils.interfaces.MessageChannel;
-import com.dayani.m.roboplatform.utils.interfaces.MessageChannel.MyMessage;
-import com.dayani.m.roboplatform.utils.interfaces.StorageChannel;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageInfo;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgConfig;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageConfig;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MyMessage;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgLocation;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgGnssMeasurement;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgGnssNavigation;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgLogging;
+import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.ResolvableApiException;
+import com.google.android.gms.location.ActivityRecognition;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
@@ -87,7 +110,8 @@ import java.util.List;
 import java.util.Map;
 
 
-public class MyLocationManager extends MyBaseManager {
+public class MyLocationManager extends MyBaseManager implements MeasurementListener,
+        GoogleApiClient.OnConnectionFailedListener, GoogleApiClient.ConnectionCallbacks {
 
     /* ===================================== Variables ========================================== */
 
@@ -127,11 +151,22 @@ public class MyLocationManager extends MyBaseManager {
     static final long FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS =
             UPDATE_INTERVAL_IN_MILLISECONDS / 2;
 
+    public static final int ANDROID_GNSS_INTER_SIG_BIAS_VERSION = Build.VERSION_CODES.R;
+    public static final int ANDROID_GNSS_TYPE_CODE_VERSION = Build.VERSION_CODES.Q;
+
+    private static final class SensorIds {
+
+        public static final int GPS = 0;
+        public static final int FUSED = 1;
+        public static final int GNSS_MEA = 2;
+        public static final int GNSS_NAV = 3;
+        public static final int GNSS_WLS = 4;
+    }
 
     private static LocalBroadcastManager mLocalBrManager;
     private final BroadcastReceiver mLocationProviderChangedBR;
 
-    private Location mLastLocation = null;
+    private android.location.Location mLastLocation = null;
 
     private final SettingsClient mSettingsClient;
 
@@ -145,9 +180,10 @@ public class MyLocationManager extends MyBaseManager {
 
     private final LocationCallback mLocationCallback = initLocationCallback();
 
+    private GoogleApiClient mGoogleApiClient;
+    private final MeasurementProvider mMeasurementProvicer;
+    private RealTimePositionVelocityCalculator mRealTimePositionVelocityCalculator;
 
-    private static final int GPS_ID = 0;
-    private static final int GNSS_ID = 1;
 
     private boolean mIsLocationEnabled = false;
 
@@ -164,6 +200,11 @@ public class MyLocationManager extends MyBaseManager {
         mLocationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
 
         mLocationProviderChangedBR = new ManagerRequirementBroadcastReceiver(this);
+
+//        buildGoogleApiClient(context);
+        mRealTimePositionVelocityCalculator = new RealTimePositionVelocityCalculator();
+        mMeasurementProvicer = new MeasurementProvider(context, mGoogleApiClient,
+                this, mRealTimePositionVelocityCalculator);
 
         //init(context);
         createLocationRequest();
@@ -327,9 +368,8 @@ public class MyLocationManager extends MyBaseManager {
         }
 
         super.start(context);
-        openStorageChannels(context);
-        //startBackgroundThread(TAG);
-        changeLocationSettings(context, LocationSettingAction.REQUEST_UPDATES, null);
+        openStorageChannels();
+        registerLocationServices(context);
     }
 
     @Override
@@ -340,10 +380,36 @@ public class MyLocationManager extends MyBaseManager {
             return;
         }
 
-        stopLocationUpdates(context);
-        //stopBackgroundThread();
+        unregisterLocationServices(context);
         closeStorageChannels();
         super.stop(context);
+    }
+
+    private void registerLocationServices(Context context) {
+
+//        if (mGoogleApiClient != null && mGoogleApiClient.hasConnectedApi(LocationServices.API)) {
+//            mMeasurementProvicer.registerFusedLocation();
+//        }
+//        else {
+        changeLocationSettings(context, LocationSettingAction.REQUEST_UPDATES, null);
+//        }
+
+        mMeasurementProvicer.registerMeasurements();
+        mMeasurementProvicer.registerNavigation();
+    }
+
+    private void unregisterLocationServices(Context context) {
+
+        mMeasurementProvicer.unregisterNavigation();
+        mMeasurementProvicer.unregisterMeasurements();
+
+//        if (mGoogleApiClient != null && mGoogleApiClient.hasConnectedApi(LocationServices.API)) {
+//            mMeasurementProvicer.unRegisterFusedLocation();
+//        }
+//        else {
+        stopLocationUpdates(context);
+//        }
+
     }
 
     private void registerLocationChangeBrReceiver(Context context) {
@@ -371,49 +437,82 @@ public class MyLocationManager extends MyBaseManager {
     /* ----------------------------------- Message Passing -------------------------------------- */
 
     @Override
-    protected Map<Integer, StorageInfo> initStorageChannels() {
+    protected String getResourceId(MyResourceIdentifier resId) {
 
-        Map<Integer, StorageInfo> storageInfoMap = new HashMap<>();
-        List<String> gnssFolders = Collections.singletonList("gnss");
+        switch (resId.getId()) {
 
-        storageInfoMap.put(GPS_ID, new StorageInfo(gnssFolders, "gps.txt"));
-        storageInfoMap.put(GNSS_ID, new StorageInfo(gnssFolders, "gnss_raw.txt"));
-
-        return storageInfoMap;
+            case SensorIds.GPS:
+                return "Gnss_Gps";
+            case SensorIds.FUSED:
+                return "Gnss_Gps_Fused";
+            case SensorIds.GNSS_MEA:
+                return "Gnss_Mea";
+            case SensorIds.GNSS_NAV:
+                return "Gnss_Nav";
+            case SensorIds.GNSS_WLS:
+                return "Gnss_Wls";
+            default:
+                return "Unknown_Sensor";
+        }
     }
 
     @Override
-    protected void openStorageChannels(Context context) {
+    protected List<Pair<String, MsgConfig>> getStorageConfigMessages(MySensorInfo sensor) {
 
-        if (mlChannelTransactions == null || mmStorageChannels == null || mlSensorGroup == null) {
-            Log.w(TAG, "Either sensors are not available or no storage listener found");
-            return;
+        List<Pair<String, MsgConfig>> lMsgConfigPairs = new ArrayList<>();
+
+        List<String> gnssFolders = Collections.singletonList("gnss");
+
+        MsgConfig.ConfigAction configAction = MsgConfig.ConfigAction.OPEN;
+        StorageInfo.StreamType ss = StorageInfo.StreamType.STREAM_STRING;
+
+        String header;
+        StorageInfo storageInfo;
+
+        int sensorId = sensor.getId();
+
+        // gnss_nav is part of gnss_raw (gnss_mea) and is not assigned independently
+        switch (sensorId) {
+
+            case SensorIds.GPS:
+                header = MsgLocation.getHeaderMessage();
+                storageInfo = new StorageInfo(gnssFolders, "gps.txt", ss);
+                break;
+            case SensorIds.FUSED:
+                header = MsgLocation.getHeaderMessage();
+                storageInfo = new StorageInfo(gnssFolders, "fused_gps.txt", ss);
+                break;
+            case SensorIds.GNSS_MEA:
+                header = MsgGnssMeasurement.getHeaderMessage();
+                storageInfo = new StorageInfo(gnssFolders, "gnss_raw_mea.txt", ss);
+                break;
+            case SensorIds.GNSS_WLS:
+                header = MsgLocation.getHeaderMessage();
+                storageInfo = new StorageInfo(gnssFolders, "gnss_raw_wls.txt", ss);
+                break;
+            default:
+                header = "# unknown sensor";
+                storageInfo = new StorageInfo(gnssFolders, "unknown_sensor.txt", ss);
+                break;
         }
 
-        for (MySensorGroup sensorGroup : mlSensorGroup) {
+        String sensorTag = getResourceId(new MyResourceIdentifier(sensorId, -1));
 
-            for (MySensorInfo sensorInfo : sensorGroup.getSensors()) {
+        MsgConfig config = new StorageConfig(configAction, TAG, storageInfo);
+        config.setStringMessage(header);
+        lMsgConfigPairs.add(new Pair<>(sensorTag, config));
 
-                if (sensorInfo != null) {
+        if (sensorId == SensorIds.GNSS_MEA) {
 
-                    int sensorId = sensorInfo.getId();
-                    StorageInfo storageInfo = mmStorageChannels.get(sensorId);
-
-                    if (storageInfo != null) {
-
-                        for (MessageChannel<?> channel : mlChannelTransactions) {
-
-                            if (channel instanceof StorageChannel) {
-
-                                int chId = ((StorageChannel) channel).openNewChannel(context, storageInfo);
-                                storageInfo.setChannelId(chId);
-                                writeFileHeader(sensorId);
-                            }
-                        }
-                    }
-                }
-            }
+            sensorTag = getResourceId(new MyResourceIdentifier(SensorIds.GNSS_NAV, -1));
+            header = MsgGnssNavigation.getHeaderMessage();
+            storageInfo = new StorageInfo(gnssFolders, "gnss_raw_nav.txt", ss);
+            config = new StorageConfig(configAction, TAG, storageInfo);
+            config.setStringMessage(header);
+            lMsgConfigPairs.add(new Pair<>(sensorTag, config));
         }
+
+        return lMsgConfigPairs;
     }
 
     /* ======================================= Location ========================================= */
@@ -454,11 +553,22 @@ public class MyLocationManager extends MyBaseManager {
             public void onLocationResult(@NonNull LocationResult locationResult) {
 
                 //super.onLocationResult(locationResult);
-                for (Location location : locationResult.getLocations()) {
-                    publish(GPS_ID, new LocationMessage(location));
+                for (android.location.Location location : locationResult.getLocations()) {
+                    onLocationChanged(location);
                 }
             }
         };
+    }
+
+    private synchronized void buildGoogleApiClient(Context context) {
+        mGoogleApiClient =
+                new GoogleApiClient.Builder(context)
+                        .enableAutoManage((FragmentActivity) context, this)
+                        .addConnectionCallbacks(this)
+                        .addOnConnectionFailedListener(this)
+                        .addApi(ActivityRecognition.API)
+                        .addApi(LocationServices.API)
+                        .build();
     }
 
 
@@ -468,10 +578,10 @@ public class MyLocationManager extends MyBaseManager {
         return packageManager.hasSystemFeature(PackageManager.FEATURE_LOCATION_GPS);
     }
 
-    private static boolean hasGnssRawSensor(Context context) {
+    private static boolean hasGnssRawSensor() {
 
-        // TODO: Implement
-        return false;
+        // it seems that gnss is supported in Android API >= 24
+        return SDK_INT >= MeasurementProvider.ANDROID_GNSS_API_VERSION;
     }
 
     private MySensorInfo getGpsSensor(Context context) {
@@ -486,10 +596,11 @@ public class MyLocationManager extends MyBaseManager {
             Map<String, String> calibInfo = new HashMap<>();
             calibInfo.put("Resolution_m", "10");
 
-            sensorInfo = new MySensorInfo(GPS_ID, "GPS");
+            sensorInfo = new MySensorInfo(SensorIds.FUSED, "GPS");
             sensorInfo.setDescInfo(descInfo);
             sensorInfo.setCalibInfo(calibInfo);
-            //sensorInfo.setChecked(false);
+
+            //sensorInfo.setChecked(isAvailable());
         }
 
         return sensorInfo;
@@ -499,7 +610,7 @@ public class MyLocationManager extends MyBaseManager {
 
         MySensorInfo sensorInfo = null;
 
-        if (hasGnssRawSensor(context)) {
+        if (hasGpsSensor(context) && hasGnssRawSensor()) {
 
             Map<String, String> descInfo = new HashMap<>();
             descInfo.put("Usage", "\n\t1. Grant location permissions.\n\t2. Enable location settings");
@@ -507,10 +618,11 @@ public class MyLocationManager extends MyBaseManager {
             Map<String, String> calibInfo = new HashMap<>();
             calibInfo.put("Resolution_m", "10");
 
-            sensorInfo = new MySensorInfo(GNSS_ID, "GNSS Raw Measurements");
+            sensorInfo = new MySensorInfo(SensorIds.GNSS_MEA, "GNSS Raw Measurements");
             sensorInfo.setDescInfo(descInfo);
             sensorInfo.setCalibInfo(calibInfo);
-            //sensorInfo.setChecked(false);
+
+            //sensorInfo.setChecked(isAvailable());
         }
 
         return sensorInfo;
@@ -536,6 +648,8 @@ public class MyLocationManager extends MyBaseManager {
         if (gnssRaw != null) {
             sensors.add(gnssRaw);
         }
+
+        // TODO: maybe add google's gnss wls sensor too
 
         sensorGroups.add(new MySensorGroup(MySensorGroup.getNextGlobalId(),
                 MySensorGroup.SensorType.TYPE_GNSS, "GNSS", sensors));
@@ -634,6 +748,135 @@ public class MyLocationManager extends MyBaseManager {
         mRequirementRequestListener.requestResolution(REQUEST_CHECK_SETTINGS, intentSenderRequest);
     }
 
+
+    protected PendingIntent createActivityDetectionPendingIntent(Context context) {
+        Intent intent = new Intent(context, DetectedActivitiesIntentReceiver.class);
+        if (SDK_INT >= Build.VERSION_CODES.S) {
+            return PendingIntent.getBroadcast(context, 0, intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
+        } else {
+            return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        }
+    }
+
+    @Override
+    public void onConnected(@Nullable Bundle bundle) {
+        if (Log.isLoggable(TAG, Log.INFO)) {
+            Log.i(TAG, "Connected to GoogleApiClient");
+        }
+        try {
+            ActivityRecognition.ActivityRecognitionApi.requestActivityUpdates(mGoogleApiClient, 0,
+                    createActivityDetectionPendingIntent(mGoogleApiClient.getContext()));
+        }
+        catch (SecurityException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+        if (Log.isLoggable(TAG, Log.INFO)) {
+            Log.i(TAG, "Connection suspended");
+        }
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+        if (Log.isLoggable(TAG, Log.INFO)) {
+            Log.i(TAG, "Connection failed: ErrorCode = " + connectionResult.getErrorCode());
+        }
+    }
+
+
+    @Override
+    public void onProviderEnabled(String provider) {
+
+    }
+
+    @Override
+    public void onProviderDisabled(String provider) {
+
+    }
+
+    @Override
+    public void onLocationChanged(Location location) {
+
+        doInBackground(() -> {
+
+            int targetId = getTargetId(new MyResourceIdentifier(SensorIds.FUSED, -1));
+            publishMessage(new MsgLocation(location, targetId));
+        });
+    }
+
+    @Override
+    public void onLocationStatusChanged(String provider, int status, Bundle extras) {
+
+    }
+
+    @Override
+    public void onGnssMeasurementsReceived(GnssMeasurementsEvent event) {
+
+        if (SDK_INT < MeasurementProvider.ANDROID_GNSS_API_VERSION) {
+            Log.d(TAG, "Android version does not support GNSS operations");
+            return;
+        }
+
+        doInBackground(() -> {
+
+            int targetId = getTargetId(new MyResourceIdentifier(SensorIds.GNSS_MEA, -1));
+
+            for (GnssMeasurement measurement : event.getMeasurements()) {
+                publishMessage(new MsgGnssMeasurement(measurement, targetId));
+            }
+        });
+    }
+
+    @Override
+    public void onGnssMeasurementsStatusChanged(int status) {
+
+    }
+
+    @Override
+    public void onGnssNavigationMessageReceived(GnssNavigationMessage event) {
+
+        if (SDK_INT < MeasurementProvider.ANDROID_GNSS_API_VERSION) {
+            Log.d(TAG, "Android version does not support GNSS operations");
+            return;
+        }
+
+        doInBackground(() -> {
+
+            int targetId = getTargetId(new MyResourceIdentifier(SensorIds.GNSS_NAV, -1));
+            publishMessage(new MsgGnssNavigation(event, targetId));
+        });
+    }
+
+    @Override
+    public void onGnssNavigationMessageStatusChanged(int status) {
+
+    }
+
+    @Override
+    public void onGnssStatusChanged(GnssStatus gnssStatus) {
+
+    }
+
+    @Override
+    public void onListenerRegistration(String listener, boolean result) {
+
+    }
+
+    @Override
+    public void onNmeaReceived(long l, String s) {
+
+    }
+
+    @Override
+    public void onTTFFReceived(long l) {
+
+    }
+
+
     /* ------------------------------------ Last Location --------------------------------------- */
 
     @SuppressWarnings("MissingPermission")
@@ -651,11 +894,11 @@ public class MyLocationManager extends MyBaseManager {
                                 // Logic to handle location object
                                 mLastLocation = location;
                                 // Log last location
-                                MyMessage msg = new LoggingChannel.MyLoggingMessage(
-                                        "Last location: " + LocationMessage.toString(mLastLocation) + "\n",
-                                        RecordingFragment.FRAG_RECORDING_LOGGING_IDENTIFIER);
+                                MyMessage msg = new MsgLogging(
+                                        "Last location: " + MsgLocation.toString(mLastLocation) + "\n",
+                                        RecordingFragment.class.getSimpleName());
                                 Log.v(TAG, msg.toString());
-                                publish(-1, msg);
+                                publishMessage(msg);
                             }
                             else {
                                 Log.d(TAG, "getLastLocation: null last location.");
@@ -701,26 +944,6 @@ public class MyLocationManager extends MyBaseManager {
 
     /* ======================================== Helpers ========================================= */
 
-    private void writeFileHeader(int sensorId) {
-
-        if (mlChannelTransactions == null) {
-            return;
-        }
-
-        MyMessage header = new MyMessage("# unknown sensor type\n");
-
-        if (sensorId == GPS_ID) {
-
-            header = new MyMessage("# timestamp_ns, latitude_deg, longitude_deg, altitude_deg, velocity_mps, bearing");
-        }
-        else if (sensorId == GNSS_ID) {
-
-            header = new MyMessage("# timestamp_ns, latitude_deg, longitude_deg, altitude_deg, velocity_mps, bearing, satellite");
-        }
-
-        publish(sensorId, header);
-    }
-
     /* ======================================= Data Types ======================================= */
 
     public static class ManagerRequirementBroadcastReceiver extends BroadcastReceiver {
@@ -738,34 +961,6 @@ public class MyLocationManager extends MyBaseManager {
             if (mManager != null) {
                 mManager.onBroadcastReceived(context, intent);
             }
-        }
-    }
-
-    private static class LocationMessage extends MyMessage {
-
-        private Location mLocEvent;
-
-        public LocationMessage(Location locEvent) {
-
-            super(toString(locEvent));
-            mLocEvent = locEvent;
-        }
-
-        /**
-         * @param loc new location event
-         * @return String("timestamp, longitude, latitude, altitude, velocity, bearing")
-         */
-        public static String toString(Location loc) {
-            return loc.getTime() + ", " + loc.getLongitude() + ", " + loc.getLatitude() +
-                    ", " + loc.getAltitude() + ", " + loc.getSpeed() + ", " + loc.getBearing() + '\n';
-        }
-
-        public Location getLocEvent() {
-            return mLocEvent;
-        }
-
-        public void setLocEvent(Location locEvent) {
-            this.mLocEvent = locEvent;
         }
     }
 }

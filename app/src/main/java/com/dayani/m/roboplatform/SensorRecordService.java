@@ -27,9 +27,7 @@ import com.dayani.m.roboplatform.managers.MyLocationManager;
 import com.dayani.m.roboplatform.managers.MySensorManager;
 import com.dayani.m.roboplatform.managers.MyStateManager;
 import com.dayani.m.roboplatform.managers.MyStorageManager;
-import com.dayani.m.roboplatform.utils.loggers.FileLogger;
-import com.dayani.m.roboplatform.utils.android_gnss.GnssContainer;
-import com.dayani.m.roboplatform.utils.loggers.UiLogger;
+//import com.dayani.m.roboplatform.utils.android_gnss.GnssContainer;
 
 import java.io.File;
 
@@ -53,9 +51,9 @@ public class SensorRecordService extends Service {
 
     private MyLocationManager mLocation = null;
 
-    private UiLogger mUiLogger;
-    private FileLogger mFileLogger;
-    private GnssContainer mGnss = null;
+//    private UiLogger mUiLogger;
+//    private FileLogger mFileLogger;
+//    private GnssContainer mGnss = null;
 
     private MySensorManager mSensorManager;
 
@@ -146,13 +144,13 @@ public class SensorRecordService extends Service {
         mTimePrefix = MyStorageManager.getTimePrefix();
         mSensorString = new StringBuffer();
 
-        mUiLogger = new UiLogger();
+        //mUiLogger = new UiLogger();
         //mUiLogger.setUiFragmentComponent(new UiLogger.UIFragmentComponent(this, reportTxt, frag));
-        mFileLogger = new FileLogger(getApplicationContext());
+        //mFileLogger = new FileLogger(getApplicationContext());
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             //function calls in this class requires API 24 or above
-            mGnss = new GnssContainer(this, mFileLogger, mUiLogger);
+            //mGnss = new GnssContainer(this, mFileLogger, mUiLogger);
         }
         else {
             //mLocation = new MyLocationManager(this, mSensorString);
@@ -206,10 +204,10 @@ public class SensorRecordService extends Service {
         if (mLocation != null) {
             //mLocation.startLocationUpdates(mSensorLooper);
         }
-        if (mGnss != null) {
-            mFileLogger.startNewLog();
-            mGnss.registerLocation();
-        }
+//        if (mGnss != null) {
+//            mFileLogger.startNewLog();
+//            //mGnss.registerLocation();
+//        }
         //mCam.startRecordingVideo();
     }
 
@@ -222,10 +220,10 @@ public class SensorRecordService extends Service {
         if (mLocation != null) {
             //mLocation.stopLocationUpdates(context);
         }
-        if (mGnss != null) {
-            mGnss.unregisterLocation();
-            mFileLogger.stopLog();
-        }
+//        if (mGnss != null) {
+//            ///mGnss.unregisterLocation();
+//            mFileLogger.stopLog();
+//        }
         //mCam.stopRecordingVideo();
         //Store sensor values
         //devise a unified optimum method for setting and

@@ -163,7 +163,7 @@ public class RecordSensorsActivity_old2 extends AppCompatActivity
         //mUsb.registerUsbPermission();
         //mUsb.tryOpenDefaultDevice();
         //actually, starts preview
-        mCam.onResume();
+        mCam.start(this);
 
         // Within {@code onPause()}, we remove location updates. Here, we resume receiving
         // location updates if the user has requested them.
@@ -190,7 +190,7 @@ public class RecordSensorsActivity_old2 extends AppCompatActivity
         }
         //mUsb.unregisterUsbSensorReciever();
         //mUsb.unregisterUsbPermission();
-        mCam.clean();
+        mCam.clean(this);
 
         //mLocation.stopLocationUpdates();
         //mSensorManager.onPause();
@@ -261,7 +261,7 @@ public class RecordSensorsActivity_old2 extends AppCompatActivity
         mUsb.startPeriodicSensorPoll();
         //while we're not saving files, use our handlerThread for location updates
         //mLocation.startLocationUpdates(mSensorLooper);
-        mCam.startRecordingVideo();
+        //mCam.startRecordingVideo(this);
         mIsRecording = true;
         MyStateManager.setBoolPref(this, KEY_IS_RECORDING_STATE, mIsRecording);
         // UI
@@ -275,7 +275,7 @@ public class RecordSensorsActivity_old2 extends AppCompatActivity
         mSensorManager.stop(this);
         mUsb.stopPeriodicSensorPoll();
         mLocation.stopLocationUpdates(this);
-        mCam.stopRecordingVideo();
+        //mCam.stopRecordingVideo();
         mIsRecording = false;
         MyStateManager.setBoolPref(this, KEY_IS_RECORDING_STATE, mIsRecording);
         //Store sensor values

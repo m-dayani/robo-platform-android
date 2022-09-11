@@ -1,8 +1,8 @@
 package com.dayani.m.roboplatform;
 
-import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 
 import androidx.activity.result.ActivityResult;
@@ -13,28 +13,37 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.dayani.m.roboplatform.managers.CameraFlyVideo;
 import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.managers.MyLocationManager;
 import com.dayani.m.roboplatform.managers.MySensorManager;
 import com.dayani.m.roboplatform.managers.MyStorageManager;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
+import com.dayani.m.roboplatform.utils.interfaces.MyBackgroundExecutor;
 import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executor;
 
 
 /**
  * Responsible for all fragment interactions from requirement handling to recording
  */
 public class RecordSensorsActivity extends AppCompatActivity
-        implements ActivityRequirements.RequirementResolution {
+        implements ActivityRequirements.RequirementResolution,
+                MyBackgroundExecutor.JobListener {
 
     private static final String TAG = RecordSensorsActivity.class.getSimpleName();
 
     public static final String EXTRA_KEY_RECORD_EXTERNAL = TAG + "key_record_external";
 
     private SensorsViewModel mVM_Sensors;
+
+    private int mRequestCode = 0;
+
+    private MyBackgroundExecutor mBackgroundExecutor;
+
 
     /* -------------------------------------- Lifecycle ----------------------------------------- */
 
@@ -53,6 +62,9 @@ public class RecordSensorsActivity extends AppCompatActivity
 
         initManagersAndSensors(mVM_Sensors, mbRecordExternal);
 
+        mBackgroundExecutor = new MyBackgroundExecutor();
+        mBackgroundExecutor.initWorkerThread(TAG);
+
         // launch requirements fragment
         if (savedInstanceState == null) {
 
@@ -69,6 +81,7 @@ public class RecordSensorsActivity extends AppCompatActivity
             // Only the context that creates managers (in onCreate) must call this
             this.cleanManagers(mVM_Sensors.getAllManagers());
         }
+        mBackgroundExecutor.cleanWorkerThread();
         super.onDestroy();
     }
 
@@ -87,27 +100,36 @@ public class RecordSensorsActivity extends AppCompatActivity
 
     private void initManagersAndSensors(SensorsViewModel vm, boolean withUSB) {
 
-        MyStorageManager storageManager = (MyStorageManager) getOrCreateManager(
+        MyStorageManager storageManager = (MyStorageManager) SensorsViewModel.getOrCreateManager(
                 this, vm, MyStorageManager.class.getSimpleName());
 
-        MyBaseManager mManager = getOrCreateManager(this, vm, MySensorManager.class.getSimpleName());
-        mManager.addChannelTransaction(storageManager);
+        MyBaseManager mManager = SensorsViewModel.getOrCreateManager(
+                this, vm, MySensorManager.class.getSimpleName());
+        mManager.registerChannel(storageManager);
 
-        mManager = getOrCreateManager(this, vm, MyLocationManager.class.getSimpleName());
-        mManager.addChannelTransaction(storageManager);
+        mManager = SensorsViewModel.getOrCreateManager(
+                this, vm, MyLocationManager.class.getSimpleName());
+        mManager.registerChannel(storageManager);
+
+        mManager = SensorsViewModel.getOrCreateManager(
+                this, vm, CameraFlyVideo.class.getSimpleName());
+        mManager.registerChannel(storageManager);
 
         // TODO: Add the rest [also change getOrCreateManager(...)]
-        //manager = getOrCreateManager(this, vm, CameraFlyVideo.class.getSimpleName());
-        //manager.addChannelTransaction(storageManager);
-
         if (withUSB) {
             Log.d(TAG, "USB manager is enabled");
-            //manager = getOrCreateManager(this, vm, MyUSBManager.class.getSimpleName());
-            //manager.addChannelTransaction(storageManager);
+            //mManager = getOrCreateManager(this, vm, MyUSBManager.class.getSimpleName());
+            mManager.registerChannel(storageManager);
         }
 
         // Must always call init. here for symmetry (not in managers' constructor)
         for (MyBaseManager manager : vm.getAllManagers()) {
+
+            // complete message passing links
+//            if (manager != storageManager) {
+//                storageManager.registerChannel(manager);
+//            }
+
             manager.init(this);
         }
     }
@@ -115,40 +137,9 @@ public class RecordSensorsActivity extends AppCompatActivity
     private void cleanManagers(List<MyBaseManager> lAllManagers) {
 
         for (MyBaseManager manager : lAllManagers) {
+
             manager.clean(this);
         }
-    }
-
-    // don't repeat the same check and create in all fragments and activities
-    public static MyBaseManager getOrCreateManager(Context context, SensorsViewModel vm,
-                                                   String managerClassName) {
-
-        MyBaseManager manager = null;
-
-        if (managerClassName.equals(MyStorageManager.class.getSimpleName())) {
-            manager = vm.getManager(MyStorageManager.class.getSimpleName());
-            if (manager == null) {
-                manager = new MyStorageManager(context);
-                vm.addManagerAndSensors(context, manager);
-            }
-        }
-        else if (managerClassName.equals(MySensorManager.class.getSimpleName())) {
-            manager = vm.getManager(MySensorManager.class.getSimpleName());
-            if (manager == null) {
-                manager = new MySensorManager(context);
-                vm.addManagerAndSensors(context, manager);
-            }
-        }
-        else if (managerClassName.equals(MyLocationManager.class.getSimpleName())) {
-            manager = vm.getManager(MyLocationManager.class.getSimpleName());
-            if (manager == null) {
-                manager = new MyLocationManager(context);
-                vm.addManagerAndSensors(context, manager);
-            }
-        }
-        //TODO: Add the rest
-
-        return manager;
     }
 
     /* ---------------------------------- Request Resolutions ----------------------------------- */
@@ -157,19 +148,13 @@ public class RecordSensorsActivity extends AppCompatActivity
             new ActivityResultContracts.RequestMultiplePermissions(),
             this::processPermissions);
 
-    private int mRequestCode = 0;
-
     private final ActivityResultLauncher<Intent> mIntentLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
-            result -> {
-                this.processActivityResult(mRequestCode, result);
-            });
+            result -> this.processActivityResult(mRequestCode, result));
 
     private final ActivityResultLauncher<IntentSenderRequest> mIntentSender = registerForActivityResult(
             new ActivityResultContracts.StartIntentSenderForResult(),
-            result -> {
-                this.processActivityResult(mRequestCode, result);
-            });
+            result -> this.processActivityResult(mRequestCode, result));
 
     private void processActivityResult(int requestCode, ActivityResult result) {
 
@@ -226,5 +211,50 @@ public class RecordSensorsActivity extends AppCompatActivity
 
         MainActivity.startNewFragment(getSupportFragmentManager(),
                 R.id.fragment_container_view, targetFragment, "sensors");
+    }
+
+    /* ------------------------------------ Multi-threading ------------------------------------- */
+
+    @Override
+    public Executor getBackgroundExecutor() {
+
+        if (mBackgroundExecutor != null) {
+            return mBackgroundExecutor.getBackgroundExecutor();
+        }
+        return null;
+    }
+
+    @Override
+    public Handler getBackgroundHandler() {
+
+        if (mBackgroundExecutor != null) {
+            return mBackgroundExecutor.getBackgroundHandler();
+        }
+        return null;
+    }
+
+    @Override
+    public Handler getUiHandler() {
+
+        if (mBackgroundExecutor != null) {
+            return mBackgroundExecutor.getUiHandler();
+        }
+        return null;
+    }
+
+    @Override
+    public void execute(Runnable r) {
+
+        if (mBackgroundExecutor != null) {
+            mBackgroundExecutor.execute(r);
+        }
+    }
+
+    @Override
+    public void handle(Runnable r) {
+
+        if (mBackgroundExecutor != null) {
+            mBackgroundExecutor.handle(r);
+        }
     }
 }

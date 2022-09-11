@@ -30,15 +30,17 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Build;
 import android.util.Log;
+import android.util.Pair;
 
-import com.dayani.m.roboplatform.managers.MyStorageManager.StorageInfo;
-import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
-import com.dayani.m.roboplatform.utils.interfaces.MessageChannel;
-import com.dayani.m.roboplatform.utils.interfaces.MessageChannel.MyMessage;
 import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
 import com.dayani.m.roboplatform.utils.data_types.MySensorGroup.SensorType;
 import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
-import com.dayani.m.roboplatform.utils.interfaces.StorageChannel;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgConfig;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MyMessage;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageConfig;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageInfo;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -57,8 +59,8 @@ public class MySensorManager extends MyBaseManager {
 
     private static final int MAX_SENSOR_READ_INTERVAL = SensorManager.SENSOR_DELAY_FASTEST;
 
-    private static final int ANDROID_VERSION_UNCALIB_SENSORS = Build.VERSION_CODES.O;
-    private static final int ANDROID_VERSION_ACQ_MODE = Build.VERSION_CODES.N;
+    public static final int ANDROID_VERSION_UNCALIB_SENSORS = Build.VERSION_CODES.O;
+    public static final int ANDROID_VERSION_ACQ_MODE = Build.VERSION_CODES.N;
 
     private static final List<Integer> mCalibratedTypes = initCalibratedTypes();
     private static final List<Integer> mUncalibratedTypes = initUncalibratedTypes();
@@ -74,17 +76,17 @@ public class MySensorManager extends MyBaseManager {
     private final SensorEventListener mSensorCallback = new SensorEventListener() {
 
         @Override
-        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        public void onAccuracyChanged(android.hardware.Sensor sensor, int accuracy) {
             // Do something here if sensor accuracy changes.
         }
 
         @Override
         public void onSensorChanged(SensorEvent event) {
+
             // The light sensor returns a single value.
             // Many sensors return 3 values, one for each axis.
             mSensorEvent = event;
-            //mCurrentTimeStamp = System.nanoTime();
-            mHandler.post(sensorReceiveTask);
+            doInBackground(sensorReceiveTask);
         }
     };
 
@@ -98,8 +100,11 @@ public class MySensorManager extends MyBaseManager {
 
         private void handleEvent(SensorEvent event) {
 
-            int sensorId = mapSensorTypeToId(event.sensor.getType());
-            publish(sensorId, new MySensorMessage(event));
+            MyResourceIdentifier rId = new MyResourceIdentifier(event.sensor.getType(), -1);
+            int targetId = getTargetId(rId);
+
+            MyMessage sensorMsg = new MyMessages.MsgSensor(event, targetId);
+            publishMessage(sensorMsg);
         }
     };
 
@@ -174,9 +179,9 @@ public class MySensorManager extends MyBaseManager {
 
     private static List<Integer> initCalibratedTypes() {
         return Arrays.asList(
-                Sensor.TYPE_ACCELEROMETER,
-                Sensor.TYPE_GYROSCOPE,
-                Sensor.TYPE_MAGNETIC_FIELD
+                android.hardware.Sensor.TYPE_ACCELEROMETER,
+                android.hardware.Sensor.TYPE_GYROSCOPE,
+                android.hardware.Sensor.TYPE_MAGNETIC_FIELD
         );
     }
 
@@ -187,9 +192,9 @@ public class MySensorManager extends MyBaseManager {
         if (SDK_INT >= ANDROID_VERSION_UNCALIB_SENSORS) {
 
             lTypes = Arrays.asList(
-                    Sensor.TYPE_ACCELEROMETER_UNCALIBRATED,
-                    Sensor.TYPE_GYROSCOPE_UNCALIBRATED,
-                    Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED
+                    android.hardware.Sensor.TYPE_ACCELEROMETER_UNCALIBRATED,
+                    android.hardware.Sensor.TYPE_GYROSCOPE_UNCALIBRATED,
+                    android.hardware.Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED
             );
         }
 
@@ -212,14 +217,14 @@ public class MySensorManager extends MyBaseManager {
             return;
         }
 
-        Sensor defSensor = sensorManager.getDefaultSensor(sensorTypeCode);
+        android.hardware.Sensor defSensor = sensorManager.getDefaultSensor(sensorTypeCode);
 
         if (defSensor != null) {
 
             String defSensorName = defSensor.getName();
-            List<Sensor> allSensors = sensorManager.getSensorList(sensorTypeCode);
+            List<android.hardware.Sensor> allSensors = sensorManager.getSensorList(sensorTypeCode);
 
-            for (Sensor sensor : allSensors) {
+            for (android.hardware.Sensor sensor : allSensors) {
 
                 // resolve sensor name
                 String sensorName = sensor.getName();
@@ -288,12 +293,12 @@ public class MySensorManager extends MyBaseManager {
         }
 
         if (SDK_INT >= ANDROID_VERSION_UNCALIB_SENSORS) {
-            getSensorsInfo(sensorManager, Sensor.TYPE_ACCELEROMETER_UNCALIBRATED, mImu);
-            getSensorsInfo(sensorManager, Sensor.TYPE_GYROSCOPE_UNCALIBRATED, mImu);
+            getSensorsInfo(sensorManager, android.hardware.Sensor.TYPE_ACCELEROMETER_UNCALIBRATED, mImu);
+            getSensorsInfo(sensorManager, android.hardware.Sensor.TYPE_GYROSCOPE_UNCALIBRATED, mImu);
         }
 
-        getSensorsInfo(sensorManager, Sensor.TYPE_ACCELEROMETER, mImu);
-        getSensorsInfo(sensorManager, Sensor.TYPE_GYROSCOPE, mImu);
+        getSensorsInfo(sensorManager, android.hardware.Sensor.TYPE_ACCELEROMETER, mImu);
+        getSensorsInfo(sensorManager, android.hardware.Sensor.TYPE_GYROSCOPE, mImu);
 
         return mImu;
     }
@@ -303,10 +308,10 @@ public class MySensorManager extends MyBaseManager {
         ArrayList<MySensorInfo> mMag = new ArrayList<>();
 
         if (SDK_INT >= ANDROID_VERSION_UNCALIB_SENSORS) {
-            getSensorsInfo(sensorManager, Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED, mMag);
+            getSensorsInfo(sensorManager, android.hardware.Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED, mMag);
         }
 
-        getSensorsInfo(sensorManager, Sensor.TYPE_MAGNETIC_FIELD, mMag);
+        getSensorsInfo(sensorManager, android.hardware.Sensor.TYPE_MAGNETIC_FIELD, mMag);
 
         return mMag;
     }
@@ -353,8 +358,7 @@ public class MySensorManager extends MyBaseManager {
         }
 
         super.start(context);
-        openStorageChannels(context);
-        startBackgroundThread(TAG);
+        openStorageChannels();
         registerSensors();
     }
 
@@ -367,7 +371,6 @@ public class MySensorManager extends MyBaseManager {
         }
 
         unregisterSensors();
-        stopBackgroundThread();
         closeStorageChannels();
         super.stop(context);
     }
@@ -406,116 +409,89 @@ public class MySensorManager extends MyBaseManager {
 
     /* ----------------------------------- Message Passing -------------------------------------- */
 
-    private int mapSensorTypeToId(int sensorType) {
-        return sensorType;
+    @Override
+    protected String getResourceId(MyResourceIdentifier resId) {
+
+        // resId.getId() is initialized with sensors type
+        switch (resId.getId()) {
+            case Sensor.TYPE_ACCELEROMETER:
+                return "Accel";
+            case Sensor.TYPE_ACCELEROMETER_UNCALIBRATED:
+                return "Accel_Uncalibrated";
+            case Sensor.TYPE_GYROSCOPE:
+                return "Gyro";
+            case Sensor.TYPE_GYROSCOPE_UNCALIBRATED:
+                return "Gyro_Uncalibrated";
+            case Sensor.TYPE_MAGNETIC_FIELD:
+                return "Magnet";
+            case Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED:
+                return "Magnet_Uncalibrated";
+            default:
+                return null;
+        }
     }
 
     @Override
-    protected Map<Integer, MyStorageManager.StorageInfo> initStorageChannels() {
+    protected List<Pair<String, MsgConfig>> getStorageConfigMessages(MySensorInfo sensor) {
 
-        Map<Integer, StorageInfo> mFileNames = new HashMap<>();
+        List<Pair<String, MsgConfig>> lMsgConfigPairs = new ArrayList<>();
+
+        if (!(sensor instanceof MotionSensor)) {
+            return lMsgConfigPairs;
+        }
+
+        MotionSensor motionSensor = (MotionSensor) sensor;
+        int sensorType = motionSensor.getSensor().getType();
 
         List<String> imuDirs = Collections.singletonList("imu");
         List<String> magDirs = Collections.singletonList("magnetic_field");
 
-        if (SDK_INT >= ANDROID_VERSION_UNCALIB_SENSORS) {
-            mFileNames.put(
-                    mapSensorTypeToId(Sensor.TYPE_ACCELEROMETER_UNCALIBRATED),
-                    new StorageInfo(imuDirs, "accel_raw.txt"));
-            mFileNames.put(
-                    mapSensorTypeToId(Sensor.TYPE_GYROSCOPE_UNCALIBRATED),
-                    new StorageInfo(imuDirs, "gyro_raw.txt"));
-            mFileNames.put(
-                    mapSensorTypeToId(Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED),
-                    new StorageInfo(magDirs, "mag_raw.txt"));
+        StorageInfo.StreamType ss = StorageInfo.StreamType.STREAM_STRING;
+
+        StorageInfo storageInfo;
+        String header;
+
+        switch (sensorType) {
+            case android.hardware.Sensor.TYPE_ACCELEROMETER_UNCALIBRATED:
+                header = "# timestamp_ns, ax_m_s2, ay_m_s2, az_m_s2, b_ax_m_s2, b_ay_m_s2, b_az_m_s2, sensor_id\n";
+                storageInfo = new StorageInfo(imuDirs, "accel_raw.txt", ss);
+                break;
+            case android.hardware.Sensor.TYPE_GYROSCOPE_UNCALIBRATED:
+                header = "# timestamp_ns, rx_rad_s, ry_rad_s, rz_rad_s, b_rx_rad_s, b_ry_rad_s, b_rz_rad_s, sensor_id\n";
+                storageInfo = new StorageInfo(imuDirs, "gyro_raw.txt", ss);
+                break;
+            case android.hardware.Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED:
+                header = "# timestamp_ns, mx_uT, my_uT, mz_uT, b_mx_uT, b_my_uT, b_mz_uT, sensor_id\n";
+                storageInfo = new StorageInfo(magDirs, "mag_raw.txt", ss);
+                break;
+            case android.hardware.Sensor.TYPE_ACCELEROMETER:
+                header = "# timestamp_ns, ax_m_s2, ay_m_s2, az_m_s2, sensor_id\n";
+                storageInfo = new StorageInfo(imuDirs, "accel.txt", ss);
+                break;
+            case android.hardware.Sensor.TYPE_GYROSCOPE:
+                header = "# timestamp_ns, rx_rad_s, ry_rad_s, rz_rad_s, sensor_id\n";
+                storageInfo = new StorageInfo(imuDirs, "gyro.txt", ss);
+                break;
+            case android.hardware.Sensor.TYPE_MAGNETIC_FIELD:
+                header = "# timestamp_ns, mx_uT, my_uT, mz_uT, sensor_id\n";
+                storageInfo = new StorageInfo(magDirs, "mag.txt", ss);
+                break;
+            default:
+                header = "# unknown sensor type\n";
+                storageInfo = new StorageInfo(imuDirs, "undefined_sensor.txt", ss);
+                break;
         }
-        mFileNames.put(
-                mapSensorTypeToId(Sensor.TYPE_ACCELEROMETER),
-                new StorageInfo(imuDirs, "accel.txt"));
-        mFileNames.put(
-                mapSensorTypeToId(Sensor.TYPE_GYROSCOPE),
-                new StorageInfo(imuDirs, "gyro.txt"));
-        mFileNames.put(
-                mapSensorTypeToId(Sensor.TYPE_MAGNETIC_FIELD),
-                new StorageInfo(magDirs, "mag.txt"));
 
-        return mFileNames;
-    }
+        String sensorTag = getResourceId(new MyResourceIdentifier(sensorType, -1));
+        StorageConfig config = new StorageConfig(MsgConfig.ConfigAction.OPEN, TAG, storageInfo);
+        config.setStringMessage(header);
 
-    /**
-     * Requirements: Availability, Storage listener, Map of file names, Map of channels
-     * Depends on: The last state of sensors (availability and checked state)
-     * Opens them for available sensors
-     */
-    @Override
-    protected void openStorageChannels(Context context) {
+        lMsgConfigPairs.add(new Pair<>(sensorTag, config));
 
-        if (mlChannelTransactions == null || mmStorageChannels == null || mlSensorGroup == null) {
-            Log.w(TAG, "Either sensors are not available or no storage listener found");
-            return;
-        }
-
-        for (MySensorGroup sensorGroup : mlSensorGroup) {
-
-            for (MySensorInfo sensorInfo : sensorGroup.getSensors()) {
-
-                if (sensorInfo.isChecked() && sensorInfo instanceof MotionSensor) {
-
-                    Sensor sensor = ((MotionSensor) sensorInfo).getSensor();
-
-                    int sensorType = sensor.getType();
-                    int sensorId = mapSensorTypeToId(sensorType);
-                    StorageInfo storageInfo = mmStorageChannels.get(sensorId);
-
-                    if (storageInfo != null) {
-
-                        for (MessageChannel<?> channel : mlChannelTransactions) {
-
-                            if (channel instanceof StorageChannel) {
-
-                                int chId = ((StorageChannel) channel).openNewChannel(context, storageInfo);
-                                storageInfo.setChannelId(chId);
-                                writeFileHeader(sensorType, chId);
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        return lMsgConfigPairs;
     }
 
     /*========================================= Helpers ==========================================*/
-
-    private void writeFileHeader(int sensorType, int channelId) {
-
-        MyMessage header;
-
-        switch (sensorType) {
-            case Sensor.TYPE_ACCELEROMETER_UNCALIBRATED:
-                header = new MyMessage("# timestamp_ns, ax_m_s2, ay_m_s2, az_m_s2, b_ax_m_s2, b_ay_m_s2, b_az_m_s2, sensor_id\n");
-                break;
-            case Sensor.TYPE_GYROSCOPE_UNCALIBRATED:
-                header = new MyMessage("# timestamp_ns, rx_rad_s, ry_rad_s, rz_rad_s, b_rx_rad_s, b_ry_rad_s, b_rz_rad_s, sensor_id\n");
-                break;
-            case Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED:
-                header = new MyMessage("# timestamp_ns, mx_uT, my_uT, mz_uT, b_mx_uT, b_my_uT, b_mz_uT, sensor_id\n");
-                break;
-            case Sensor.TYPE_ACCELEROMETER:
-                header = new MyMessage("# timestamp_ns, ax_m_s2, ay_m_s2, az_m_s2, sensor_id\n");
-                break;
-            case Sensor.TYPE_GYROSCOPE:
-                header = new MyMessage("# timestamp_ns, rx_rad_s, ry_rad_s, rz_rad_s, sensor_id\n");
-                break;
-            case Sensor.TYPE_MAGNETIC_FIELD:
-                header = new MyMessage("# timestamp_ns, mx_uT, my_uT, mz_uT, sensor_id\n");
-                break;
-            default:
-                header = new MyMessage("# unknown sensor type\n");
-                break;
-        }
-
-        publish(channelId, header);
-    }
 
     /*======================================== Data Types ========================================*/
 
@@ -526,52 +502,15 @@ public class MySensorManager extends MyBaseManager {
             super(id, name);
         }
 
-        public MotionSensor(int id, String name, Sensor sensor) {
+        public MotionSensor(int id, String name, android.hardware.Sensor sensor) {
 
             this(id, name);
             mMotionSensor = sensor;
         }
 
-        public void setSensor(Sensor sensor) { mMotionSensor = sensor; }
-        public Sensor getSensor() { return mMotionSensor; }
+        public void setSensor(android.hardware.Sensor sensor) { mMotionSensor = sensor; }
+        public android.hardware.Sensor getSensor() { return mMotionSensor; }
 
-        private Sensor mMotionSensor;
-    }
-
-    // TODO: Transfer to a global Messages interface
-    private static class MySensorMessage extends MyMessage {
-
-        private SensorEvent mSensorEvent;
-
-        public MySensorMessage(SensorEvent event) {
-
-            super(toString(event));
-            mSensorEvent = event;
-        }
-
-        public static String toString(SensorEvent mSensorEvent) {
-
-            StringBuilder res = new StringBuilder(String.format(Locale.US, "%d", mSensorEvent.timestamp));
-
-            for (int i = 0; i < mSensorEvent.values.length; i++) {
-                res.append(", ").append(mSensorEvent.values[i]);
-            }
-
-            if (SDK_INT >= ANDROID_VERSION_ACQ_MODE) {
-                res.append(", ").append(mSensorEvent.sensor.getId());
-            }
-
-            res.append('\n');
-
-            return res.toString();
-        }
-
-        public SensorEvent getSensorEvent() {
-            return mSensorEvent;
-        }
-
-        public void setSensorEvent(SensorEvent sensorEvent) {
-            this.mSensorEvent = sensorEvent;
-        }
+        private android.hardware.Sensor mMotionSensor;
     }
 }

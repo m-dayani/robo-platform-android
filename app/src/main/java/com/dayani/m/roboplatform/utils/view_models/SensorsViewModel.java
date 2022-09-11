@@ -7,10 +7,14 @@ import android.util.Pair;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
+import com.dayani.m.roboplatform.managers.CameraFlyVideo;
 import com.dayani.m.roboplatform.managers.MyBaseManager;
-import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
+import com.dayani.m.roboplatform.managers.MyLocationManager;
+import com.dayani.m.roboplatform.managers.MySensorManager;
+import com.dayani.m.roboplatform.managers.MyStorageManager;
 import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
 import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,31 +25,32 @@ import java.util.Set;
 
 public class SensorsViewModel extends ViewModel {
 
-    public static class SensorManagerGroup extends HashMap<Integer, Pair<MyBaseManager, MySensorGroup>> {}
+    public static class ManagerSensorGroup extends HashMap<Integer, Pair<MyBaseManager, MySensorGroup>> {}
 
     /* -------------------------------------- Variables ----------------------------------------- */
 
     private static final String TAG = SensorsViewModel.class.getSimpleName();
 
     private final Set<MyBaseManager> mlManagers;
-
-    private final MutableLiveData<SensorManagerGroup> mSensors;
+    private final MutableLiveData<ManagerSensorGroup> mmManagerSensors;
+    private final MutableLiveData<Set<MySensorGroup>> mSensorGroups;
 
     /* ------------------------------------ Construction ---------------------------------------- */
 
     public SensorsViewModel() {
 
-        mSensors = new MutableLiveData<>();
-        mSensors.setValue(new SensorManagerGroup());
+        mmManagerSensors = new MutableLiveData<>();
+        mSensorGroups = new MutableLiveData<>();
+        mmManagerSensors.setValue(new ManagerSensorGroup());
 
         mlManagers = new HashSet<>();
     }
 
     /* ----------------------------------- Getters/Setters -------------------------------------- */
 
-    public List<MySensorGroup> getSensorGroups() {
+    /*public List<MySensorGroup> getSensorGroups() {
 
-        SensorManagerGroup sensorsMap = mSensors.getValue();
+        ManagerSensorGroup sensorsMap = mmManagerSensors.getValue();
         List<MySensorGroup> sensors = new ArrayList<>();
 
         if (sensorsMap != null) {
@@ -62,6 +67,20 @@ public class SensorsViewModel extends ViewModel {
         }
 
         return sensors;
+    }*/
+
+    public MutableLiveData<Set<MySensorGroup>> getSensorGroupsLiveData() {
+        return mSensorGroups;
+    }
+
+    public List<MySensorGroup> getSensorGroups() {
+
+        Set<MySensorGroup> sSensors = mSensorGroups.getValue();
+        List<MySensorGroup> lSensors = new ArrayList<>();
+        if (sSensors != null) {
+            lSensors.addAll(sSensors);
+        }
+        return lSensors;
     }
 
     // deprecated
@@ -90,16 +109,24 @@ public class SensorsViewModel extends ViewModel {
 
     private void updateSensorGroups(MyBaseManager manager, List<MySensorGroup> sensorGrps) {
 
-            SensorManagerGroup mapSensor = mSensors.getValue();
+            ManagerSensorGroup mapSensor = mmManagerSensors.getValue();
             if (mapSensor == null) {
-                mapSensor = new SensorManagerGroup();
+                mapSensor = new ManagerSensorGroup();
+            }
+            Set<MySensorGroup> mSensorGrps = mSensorGroups.getValue();
+            if (mSensorGrps == null) {
+                mSensorGrps = new HashSet<>();
             }
 
             for (MySensorGroup sensor : sensorGrps) {
                 mapSensor.put(sensor.getId(), new Pair<>(manager, sensor));
+                mSensorGrps.add(sensor);
             }
 
-            mSensors.setValue(mapSensor);
+            Log.v(TAG, "Added " + sensorGrps.size() + " sensor groups");
+
+            mmManagerSensors.setValue(mapSensor);
+            mSensorGroups.setValue(mSensorGrps);
     }
 
     public MySensorInfo getSensor(int grpId, int sensorId) {
@@ -118,7 +145,7 @@ public class SensorsViewModel extends ViewModel {
 
         MySensorGroup sensorGroup = null;
 
-        SensorManagerGroup sensorGrps = mSensors.getValue();
+        ManagerSensorGroup sensorGrps = mmManagerSensors.getValue();
         if (sensorGrps != null && sensorGrps.containsKey(grpId)) {
 
             Pair<MyBaseManager, MySensorGroup> managerSensorPair = sensorGrps.get(grpId);
@@ -134,7 +161,7 @@ public class SensorsViewModel extends ViewModel {
 
         MyBaseManager manager = null;
 
-        SensorManagerGroup sensorGrps = mSensors.getValue();
+        ManagerSensorGroup sensorGrps = mmManagerSensors.getValue();
         if (sensorGrps != null && sensorGrps.containsKey(grpId)) {
 
             Pair<MyBaseManager, MySensorGroup> managerSensorPair = sensorGrps.get(grpId);
@@ -158,6 +185,10 @@ public class SensorsViewModel extends ViewModel {
 
     public void addManagerAndSensors(Context context, MyBaseManager manager) {
 
+        if (context == null || manager == null || !manager.isSupported()) {
+            return;
+        }
+
         // add manager
         mlManagers.add(manager);
 
@@ -166,45 +197,51 @@ public class SensorsViewModel extends ViewModel {
         updateSensorGroups(manager, sensorGroups);
     }
 
-    /* ----------------------------------- State Management ------------------------------------- */
+    // don't repeat the same check and create in all fragments and activities
+    public static MyBaseManager getOrCreateManager(Context context, SensorsViewModel vm,
+                                                   String managerClassName) {
 
-    /**
-     * Update all states when a task starts
-     * Update only in one direction: from managers to this view model
-     * @param context Context activity
-     */
-    public void updateState(Context context) {
+        MyBaseManager manager = null;
 
-        deleteState();
-
-        for (MyBaseManager manager : mlManagers) {
-
-            // update each manager
-            //manager.updateState(context);
-
-            List<MySensorGroup> sensorGroups = manager.getSensorGroups(context);
-
-            // update sensors
-            updateSensorGroups(manager, sensorGroups);
+        if (managerClassName.equals(MyStorageManager.class.getSimpleName())) {
+            manager = vm.getManager(MyStorageManager.class.getSimpleName());
+            if (manager == null) {
+                manager = new MyStorageManager(context);
+                vm.addManagerAndSensors(context, manager);
+            }
         }
-    }
-
-    private void deleteState() {
-
-        // remove sensors
-        SensorManagerGroup sensorsMap = mSensors.getValue();
-        if (sensorsMap != null) {
-            sensorsMap.clear();
-            mSensors.setValue(sensorsMap);
+        else if (managerClassName.equals(MySensorManager.class.getSimpleName())) {
+            manager = vm.getManager(MySensorManager.class.getSimpleName());
+            if (manager == null) {
+                manager = new MySensorManager(context);
+                vm.addManagerAndSensors(context, manager);
+            }
         }
+        else if (managerClassName.equals(MyLocationManager.class.getSimpleName())) {
+            manager = vm.getManager(MyLocationManager.class.getSimpleName());
+            if (manager == null) {
+                manager = new MyLocationManager(context);
+                vm.addManagerAndSensors(context, manager);
+            }
+        }
+        else if (managerClassName.equals(CameraFlyVideo.class.getSimpleName())) {
+            manager = vm.getManager(CameraFlyVideo.class.getSimpleName());
+            if (manager == null) {
+                manager = new CameraFlyVideo(context);
+                vm.addManagerAndSensors(context, manager);
+            }
+        }
+        //TODO: Add the rest
+
+        return manager;
     }
 
     /* ---------------------------------------- Helpers ----------------------------------------- */
 
     public String printState() {
 
-        if (mSensors.getValue() != null) {
-            return "Size of managers: " + mlManagers.size() + ", Size of sensors: " + mSensors.getValue().size();
+        if (mmManagerSensors.getValue() != null) {
+            return "Size of managers: " + mlManagers.size() + ", Size of sensors: " + mmManagerSensors.getValue().size();
         }
         return "";
     }

@@ -8,26 +8,37 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.ImageFormat;
+import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CaptureResult;
+import android.hardware.camera2.DngCreator;
+import android.media.Image;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.provider.Settings;
 import android.util.Log;
+import android.util.Pair;
 
 import androidx.activity.result.ActivityResult;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
 import com.dayani.m.roboplatform.utils.AppGlobals;
 import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
 import com.dayani.m.roboplatform.utils.data_types.MySensorGroup.SensorType;
 import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
-import com.dayani.m.roboplatform.utils.interfaces.StorageChannel;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgConfig;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MyMessage;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageConfig;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageInfo;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,10 +47,9 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 
-public class MyStorageManager extends MyBaseManager implements StorageChannel {
+public class MyStorageManager extends MyBaseManager {
 
     /* ===================================== Variables ========================================== */
 
@@ -70,7 +80,7 @@ public class MyStorageManager extends MyBaseManager implements StorageChannel {
     private final String mDsRoot;
 
     private static int mStorageId = 0;
-    private final HashMap<Integer, StorageHandle> mMapStorage  = new HashMap<>();
+    private final HashMap<Integer, StorageHandle> mmStorage = new HashMap<>();
 
     /* ==================================== Construction ======================================== */
 
@@ -84,8 +94,7 @@ public class MyStorageManager extends MyBaseManager implements StorageChannel {
 
         super(context);
         mDsRoot = initDsPath();
-        //init(context);
-        mBasePath = getBasePath(context);
+        setBasePath(getSavedBasePath(context));
     }
 
     /* ===================================== Core Tasks ========================================= */
@@ -142,7 +151,7 @@ public class MyStorageManager extends MyBaseManager implements StorageChannel {
 
         // writable base path
         if (requirements.contains(Requirement.BASE_PATH_WRITABLE)) {
-            updateWritableBasePathState(context);
+            updateWritableBasePathState();
         }
     }
 
@@ -212,8 +221,11 @@ public class MyStorageManager extends MyBaseManager implements StorageChannel {
                 // save base path
                 saveBasePath(context, uriAbsPath);
 
+                // update the path variable
+                setBasePath(uriAbsPath);
+
                 // update requirement state
-                updateWritableBasePathState(context);
+                updateWritableBasePathState();
 
                 // persist permissions??
                 persistWritablePathPermission(context, resultData);
@@ -304,9 +316,9 @@ public class MyStorageManager extends MyBaseManager implements StorageChannel {
     @Override
     public void clean(Context context) {
 
-        for (int keyStore : mMapStorage.keySet()) {
+        for (int keyStore : mmStorage.keySet()) {
 
-            StorageHandle store = mMapStorage.get(keyStore);
+            StorageHandle store = mmStorage.get(keyStore);
             if (store != null) {
                 store.close();
             }
@@ -335,10 +347,16 @@ public class MyStorageManager extends MyBaseManager implements StorageChannel {
     }
 
     @Override
-    protected Map<Integer, StorageInfo> initStorageChannels() { return new HashMap<>(); }
+    protected String getResourceId(MyResourceIdentifier resId) {
+        // doesn't define resources
+        return TAG;
+    }
 
     @Override
-    protected void openStorageChannels(Context context) {}
+    protected List<Pair<String, MsgConfig>> getStorageConfigMessages(MySensorInfo sensor) {
+        // doesn't initialize storage config.
+        return null;
+    }
 
     /*======================================== Storage ===========================================*/
 
@@ -346,10 +364,10 @@ public class MyStorageManager extends MyBaseManager implements StorageChannel {
         return mbIsBasePathWritable;
     }
 
-    private void updateWritableBasePathState(Context context) {
+    private void updateWritableBasePathState() {
 
         // retrieve base path
-        String basePath = getBasePath(context);
+        String basePath = getBasePath();
         // check if it's writable
         mbIsBasePathWritable = testTargetPathWritable(basePath);
     }
@@ -378,20 +396,21 @@ public class MyStorageManager extends MyBaseManager implements StorageChannel {
             // In older versions, reconstruct the default path in the root
             String basePath = getSuggestedBasePath(context);
 
-            if (testTargetPathWritable(basePath)) {
+            String suggestedPath = resolveFilePath(Collections.singletonList(basePath));
+
+            if (testTargetPathWritable(suggestedPath)) {
+
                 saveBasePath(context, basePath);
+                setBasePath(mBasePath);
+                updateWritableBasePathState();
             }
         }
     }
 
+    public String getBasePath() { return mBasePath; }
+    private void setBasePath(String path) { mBasePath = path; }
 
-    private String getBasePath(Context context) {
-
-        if (mBasePath == null) {
-            return getSavedBasePath(context);
-        }
-        return mBasePath;
-    }
+    public String getDsRoot() { return mDsRoot; }
 
     /**
      * Retrieve a previously saved base path or return null
@@ -447,40 +466,38 @@ public class MyStorageManager extends MyBaseManager implements StorageChannel {
         return suggestedPath.getAbsolutePath();
     }
 
-    public String resolveFilePath(Context context, String[] folders, String fileName) {
+    public static String resolveFilePath(List<String> folders) {
 
-        // Resolve base working path
-        String basePath = getBasePath(context);
-        String fullPath = null;
+        if (folders == null) {
+            return null;
+        }
 
-        if (this.isAvailable() && basePath != null) {
+        // create all intermediate folders
+        File lastDir = null;
 
-            File lastDir = new File(basePath);
-            if (lastDir.exists() || lastDir.mkdir()) {
+        for (String curFolder : folders) {
 
-                // create all intermediate folders
-                int cnt = 0;
-                do {
-                    String curFolder = folders[cnt];
-                    if (curFolder == null) {
-                        continue;
-                    }
+            if (curFolder == null) {
+                continue;
+            }
 
-                    lastDir = new File(lastDir, curFolder);
+            if (lastDir == null) {
+                lastDir = new File(curFolder);
+            }
+            else {
+                lastDir = new File(lastDir, curFolder);
+            }
 
-                    if (!(lastDir.exists() || lastDir.mkdir())) {
-                        return null;
-                    }
-                    cnt++;
-                }
-                while (cnt < folders.length);
-
-                File fullFile = new File(lastDir, fileName);
-                fullPath = fullFile.getAbsolutePath();
+            if (!(lastDir.exists() || lastDir.mkdir())) {
+                return null;
             }
         }
 
-        return fullPath;
+        if (lastDir != null) {
+            return lastDir.getAbsolutePath();
+        }
+
+        return null;
     }
 
     private static boolean testTargetPathWritable(String path) {
@@ -505,77 +522,120 @@ public class MyStorageManager extends MyBaseManager implements StorageChannel {
     /* ----------------------------------- Message Passing -------------------------------------- */
 
     @Override
-    public int openNewChannel(Context context, StorageInfo channelInfo) {
+    public void onMessageReceived(MyMessage msg) {
+
+        if (msg == null) {
+            return;
+        }
+
+        // check the tag
+        String msgTag = msg.getChTag();
+        if (msgTag != null && !msgTag.equals(TAG)) {
+            return;
+        }
+
+        // check the channel type
+        // listens to different types of messages (except for logging messages??)
+
+        // handle message depending on its type
+        if (msg instanceof StorageConfig) {
+            handleStorageConfigMessage((StorageConfig) msg);
+        }
+        else {
+            handleStorageMessage(msg);
+        }
+    }
+
+    private void handleStorageConfigMessage(StorageConfig msg) {
+
+        // what kind of configuration?
+        if (msg.isConfigurationAction(MsgConfig.ConfigAction.OPEN)) {
+            openNewChannel(msg);
+        }
+        else if (msg.isConfigurationAction(MsgConfig.ConfigAction.CLOSE)) {
+            closeChannel(msg);
+        }
+        else if (msg.isConfigurationAction(MsgConfig.ConfigAction.GET_STATE)) {
+            getFullFilePath(msg);
+        }
+    }
+
+    private void openNewChannel(StorageConfig config) {
 
         if (!this.isAvailable()) {
             Log.w(TAG, "Storage not available, abort");
-            return -1;
+            return;
         }
 
+        // Make file path considering the base and ds root
         List<String> foldersWithRoot = new ArrayList<>();
-        if (channelInfo.isAppendDsRoot()) {
+        foldersWithRoot.add(getBasePath());
+
+        StorageInfo storageInfo = config.getStorageInfo();
+
+        if (storageInfo.isAppendDsRoot()) {
             foldersWithRoot.add(mDsRoot);
         }
-        foldersWithRoot.addAll(channelInfo.getFolders());
 
-        String[] foldersArr = foldersWithRoot.toArray(new String[0]);
+        foldersWithRoot.addAll(storageInfo.getFolders());
 
-        String fullPath = resolveFilePath(context, foldersArr, channelInfo.getFileName());
+        String filePath = resolveFilePath(foldersWithRoot);
 
-        if (fullPath == null) {
+        if (filePath == null) {
             Log.w(TAG, "Null path when initializing storage handle");
-            return -1;
+            return;
         }
 
         int newId = mStorageId++;
-        mMapStorage.put(newId, new StorageHandle(fullPath, channelInfo.isAppend()));
+        config.setTargetId(newId);
 
-        return newId;
+        // create a new handle
+        StorageHandle fileHandle = new StorageHandle(storageInfo, filePath);
+
+        // TODO: Maybe check for existing channels
+        mmStorage.put(newId, fileHandle);
+
+        // write file header if it contains one
+        //fileHandle.write(config);
+
+        // WARNING: publishing a response message may result in an implicit infinite loop
     }
 
-    @Override
-    public void closeChannel(int id) {
+    public void closeChannel(StorageConfig config) {
+
         if (this.isAvailable()) {
-            StorageHandle store = mMapStorage.get(id);
+
+            int targetId = config.getTargetId();
+            StorageHandle store = mmStorage.get(targetId);
+
             if (store != null) {
                 store.close();
-                mMapStorage.remove(id);
+                mmStorage.remove(targetId);
             }
         }
     }
 
-    @Override
-    public void publishMessage(int id, MyMessage msg) {
+    public void getFullFilePath(StorageConfig config) {
 
         if (this.isAvailable()) {
-            StorageHandle store = mMapStorage.get(id);
+
+            StorageHandle store = mmStorage.get(config.getTargetId());
             if (store != null) {
-                store.write(msg.toString());
+                config.setStringMessage(store.getFullPath());
+                // WARNING: publishing a response message may result in an implicit infinite loop
             }
         }
     }
 
-    @Override
-    public void resetChannel(int id) {
+    public void handleStorageMessage(MyMessage msg) {
 
         if (this.isAvailable()) {
-            StorageHandle store = mMapStorage.get(id);
+
+            StorageHandle store = mmStorage.get(msg.getTargetId());
             if (store != null) {
-                store.resetContent();
+                store.write(msg);
             }
         }
-    }
-
-    @Override
-    public String getFullFilePath(int id) {
-
-        if (this.isAvailable()) {
-            StorageHandle store = mMapStorage.get(id);
-            if (store != null) {
-                return store.getFullPath();
-            }
-        }
-        return "";
     }
 
     /*======================================== Helpers ===========================================*/
@@ -604,15 +664,14 @@ public class MyStorageManager extends MyBaseManager implements StorageChannel {
 
     /*=================================== Types & Interfaces =====================================*/
 
-    private static class StorageHandle {
+    private static class StorageStream {
 
-        public StorageHandle(String path, boolean append) {
+        public StorageStream(String path, String fileName, boolean append) {
 
-            mFile = new File(path);
-            mbAppend = append;
+            mFile = new File(path, fileName);
 
             try {
-                mOs = new FileOutputStream(mFile, mbAppend);
+                mOs = new FileOutputStream(mFile, append);
             }
             catch (FileNotFoundException e) {
                 e.printStackTrace();
@@ -652,75 +711,140 @@ public class MyStorageManager extends MyBaseManager implements StorageChannel {
             return mFile.getAbsolutePath();
         }
 
-        public void resetContent() {
+        private final File mFile;
+        private FileOutputStream mOs;
+    }
 
-            if (mOs == null) {
+    private static class StorageHandle {
+
+        private final StorageInfo mStorageInfo;
+
+        private StorageStream mFileHandle;
+        private final String mFilePath;
+
+        public StorageHandle(StorageInfo channelInfo, String filePath) {
+
+            mStorageInfo = channelInfo;
+            mFilePath = filePath;
+            String fileName = channelInfo.getFileName();
+
+            if (channelInfo.isStream()) {
+
+                boolean append = channelInfo.isStreamType(StorageInfo.StreamType.STREAM_STRING_APPEND);
+                mFileHandle = new StorageStream(filePath, fileName, append);
+            }
+        }
+
+        public void close() {
+
+            if (mFileHandle != null) {
+                mFileHandle.close();
+            }
+        }
+
+        public void write(MyMessage msg) {
+
+            if (mStorageInfo.isStream()) {
+
+                // streaming operation
+                if (mFileHandle != null) {
+                    mFileHandle.write(msg.toString());
+                }
+            }
+            else if (mStorageInfo.isTrain()) {
+
+                // open/close operation
+                if (msg instanceof MyMessages.MsgImage) {
+
+                    // image
+                    MyMessages.MsgImage imageMsg = (MyMessages.MsgImage) msg;
+                    Image image = imageMsg.getImage();
+
+                    if (image.getFormat() == ImageFormat.RAW_SENSOR) {
+                        writeRawImage(mFilePath, imageMsg.getFileName(), imageMsg);
+                    }
+                    else {
+                        writeFileAndClose(mFilePath, imageMsg.getFileName(), imageMsg.getData());
+                    }
+                }
+                else if (msg instanceof MyMessages.MsgStorage) {
+
+                    // storage message (file headers, images.txt, calib.txt, ...)
+                    MyMessages.MsgStorage storageMsg = (MyMessages.MsgStorage) msg;
+                    writeFileAndClose(mFilePath, storageMsg.getFileName(), msg.toString().getBytes());
+                }
+            }
+        }
+
+        private static void writeFileAndClose(String path, String fileName, byte[] data) {
+
+            if (path == null || fileName == null) {
                 return;
             }
 
+            File file = new File(path, fileName);
+
             try {
-                mOs.close();
-                mOs = new FileOutputStream(mFile, mbAppend);
+                FileOutputStream fileOs = new FileOutputStream(file);
+                fileOs.write(data);
+                fileOs.close();
             }
             catch (IOException e) {
                 e.printStackTrace();
             }
         }
 
-        private final File mFile;
-        private final boolean mbAppend;
-        private FileOutputStream mOs;
-    }
+        private static void writeRawImage(String path, String fileName, MyMessages.MsgImage imageMsg) {
 
-    public static class StorageInfo {
+            if (path == null || fileName == null || imageMsg == null) {
+                return;
+            }
 
-        private final List<String> mlFolders;
-        private final String mFileName;
+            CaptureResult captureResult = imageMsg.getCaptureResult();
+            CameraCharacteristics characteristics = imageMsg.getCharacteristics();
+            Image image = imageMsg.getImage();
 
-        private boolean mbAppend;
-        private boolean mbAppendDsRoot;
+            if (image == null || captureResult == null || characteristics == null) {
+                return;
+            }
 
-        private int channelId;
+            DngCreator dngCreator = new DngCreator(characteristics, captureResult);
 
-        public StorageInfo(List<String> folders, String fileName) {
+            File file = new File(path, fileName);
+            FileOutputStream fileOs = null;
 
-            mlFolders = folders;
-            mFileName = fileName;
-            channelId = -1;
-            mbAppend = false;
-            mbAppendDsRoot = true;
+            try {
+                fileOs = new FileOutputStream(file);
+                dngCreator.writeImage(fileOs, image);
+            }
+            catch (IOException e) {
+                e.printStackTrace();
+            }
+            finally {
+                closeOutput(fileOs);
+            }
         }
 
-        public List<String> getFolders() {
-            return mlFolders;
+        private static void closeOutput(OutputStream outputStream) {
+            if (null != outputStream) {
+                try {
+                    outputStream.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
         }
 
-        public String getFileName() {
-            return mFileName;
-        }
+        public String getFullPath() {
 
-        public int getChannelId() {
-            return channelId;
-        }
-
-        public void setChannelId(int channelId) {
-            this.channelId = channelId;
-        }
-
-        public boolean isAppend() {
-            return mbAppend;
-        }
-
-        public void setAppend(boolean mbAppend) {
-            this.mbAppend = mbAppend;
-        }
-
-        public boolean isAppendDsRoot() {
-            return mbAppendDsRoot;
-        }
-
-        public void setAppendDsRoot(boolean mbAppendDsRoot) {
-            this.mbAppendDsRoot = mbAppendDsRoot;
+            if (mFileHandle != null) {
+                return mFileHandle.getFullPath();
+            }
+            if (mStorageInfo != null) {
+                File file = new File(mFilePath, mStorageInfo.getFileName());
+                return file.getAbsolutePath();
+            }
+            return mFilePath;
         }
     }
 }

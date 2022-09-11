@@ -19,6 +19,8 @@ public class MySensorInfo {
 
     private boolean mIsChecked;
 
+    private int mState;
+
     /* ------------------------------------------------------------------------------------------ */
 
     public MySensorInfo() {
@@ -30,6 +32,10 @@ public class MySensorInfo {
         mCalibInfo = new HashMap<>();
 
         mIsChecked = true;
+
+        // used as a kind of resource identifier
+        // for sensors with multiple resources
+        mState = 0;
     }
 
     public MySensorInfo(int id, String name) {
@@ -64,6 +70,14 @@ public class MySensorInfo {
 
     public boolean isChecked() { return mIsChecked; }
     public void setChecked(boolean checked) { mIsChecked = checked; }
+
+    public int getState() {
+        return mState;
+    }
+
+    public void setState(int mState) {
+        this.mState = mState;
+    }
 
     /* ------------------------------------------------------------------------------------------ */
 

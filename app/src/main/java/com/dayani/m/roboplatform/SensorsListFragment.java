@@ -5,8 +5,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.CheckBox;
-import android.widget.ListView;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -17,22 +16,26 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.managers.MyStorageManager;
-import com.dayani.m.roboplatform.managers.MyStorageManager.StorageInfo;
 import com.dayani.m.roboplatform.utils.AppGlobals;
+import com.dayani.m.roboplatform.utils.adapters.FastNestedListAdapter;
 import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
 import com.dayani.m.roboplatform.utils.data_types.MySensorGroup.SensorType;
 import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
-import com.dayani.m.roboplatform.utils.adapters.SensorsAdapter;
+import com.dayani.m.roboplatform.utils.interfaces.MyChannels.ChannelTransactions;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgConfig.ConfigAction;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MyMessage;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageConfig;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageInfo;
 import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
-import com.dayani.m.roboplatform.utils.interfaces.MessageChannel.MyMessage;
-import com.dayani.m.roboplatform.utils.interfaces.StorageChannel;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 
 public class SensorsListFragment extends Fragment implements View.OnClickListener,
-        SensorsAdapter.SensorItemInteraction {
+        FastNestedListAdapter.SensorItemInteractions, ChannelTransactions {
 
     private static final String TAG = SensorsListFragment.class.getSimpleName();
 
@@ -41,10 +44,12 @@ public class SensorsListFragment extends Fragment implements View.OnClickListene
     private SensorsViewModel mVM_Sensors;
 
     private MyStorageManager mStorageManager;
-    private StorageChannel mStorageChannel;
+    private ChannelTransactions mStorageChannel;
     private int mCalibStorageId = -1;
 
-    //private List<MyBaseManager> mlSensorManagers;
+    //SensorsAdapter mSensorsAdapter;
+    private LinearLayout mSensorsListView;
+    private FastNestedListAdapter mSensorsAdapter;
 
 
     public SensorsListFragment() {
@@ -75,9 +80,26 @@ public class SensorsListFragment extends Fragment implements View.OnClickListene
         mVM_Sensors = new ViewModelProvider(activityContext).get(SensorsViewModel.class);
 
         // retrieve storage manager
-        mStorageManager = (MyStorageManager) RecordSensorsActivity.getOrCreateManager(
+        mStorageManager = (MyStorageManager) SensorsViewModel.getOrCreateManager(
                 activityContext, mVM_Sensors, MyStorageManager.class.getSimpleName());
         mStorageChannel = mStorageManager;
+
+        // register channel transactions
+        Log.v(TAG, "registered sensors list frag channel");
+        //mStorageChannel.registerChannel(this);
+
+        // update checked sensors in case settings are changed
+        for (MyBaseManager manager : mVM_Sensors.getAllManagers()) {
+            manager.updateCheckedSensorsWithAvailability();
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+
+        Log.v(TAG, "unregistered sensors list frag channel");
+        //mStorageChannel.unregisterChannel(this);
+        super.onDestroy();
     }
 
     @Override
@@ -93,22 +115,13 @@ public class SensorsListFragment extends Fragment implements View.OnClickListene
         sGroupsFiltered = MySensorGroup.filterSensorGroups(sGroupsFiltered, SensorType.TYPE_STORAGE);
         Log.v(TAG, sGroupsFiltered.toString());
 
-        ListView lvSensors = view.findViewById(R.id.list_sensors);
-        SensorsAdapter sensorsAdapter = new SensorsAdapter(getActivity(),
-                R.layout.sensor_group, sGroupsFiltered, this);
-        lvSensors.setAdapter(sensorsAdapter);
+        FragmentActivity context = requireActivity();
+
+        mSensorsListView = view.findViewById(R.id.list_sensors);
+        mSensorsAdapter = new FastNestedListAdapter(sGroupsFiltered, this);
+        mSensorsAdapter.getSensorsList(context, mSensorsListView);
 
         return view;
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-
-        // update checked sensors in case settings are changed
-        for (MyBaseManager manager : mVM_Sensors.getAllManagers()) {
-            manager.updateCheckedSensorsWithAvailability();
-        }
     }
 
     @Override
@@ -138,31 +151,44 @@ public class SensorsListFragment extends Fragment implements View.OnClickListene
 
     private void saveSensorsInfo() {
 
-        if (isStorageManagerBad() || mStorageChannel == null || mVM_Sensors == null) {
+        if (isStorageManagerBad()) {
             Log.w(TAG, "Cannot save sensor info, abort");
             return;
         }
 
-        FragmentActivity context = requireActivity();
+        StorageInfo.StreamType streamType = StorageInfo.StreamType.TRAIN_STRING;
+        StorageInfo storageInfo = new StorageInfo(new ArrayList<>(), CALIB_FILE_NAME, streamType);
+        String targetCh = MyStorageManager.class.getSimpleName();
 
         if (mCalibStorageId < 0) {
 
+            // request the storage channel a new file handle
             Log.d(TAG, "Getting a storage channel for file: "+ CALIB_FILE_NAME);
-            StorageInfo storageInfo = new StorageInfo(new ArrayList<>(), CALIB_FILE_NAME);
-            mCalibStorageId = mStorageChannel.openNewChannel(context, storageInfo);
+
+            StorageConfig storageConfig = new StorageConfig(ConfigAction.OPEN, TAG, targetCh, storageInfo);
+
+            publishMessage(storageConfig);
+
+            mCalibStorageId = storageConfig.getTargetId();
         }
 
-        // reset the contents before each write
-        mStorageChannel.resetChannel(mCalibStorageId);
-
+        // save the info
         List<MySensorGroup> sensors = mVM_Sensors.getSensorGroups();
         sensors = MySensorGroup.filterSensorGroups(sensors, SensorType.TYPE_STORAGE);
+        String infoStr = getAllSensorsInfo(sensors);
 
-        MyMessage info = new MyMessage(getAllSensorsInfo(sensors));
-        mStorageChannel.publishMessage(mCalibStorageId, info);
+        MyMessage sensorsInfo = new MyMessages.MsgStorage(infoStr, CALIB_FILE_NAME, mCalibStorageId);
 
-        String fullPath = mStorageChannel.getFullFilePath(mCalibStorageId);
-        Toast.makeText(context, "Saved to: "+fullPath, Toast.LENGTH_SHORT).show();
+        publishMessage(sensorsInfo);
+
+        // inquire the full file path
+        StorageConfig storageConfig = new StorageConfig(ConfigAction.GET_STATE, TAG, targetCh, storageInfo);
+        storageConfig.setTargetId(mCalibStorageId);
+
+        publishMessage(storageConfig);
+
+        String fullPath = storageConfig.toString();
+        Toast.makeText(requireActivity(), "Saved to: " + fullPath, Toast.LENGTH_SHORT).show();
     }
 
     private boolean isStorageManagerBad() {
@@ -212,34 +238,28 @@ public class SensorsListFragment extends Fragment implements View.OnClickListene
     }
 
     @Override
-    public void onSensorCheckedListener(View view, int grpId, int sensorId, boolean b) {
+    public void onSensorCheckedListener(int grpId, int sensorId, boolean b) {
 
+        FragmentActivity context = requireActivity();
         MyBaseManager manager = mVM_Sensors.getManagerBySensorGroup(grpId);
 
         if (manager != null) {
 
-            if (!manager.isAvailable()) {
+            // update manager
+            manager.onCheckedChanged(context, grpId, sensorId, b);
 
-                // resolve availability
-                manager.resolveAvailability(requireActivity());
-                updateCheckBox(view, false);
-                return;
+            // update view
+            if (mSensorsAdapter != null && mSensorsListView != null) {
+
+                List<MySensorGroup> lSensors = Collections.singletonList(mVM_Sensors.getSensorGroup(grpId));
+//                mSensorsAdapter.updateSensorGroups(Collections.singletonList(grpId));
+                mSensorsAdapter.updateSensorGroups(mSensorsListView, lSensors);
             }
-
-            updateCheckBox(view, b);
-            mVM_Sensors.getSensor(grpId, sensorId).setChecked(b);
-        }
-    }
-
-    private void updateCheckBox(View view, boolean state) {
-
-        if (view instanceof CheckBox) {
-            ((CheckBox) view).setChecked(state);
         }
     }
 
     @Override
-    public void onSensorInfoClickListener(View view, int grpId, int sensorId) {
+    public void onSensorInfoClickListener(int grpId, int sensorId) {
 
         String info = "General Info:\n" + mVM_Sensors.getSensor(grpId, sensorId).getDescInfoString("");
         info += "\nCalibration Info:\n" + mVM_Sensors.getSensor(grpId, sensorId).getCalibInfoString("");
@@ -251,5 +271,26 @@ public class SensorsListFragment extends Fragment implements View.OnClickListene
 
         MainActivity.startNewFragment(getParentFragmentManager(),
                 R.id.fragment_container_view, frag, "sensors");
+    }
+
+
+    @Override
+    public void publishMessage(MyMessage msg) {
+
+        mStorageChannel.onMessageReceived(msg);
+    }
+
+    @Override
+    public void onMessageReceived(MyMessage msg) {
+    }
+
+    @Override
+    public void registerChannel(ChannelTransactions channel) {
+
+    }
+
+    @Override
+    public void unregisterChannel(ChannelTransactions channel) {
+
     }
 }

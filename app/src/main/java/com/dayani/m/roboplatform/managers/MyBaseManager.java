@@ -20,34 +20,34 @@ package com.dayani.m.roboplatform.managers;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Handler;
-import android.os.HandlerThread;
 import android.util.Log;
+import android.util.Pair;
 
 import androidx.activity.result.ActivityResult;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 
 import com.dayani.m.roboplatform.RecordingFragment;
-import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
-import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.RequirementResolution;
 import com.dayani.m.roboplatform.utils.AppGlobals;
 import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
-import com.dayani.m.roboplatform.managers.MyStorageManager.StorageInfo;
-import com.dayani.m.roboplatform.utils.interfaces.LoggingChannel;
-import com.dayani.m.roboplatform.utils.interfaces.MessageChannel;
-import com.dayani.m.roboplatform.utils.interfaces.MessageChannel.MyMessage;
 import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.RequirementResolution;
+import com.dayani.m.roboplatform.utils.interfaces.MyBackgroundExecutor;
+import com.dayani.m.roboplatform.utils.interfaces.MyChannels.ChannelTransactions;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgConfig;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgLogging;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MyMessage;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageConfig;
 
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executor;
 
 
-public abstract class MyBaseManager {
+public abstract class MyBaseManager implements ChannelTransactions {
 
     // Class Variables
 
@@ -63,32 +63,43 @@ public abstract class MyBaseManager {
 
     protected boolean mIsProcessing;
 
-    protected HandlerThread mBackgroundThread;
-    protected Handler mHandler;
+    // spreading multi-threading logic everywhere doesn't provide performance!
+    protected MyBackgroundExecutor.JobListener mBackgroundJobListener;
 
     protected final List<MySensorGroup> mlSensorGroup;
 
     protected RequirementResolution mRequirementRequestListener;
-    protected final Set<MessageChannel<?>> mlChannelTransactions;
 
-    protected final Map<Integer, StorageInfo> mmStorageChannels;
+
+    //protected final Map<MyChannels.ChannelType, Set<MessageChannel>> mlChannels;
+    protected final Set<ChannelTransactions> mlChannels;
+    // map<ChannelId, Map<taskId, targetId>>
+    //protected final Map<String, Map<Integer, Integer>> mChannelTargetMap;
+
+    // map<resId, ConfigMsg>: list of tagged configuration messages
+    // used to interact with message channels
+    protected final Map<String, MyMessages.MsgConfig> mmResources;
 
     // Construction
 
     public MyBaseManager(Context context) {
 
         mbIsSupported = resolveSupport(context);
-        mIsProcessing = false;
-        mlChannelTransactions = new HashSet<>();
 
-        mmStorageChannels = initStorageChannels();
+        setIsProcessing(false);
+
+        mlChannels = new HashSet<>();
+        //mChannelTargetMap = new HashMap<>();
+
         mlSensorGroup = getSensorGroups(context);
+
+        mmResources = new HashMap<>(); //initStorageChannels();
     }
 
     // Support
 
     protected abstract boolean resolveSupport(Context context);
-    protected boolean isSupported() { return mbIsSupported; }
+    public boolean isSupported() { return mbIsSupported; }
 
     // Requirements & Permissions
 
@@ -165,7 +176,7 @@ public abstract class MyBaseManager {
 
     public void onBroadcastReceived(Context context, Intent intent) {}
 
-    // Availability
+    // Checked sensors
 
     public boolean hasCheckedSensors() {
         return mbIsChecked;
@@ -174,14 +185,51 @@ public abstract class MyBaseManager {
         mbIsChecked = MySensorGroup.countCheckedSensors(mlSensorGroup) > 0;
     }
 
-    public boolean isAvailableAndChecked() { return isAvailable() && hasCheckedSensors(); }
-    public boolean isAvailable() {
-        return isSupported() && passedAllRequirements();
+    public void updateCheckedSensorsWithAvailability() {
+
+        if (mlSensorGroup == null) {
+            return;
+        }
+
+        final boolean isAvailable = isAvailable();
+
+        if (!isAvailable) {
+            for (MySensorGroup sensorGroup : mlSensorGroup) {
+                if (sensorGroup != null) {
+                    for (MySensorInfo sensorInfo : sensorGroup.getSensors()) {
+                        if (sensorInfo != null) {
+                            sensorInfo.setChecked(false);
+                        }
+                    }
+                }
+            }
+        }
     }
+    public void onCheckedChanged(Context context, int grpId, int sensorId, boolean state) {
+
+        if (!isAvailable()) {
+            // resolve availability
+            resolveAvailability(context);
+        }
+        else {
+            MySensorInfo sensorInfo = getSensorInfo(grpId, sensorId);
+            if (sensorInfo != null) {
+                sensorInfo.setChecked(state);
+            }
+        }
+    }
+
+    // Availability
+
+    public boolean isAvailableAndChecked() { return isAvailable() && hasCheckedSensors(); }
     public void updateAvailabilityAndCheckedSensors(Context context) {
 
         updateRequirementsState(context);
         updateCheckedSensors();
+    }
+
+    public boolean isAvailable() {
+        return isSupported() && passedAllRequirements();
     }
     public void resolveAvailability(Context context) {
 
@@ -204,8 +252,11 @@ public abstract class MyBaseManager {
         if (context instanceof RequirementResolution) {
             setRequirementResolutionListener((RequirementResolution) context);
         }
-        if (context instanceof MessageChannel) {
-            addChannelTransaction((MessageChannel<?>) context);
+        if (context instanceof ChannelTransactions) {
+            registerChannel((ChannelTransactions) context);
+        }
+        if (context instanceof MyBackgroundExecutor.JobListener) {
+            mBackgroundJobListener = (MyBackgroundExecutor.JobListener) context;
         }
 
         updateAvailabilityAndCheckedSensors(context);
@@ -215,143 +266,350 @@ public abstract class MyBaseManager {
     }
 
     // use these in a fragment's onResume/onPause or onStart/onStop
+    // preconfigure resources for faster start/stop response
+    public void initConfigurations(Context context) {}
+    public void cleanConfigurations(Context context) {}
+
+    // resource intensive methods, only call based on user interaction
     public void start(Context context) {
 
         if (this.isProcessing()) {
             stop(context);
         }
-        mIsProcessing = true;
+        setIsProcessing(true);
 
         String mClassName = getClass().getSimpleName();
         Log.d(TAG, mClassName + " started successfully");
-        // publish a logging message
-        publish(-1, new LoggingChannel.MyLoggingMessage(
-                "Started " + mClassName + "\n",
-                RecordingFragment.FRAG_RECORDING_LOGGING_IDENTIFIER));
+        // publish a logging message (doesn't care about task Id)
+        logMessage("Started " + mClassName + "\n", RecordingFragment.class.getSimpleName());
     }
     public void stop(Context context) {
 
-        mIsProcessing = false;
+        setIsProcessing(false);
 
         String mClassName = getClass().getSimpleName();
         Log.d(TAG, mClassName + " stopped successfully");
         // publish a logging message
-        publish(-1, new LoggingChannel.MyLoggingMessage(
-                "Stopped " + mClassName + "\n",
-                RecordingFragment.FRAG_RECORDING_LOGGING_IDENTIFIER));
+        logMessage("Stopped " + mClassName + "\n", RecordingFragment.class.getSimpleName());
     }
 
     // State
 
-    public boolean isProcessing() { return mIsProcessing; }
+    public synchronized boolean isProcessing() { return mIsProcessing; }
+    protected synchronized void setIsProcessing(boolean state) { mIsProcessing = state; }
 
-    //public void updateState(Context context) {}
-    public void updateCheckedSensorsWithAvailability() {
+    // Resources
 
-        if (mlSensorGroup == null) {
+    protected Executor getBgExecutor() {
+        if (mBackgroundJobListener != null) {
+            return mBackgroundJobListener.getBackgroundExecutor();
+        }
+        return null;
+    }
+
+    protected Handler getBgHandler() {
+        if (mBackgroundJobListener != null) {
+            return mBackgroundJobListener.getBackgroundHandler();
+        }
+        return null;
+    }
+
+    protected void doInBackground(Runnable r) {
+        if (mBackgroundJobListener != null) {
+            mBackgroundJobListener.execute(r);
+        }
+    }
+
+    protected MySensorInfo getSensorInfo(int grpId, int sensorId) {
+
+        MySensorGroup sensorGroup = MySensorGroup.findSensorGroupById(mlSensorGroup, grpId);
+
+        if (sensorGroup != null) {
+            return sensorGroup.getSensorInfo(sensorId);
+        }
+        return null;
+    }
+
+    public abstract List<MySensorGroup> getSensorGroups(Context context);
+
+    // Message passing (Storage)
+
+    // determines the mapping between sensors and unique identifiers
+    protected abstract String getResourceId(MyResourceIdentifier resId);
+    protected MsgConfig getResourceMsg(MyResourceIdentifier resId) {
+
+        String strResId = getResourceId(resId);
+
+        return mmResources.get(strResId);
+    }
+    protected int getTargetId(MyResourceIdentifier resId) {
+
+        MyMessages.MsgConfig configMsg = getResourceMsg(resId);
+
+        if (configMsg != null) {
+            return configMsg.getTargetId();
+        }
+        return -1;
+    }
+
+    //protected abstract Map<Integer, StorageInfo> initStorageChannels();
+    // returns a list of tag, config pairs, used to open storage channels
+    protected abstract List<Pair<String, MsgConfig>> getStorageConfigMessages(MySensorInfo sensor);
+
+    protected void openStorageChannels() {
+
+        if (mmResources == null || mlSensorGroup == null) {
+            Log.w(TAG, "Either sensors are not available or no storage listener found");
             return;
         }
 
-        final boolean isAvailable = isAvailable();
-
         for (MySensorGroup sensorGroup : mlSensorGroup) {
-            if (sensorGroup != null) {
-                for (MySensorInfo sensorInfo : sensorGroup.getSensors()) {
-                    if (sensorInfo != null) {
-                        sensorInfo.setChecked(isAvailable);
+
+            if (sensorGroup == null) {
+                continue;
+            }
+
+            for (MySensorInfo sensorInfo : sensorGroup.getSensors()) {
+
+                if (sensorInfo != null && sensorInfo.isChecked()) {
+
+                    List<Pair<String, MsgConfig>> configInfo = getStorageConfigMessages(sensorInfo);
+
+                    for (Pair<String, MsgConfig> configPair : configInfo) {
+
+                        MsgConfig config = configPair.second;
+                        // open channel
+                        publishMessage(config);
+                        // save info
+                        mmResources.put(configPair.first, config);
+                        // write header
+                        MyMessages.MsgStorage writeHeader = new MyMessages.MsgStorage(
+                                config.toString(), null, config.getTargetId());
+                        publishMessage(writeHeader);
                     }
                 }
             }
         }
     }
 
-    // Resources
-
-    public abstract List<MySensorGroup> getSensorGroups(Context context);
-
-    /**
-     * Starts a background thread and its {@link Handler}.
-     */
-    protected void startBackgroundThread(String tag) {
-
-        mBackgroundThread = new HandlerThread(tag);
-        mBackgroundThread.start();
-        mHandler = new Handler(mBackgroundThread.getLooper());
-    }
-
-    /**
-     * Stops the background thread and its {@link Handler}.
-     */
-    protected void stopBackgroundThread() {
-
-        if (mBackgroundThread == null) {
-            return;
-        }
-
-        mBackgroundThread.quitSafely();
-        try {
-            mBackgroundThread.join();
-            mBackgroundThread = null;
-            mHandler = null;
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
-    // Message passing
-
-    protected abstract Map<Integer, StorageInfo> initStorageChannels();
-    protected abstract void openStorageChannels(Context context);
-
-    protected int getChannelId(int sensorId) {
-
-        if (mmStorageChannels == null) {
-            return -1;
-        }
-
-        StorageInfo sInfo = mmStorageChannels.get(sensorId);
-
-        if (sInfo != null) {
-            return sInfo.getChannelId();
-        }
-
-        return -1;
-    }
-    protected void publish(int sensorId, MyMessage msg) {
-
-        if (mlChannelTransactions == null) {
-            return;
-        }
-
-        for (MessageChannel<?> channel : mlChannelTransactions) {
-            channel.publishMessage(getChannelId(sensorId), msg);
-        }
-    }
-
     protected void closeStorageChannels() {
 
-        if (mlChannelTransactions == null || mmStorageChannels == null) {
+        if (mmResources == null) {
             return;
         }
 
-        for (StorageInfo storageInfo : mmStorageChannels.values()) {
+        for (MsgConfig configMsg : mmResources.values()) {
 
-            int chId = storageInfo.getChannelId();
-            if (chId >= 0) {
-                for (MessageChannel<?> channel : mlChannelTransactions) {
+            if (configMsg instanceof StorageConfig) {
 
-                    channel.closeChannel(chId);
-                    storageInfo.setChannelId(-1);
+                StorageConfig storageConfig = (StorageConfig) configMsg;
+                StorageConfig closeMsg = new StorageConfig(MsgConfig.ConfigAction.CLOSE,
+                        storageConfig.getSender(), storageConfig.getStorageInfo());
+
+                publishMessage(closeMsg);
+            }
+
+        }
+    }
+
+    /*protected abstract Set<Integer> getSelectedStorageTaskIds();
+    protected void openStorageChannels(Context context, Set<Integer> selectedTaskIds) {
+
+        MyChannels.ChannelType chType = MyChannels.ChannelType.STORAGE;
+        Set<MessageChannel<?>> channels = mlChannels.get(chType);
+
+        if (channels == null) {
+            return;
+        }
+
+        for (MessageChannel<?> channel : channels) {
+
+            if (channel == null || channel.getChannelType() != chType) {
+                continue;
+            }
+
+            MyChannels.StorageChannel storageChannel = (MyChannels.StorageChannel) channel;
+            String chTag = storageChannel.getChannelId();
+
+            for (Integer taskId : selectedTaskIds) {
+
+                if (taskId == null) {
+                    continue;
                 }
+
+                StorageInfo storageInfo = mmStorageChannels.get(taskId);
+
+                if (storageInfo == null) {
+                    continue;
+                }
+
+                int targetId = storageChannel.openNewChannel(chType, context, storageInfo);
+                storageInfo.setChannelId(targetId);
+
+                Map<Integer, Integer> taskTargetMap = mChannelTargetMap.get(chTag);
+
+                if (taskTargetMap == null) {
+                    taskTargetMap = new HashMap<>();
+                    mChannelTargetMap.put(chTag, taskTargetMap);
+                }
+
+                taskTargetMap.put(taskId, targetId);
             }
         }
     }
 
-    public void addChannelTransaction(MessageChannel<?> channel) {
+    protected void publish(MyChannels.ChannelType chType, int taskId, MyMessage msg) {
 
-        if (mlChannelTransactions != null) {
-            mlChannelTransactions.add(channel);
+        Set<MessageChannel<?>> channels = mlChannels.get(chType);
+
+        if (channels == null) {
+            return;
         }
+
+        for (MessageChannel<?> channel : channels) {
+
+            if (channel == null) {
+                continue;
+            }
+
+            Map<Integer, Integer> taskTargetMap = mChannelTargetMap.get(channel.getChannelId());
+
+            if (taskTargetMap == null) {
+                continue;
+            }
+
+            Integer targetId = taskTargetMap.get(taskId);
+
+            if (targetId == null) {
+                continue;
+            }
+
+            channel.publishMessage(chType, targetId, msg);
+        }
+    }
+
+    protected void closeChannels(MyChannels.ChannelType chType) {
+
+        Set<MessageChannel<?>> channels = mlChannels.get(chType);
+
+        if (channels == null) {
+            return;
+        }
+
+        for (MessageChannel<?> channel : channels) {
+
+            if (channel == null) {
+                continue;
+            }
+
+            Map<Integer, Integer> taskTargetMap = mChannelTargetMap.get(channel.getChannelId());
+
+            if (taskTargetMap == null) {
+                continue;
+            }
+
+            for (Integer targetId : taskTargetMap.values()) {
+
+                if (targetId == null) {
+                    continue;
+                }
+
+                channel.closeChannel(chType, targetId);
+            }
+        }
+    }
+    protected void closeChannels(MyChannels.ChannelType chType, int taskId) {
+
+        Set<MessageChannel<?>> channels = mlChannels.get(chType);
+
+        if (channels == null) {
+            return;
+        }
+
+        for (MessageChannel<?> channel : channels) {
+
+            if (channel == null) {
+                continue;
+            }
+
+            Map<Integer, Integer> taskTargetMap = mChannelTargetMap.get(channel.getChannelId());
+
+            if (taskTargetMap == null) {
+                continue;
+            }
+
+            Integer targetId = taskTargetMap.get(taskId);
+
+            if (targetId == null) {
+                continue;
+            }
+
+            channel.closeChannel(chType, targetId);
+        }
+    }
+
+    public void addChannelTransaction(MessageChannel channel) {
+
+        if (channel == null) {
+            return;
+        }
+
+        if (mlChannels != null) {
+
+            MyChannels.ChannelType chType = channel.getChannelType();
+            String chTag = channel.getChannelId();
+
+            Set<MessageChannel<?>> channels = mlChannels.get(chType);
+
+            if (channels == null) {
+                channels = new HashSet<>();
+                mlChannels.put(chType, channels);
+            }
+
+            channels.add(channel);
+
+            Map<Integer, Integer> taskTargetMap = mChannelTargetMap.get(chTag);
+
+            if (taskTargetMap == null) {
+                taskTargetMap = new HashMap<>();
+                mChannelTargetMap.put(chTag, taskTargetMap);
+            }
+        }
+    }*/
+
+    @Override
+    public void registerChannel(ChannelTransactions channel) {
+
+        if (mlChannels != null) {
+            mlChannels.add(channel);
+        }
+    }
+
+    @Override
+    public void unregisterChannel(ChannelTransactions channel) {
+
+        if (mlChannels != null) {
+            mlChannels.remove(channel);
+        }
+    }
+
+    @Override
+    public void publishMessage(MyMessage msg) {
+
+        for (ChannelTransactions channel : mlChannels) {
+            channel.onMessageReceived(msg);
+        }
+    }
+
+    @Override
+    public void onMessageReceived(MyMessage msg) {
+    }
+
+    protected void logMessage(String msg, String loggerTag) {
+
+        MsgLogging loggingMsg = new MsgLogging(msg, RecordingFragment.class.getSimpleName());
+        loggingMsg.setChTag(loggerTag);
+        publishMessage(loggingMsg);
     }
 
     // Helpers
@@ -372,5 +630,45 @@ public abstract class MyBaseManager {
         }
 
         return null;
+    }
+
+    // Types
+
+    protected static class MyResourceIdentifier {
+
+        private int mId;
+        private int mState;
+
+        private String mRI;
+
+        public MyResourceIdentifier(int id, int state) {
+
+            mId = id;
+            mState = state;
+        }
+
+        public int getId() {
+            return mId;
+        }
+
+        public void setId(int mId) {
+            this.mId = mId;
+        }
+
+        public int getState() {
+            return mState;
+        }
+
+        public void setState(int mState) {
+            this.mState = mState;
+        }
+
+        public String getResourceId() {
+            return mRI;
+        }
+
+        public void setResourceId(String mRI) {
+            this.mRI = mRI;
+        }
     }
 }
