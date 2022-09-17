@@ -20,6 +20,10 @@ package com.dayani.m.roboplatform.managers;
  *      3. open camera with preview (if desired) -> Auto 3A, disable distortion correction
  *      4. when recording starts, lock most configurations (3A)
  *          and record images in the simplest form
+ *
+ * ** References:
+ *      Android Developer: Camera2 API
+ *      Archived Google's Camera2Raw sample project
  */
 
 import android.Manifest;
@@ -205,7 +209,7 @@ public class CameraFlyVideo extends MyBaseManager {
     // for debugging
     AtomicInteger mCounter = new AtomicInteger();
 
-    private static int mCamIdGenerator = 0;
+    private int mCamIdGenerator = 0;
 
     private boolean mbIsFirstCapture = true;
 
@@ -632,7 +636,7 @@ public class CameraFlyVideo extends MyBaseManager {
 
     /* --------------------------------- Init. Camera Sensors ----------------------------------- */
 
-    public List<String> filterCompatibleCameras(CameraManager cameraManager, String[] cameraIds) {
+    private List<String> filterCompatibleCameras(CameraManager cameraManager, String[] cameraIds) {
 
         final List<String> compatibleCameras = new ArrayList<>();
 
@@ -657,7 +661,7 @@ public class CameraFlyVideo extends MyBaseManager {
         return compatibleCameras;
     }
 
-    public List<CameraGroup> getCameraGroups(CameraManager cameraManager, List<String> cameraIdList) {
+    private List<CameraGroup> getCameraGroups(CameraManager cameraManager, List<String> cameraIdList) {
 
         List<CameraGroup> cameraGroups = new ArrayList<>();
 
@@ -1611,7 +1615,7 @@ public class CameraFlyVideo extends MyBaseManager {
 
     public static CameraCharacteristics getCameraCharacteristics(CameraManager cameraManager, String cameraId) {
 
-        if (cameraManager == null) {
+        if (cameraManager == null || cameraId == null) {
             return null;
         }
 
@@ -2064,6 +2068,10 @@ public class CameraFlyVideo extends MyBaseManager {
          */
         public static int computeRelativeRotation(CameraCharacteristics characteristics,
                                                   int surfaceRotationDegrees) {
+
+            if (characteristics == null) {
+                return 0;
+            }
 
             Integer sensorOrientationDegrees =
                     characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);

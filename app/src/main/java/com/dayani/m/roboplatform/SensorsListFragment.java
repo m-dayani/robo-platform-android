@@ -113,13 +113,13 @@ public class SensorsListFragment extends Fragment implements View.OnClickListene
 
         List<MySensorGroup> sGroupsFiltered = mVM_Sensors.getSensorGroups();
         sGroupsFiltered = MySensorGroup.filterSensorGroups(sGroupsFiltered, SensorType.TYPE_STORAGE);
-        Log.v(TAG, sGroupsFiltered.toString());
+        //Log.v(TAG, sGroupsFiltered.toString());
 
         FragmentActivity context = requireActivity();
 
         mSensorsListView = view.findViewById(R.id.list_sensors);
         mSensorsAdapter = new FastNestedListAdapter(sGroupsFiltered, this);
-        mSensorsAdapter.getSensorsList(context, mSensorsListView);
+        mSensorsAdapter.createSensorsList(context, mSensorsListView);
 
         return view;
     }
@@ -143,6 +143,7 @@ public class SensorsListFragment extends Fragment implements View.OnClickListene
     private void launchRecordingFrag() {
 
         if (isStorageManagerBad()) {
+            Log.w(TAG, "Cannot launch recording, abort");
             return;
         }
 

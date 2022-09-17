@@ -167,13 +167,16 @@ public abstract class MyBaseManager implements ChannelTransactions {
         }
 
         String[] perms = getPermissions().toArray(new String[0]);
-        mRequirementRequestListener.requestResolution(perms);
+        if (perms.length > 0) {
+            mRequirementRequestListener.requestResolution(perms);
+        }
     }
 
     public void setRequirementResolutionListener(RequirementResolution requestListener) {
         mRequirementRequestListener = requestListener;
     }
 
+    // listen for changes in the state of resources (enabled state)
     public void onBroadcastReceived(Context context, Intent intent) {}
 
     // Checked sensors
@@ -242,6 +245,19 @@ public abstract class MyBaseManager implements ChannelTransactions {
         // resolve requirements
         // note: permissions are a kind of requirement
         resolveRequirements(context);
+    }
+
+    public String whyIsNotAvailable() {
+
+        if (!isSupported()) {
+            return "Module is not supported";
+        }
+
+        if (!hasAllPermissions()) {
+            return "Module does not have the required permissions";
+        }
+
+        return null;
     }
 
     // Lifecycle
@@ -352,7 +368,6 @@ public abstract class MyBaseManager implements ChannelTransactions {
         return -1;
     }
 
-    //protected abstract Map<Integer, StorageInfo> initStorageChannels();
     // returns a list of tag, config pairs, used to open storage channels
     protected abstract List<Pair<String, MsgConfig>> getStorageConfigMessages(MySensorInfo sensor);
 
@@ -411,171 +426,6 @@ public abstract class MyBaseManager implements ChannelTransactions {
 
         }
     }
-
-    /*protected abstract Set<Integer> getSelectedStorageTaskIds();
-    protected void openStorageChannels(Context context, Set<Integer> selectedTaskIds) {
-
-        MyChannels.ChannelType chType = MyChannels.ChannelType.STORAGE;
-        Set<MessageChannel<?>> channels = mlChannels.get(chType);
-
-        if (channels == null) {
-            return;
-        }
-
-        for (MessageChannel<?> channel : channels) {
-
-            if (channel == null || channel.getChannelType() != chType) {
-                continue;
-            }
-
-            MyChannels.StorageChannel storageChannel = (MyChannels.StorageChannel) channel;
-            String chTag = storageChannel.getChannelId();
-
-            for (Integer taskId : selectedTaskIds) {
-
-                if (taskId == null) {
-                    continue;
-                }
-
-                StorageInfo storageInfo = mmStorageChannels.get(taskId);
-
-                if (storageInfo == null) {
-                    continue;
-                }
-
-                int targetId = storageChannel.openNewChannel(chType, context, storageInfo);
-                storageInfo.setChannelId(targetId);
-
-                Map<Integer, Integer> taskTargetMap = mChannelTargetMap.get(chTag);
-
-                if (taskTargetMap == null) {
-                    taskTargetMap = new HashMap<>();
-                    mChannelTargetMap.put(chTag, taskTargetMap);
-                }
-
-                taskTargetMap.put(taskId, targetId);
-            }
-        }
-    }
-
-    protected void publish(MyChannels.ChannelType chType, int taskId, MyMessage msg) {
-
-        Set<MessageChannel<?>> channels = mlChannels.get(chType);
-
-        if (channels == null) {
-            return;
-        }
-
-        for (MessageChannel<?> channel : channels) {
-
-            if (channel == null) {
-                continue;
-            }
-
-            Map<Integer, Integer> taskTargetMap = mChannelTargetMap.get(channel.getChannelId());
-
-            if (taskTargetMap == null) {
-                continue;
-            }
-
-            Integer targetId = taskTargetMap.get(taskId);
-
-            if (targetId == null) {
-                continue;
-            }
-
-            channel.publishMessage(chType, targetId, msg);
-        }
-    }
-
-    protected void closeChannels(MyChannels.ChannelType chType) {
-
-        Set<MessageChannel<?>> channels = mlChannels.get(chType);
-
-        if (channels == null) {
-            return;
-        }
-
-        for (MessageChannel<?> channel : channels) {
-
-            if (channel == null) {
-                continue;
-            }
-
-            Map<Integer, Integer> taskTargetMap = mChannelTargetMap.get(channel.getChannelId());
-
-            if (taskTargetMap == null) {
-                continue;
-            }
-
-            for (Integer targetId : taskTargetMap.values()) {
-
-                if (targetId == null) {
-                    continue;
-                }
-
-                channel.closeChannel(chType, targetId);
-            }
-        }
-    }
-    protected void closeChannels(MyChannels.ChannelType chType, int taskId) {
-
-        Set<MessageChannel<?>> channels = mlChannels.get(chType);
-
-        if (channels == null) {
-            return;
-        }
-
-        for (MessageChannel<?> channel : channels) {
-
-            if (channel == null) {
-                continue;
-            }
-
-            Map<Integer, Integer> taskTargetMap = mChannelTargetMap.get(channel.getChannelId());
-
-            if (taskTargetMap == null) {
-                continue;
-            }
-
-            Integer targetId = taskTargetMap.get(taskId);
-
-            if (targetId == null) {
-                continue;
-            }
-
-            channel.closeChannel(chType, targetId);
-        }
-    }
-
-    public void addChannelTransaction(MessageChannel channel) {
-
-        if (channel == null) {
-            return;
-        }
-
-        if (mlChannels != null) {
-
-            MyChannels.ChannelType chType = channel.getChannelType();
-            String chTag = channel.getChannelId();
-
-            Set<MessageChannel<?>> channels = mlChannels.get(chType);
-
-            if (channels == null) {
-                channels = new HashSet<>();
-                mlChannels.put(chType, channels);
-            }
-
-            channels.add(channel);
-
-            Map<Integer, Integer> taskTargetMap = mChannelTargetMap.get(chTag);
-
-            if (taskTargetMap == null) {
-                taskTargetMap = new HashMap<>();
-                mChannelTargetMap.put(chTag, taskTargetMap);
-            }
-        }
-    }*/
 
     @Override
     public void registerChannel(ChannelTransactions channel) {

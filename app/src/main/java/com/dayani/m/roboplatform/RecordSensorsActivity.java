@@ -18,6 +18,7 @@ import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.managers.MyLocationManager;
 import com.dayani.m.roboplatform.managers.MySensorManager;
 import com.dayani.m.roboplatform.managers.MyStorageManager;
+import com.dayani.m.roboplatform.managers.MyUSBManager;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.interfaces.MyBackgroundExecutor;
 import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
@@ -65,7 +66,6 @@ public class RecordSensorsActivity extends AppCompatActivity
         mBackgroundExecutor = new MyBackgroundExecutor();
         mBackgroundExecutor.initWorkerThread(TAG);
 
-        // launch requirements fragment
         if (savedInstanceState == null) {
 
             getSupportFragmentManager().beginTransaction().setReorderingAllowed(true)
@@ -115,21 +115,15 @@ public class RecordSensorsActivity extends AppCompatActivity
                 this, vm, CameraFlyVideo.class.getSimpleName());
         mManager.registerChannel(storageManager);
 
-        // TODO: Add the rest [also change getOrCreateManager(...)]
         if (withUSB) {
             Log.d(TAG, "USB manager is enabled");
-            //mManager = getOrCreateManager(this, vm, MyUSBManager.class.getSimpleName());
+            mManager = SensorsViewModel.getOrCreateManager(
+                    this, vm, MyUSBManager.class.getSimpleName());
             mManager.registerChannel(storageManager);
         }
 
         // Must always call init. here for symmetry (not in managers' constructor)
         for (MyBaseManager manager : vm.getAllManagers()) {
-
-            // complete message passing links
-//            if (manager != storageManager) {
-//                storageManager.registerChannel(manager);
-//            }
-
             manager.init(this);
         }
     }

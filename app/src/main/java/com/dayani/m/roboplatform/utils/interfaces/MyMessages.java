@@ -2,12 +2,14 @@ package com.dayani.m.roboplatform.utils.interfaces;
 
 import static android.os.Build.VERSION.SDK_INT;
 
+import com.dayani.m.roboplatform.drivers.MyDrvUsb;
 import com.dayani.m.roboplatform.managers.MySensorManager;
 import com.dayani.m.roboplatform.managers.MyLocationManager;
 
 import android.hardware.SensorEvent;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CaptureResult;
+import android.hardware.usb.UsbConstants;
 import android.location.GnssMeasurement;
 import android.location.GnssNavigationMessage;
 import android.location.Location;
@@ -492,6 +494,172 @@ public interface MyMessages {
         public void setCharacteristics(CameraCharacteristics characteristics) {
             this.mCharacteristics = characteristics;
         }
+    }
+
+    class MsgUsb extends MyMessage {
+
+        public enum UsbDataType {
+            TYPE_ADC,
+            TYPE_INFO
+        }
+
+        // groups of actions (command flag)
+        public enum UsbCommand {
+            CMD_BROADCAST,
+            CMD_UPDATE_OUTPUT,
+            CMD_GET_SENSOR_INFO,
+            CMD_GET_CMD_RES,
+            CMD_ADC_START,
+            CMD_ADC_READ,
+            CMD_ADC_STOP,
+            CMD_RUN_TEST,
+        };
+
+        // true: command, false: data
+        private boolean mbIsCommand;
+
+        // raw in/out buffer
+        private byte[] mRawBuffer;
+
+        // all commands have two parts: flag and data (rawBuffer)
+        private UsbCommand mCmdFlag;
+        private int mCmdFlagOverride = 0;
+
+        private UsbDataType mDataType;
+
+        private long mTimestamp;
+        private int[] mAdcData;
+
+        private MyUsbInfo mUsbInfo;
+
+        public static class MyControlTransferInfo {
+
+            public static final int DEF_CTRL_TRANS_TIMEOUT = 5000;
+
+            // true: out message, false in message
+            public int mCtrlTransDir;
+            public int mCtrlMsgIndex = 0;
+            public int mCtrlMsgValue = 0;
+            public int mCtrlTransType; // vendor, standard, ...
+            public int mCtrlTransTimeout = DEF_CTRL_TRANS_TIMEOUT;
+        }
+
+        private MyControlTransferInfo mCtrlTransInfo;
+
+        public MsgUsb() {
+
+            super(ChannelType.DATA);
+        }
+
+        public MsgUsb(int targetId) {
+
+            super(ChannelType.DATA, null, targetId, "");
+        }
+
+        public MyControlTransferInfo getCtrlTransInfo() {
+            return mCtrlTransInfo;
+        }
+
+        public void setCtrlTransInfo(MyControlTransferInfo ctrlTransInfo) {
+            this.mCtrlTransInfo = ctrlTransInfo;
+        }
+
+        public boolean isIsCommand() {
+            return mbIsCommand;
+        }
+
+        public void setIsCommand(boolean state) {
+            this.mbIsCommand = state;
+        }
+
+        public byte[] getRawBuffer() {
+            return mRawBuffer;
+        }
+
+        public void setRawBuffer(byte[] rawBuffer) {
+            this.mRawBuffer = rawBuffer;
+        }
+
+        public UsbCommand getCmd() {
+            return mCmdFlag;
+        }
+        public int getCmdFlag() {
+            if (mCmdFlag != null) {
+                return mCmdFlag.ordinal();
+            }
+            return mCmdFlagOverride;
+        }
+
+        public void setCmdFlag(int cmdFlagOverride) {
+            this.mCmdFlagOverride = cmdFlagOverride;
+        }
+        public void setCmd(UsbCommand cmd) {
+            this.mCmdFlag = cmd;
+        }
+
+        public UsbDataType getDataType() {
+            return mDataType;
+        }
+
+        public void setDataType(UsbDataType usbDataType) {
+            this.mDataType = usbDataType;
+        }
+
+        public long getTimestamp() {
+            return mTimestamp;
+        }
+
+        public void setTimestamp(long timestamp) {
+            this.mTimestamp = timestamp;
+        }
+
+        public int[] getAdcData() {
+            return mAdcData;
+        }
+
+        public void setAdcData(int[] adcData) {
+            this.mAdcData = adcData;
+        }
+
+        public MyUsbInfo getUsbInfo() {
+            return mUsbInfo;
+        }
+
+        public void setUsbInfo(MyUsbInfo usbInfo) {
+            this.mUsbInfo = usbInfo;
+        }
+
+        public String getAdcSensorString() {
+
+            if (mAdcData == null) {
+                return "";
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.append(mTimestamp);
+
+            for (int adcVal : mAdcData) {
+                sb.append(", ").append(adcVal);
+            }
+            sb.append("\n");
+
+            return sb.toString();
+        }
+    }
+
+    class MyUsbInfo {
+
+        public boolean isAdcAvailable;
+        public boolean isControlAvailable;
+        public boolean isAdcStarted;
+
+        public int adcResolution;
+        public double adcSampleRate;
+        public int numAdcChannels;
+
+        // info extracted from descriptors
+        public String manufacturerName;
+        public String productName;
     }
 
 }

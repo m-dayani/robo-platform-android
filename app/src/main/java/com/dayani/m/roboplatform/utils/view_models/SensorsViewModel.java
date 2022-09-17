@@ -9,9 +9,12 @@ import androidx.lifecycle.ViewModel;
 
 import com.dayani.m.roboplatform.managers.CameraFlyVideo;
 import com.dayani.m.roboplatform.managers.MyBaseManager;
+import com.dayani.m.roboplatform.managers.MyBluetoothManager;
 import com.dayani.m.roboplatform.managers.MyLocationManager;
 import com.dayani.m.roboplatform.managers.MySensorManager;
 import com.dayani.m.roboplatform.managers.MyStorageManager;
+import com.dayani.m.roboplatform.managers.MyUSBManager;
+import com.dayani.m.roboplatform.managers.MyWifiManager;
 import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
 import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
@@ -19,6 +22,7 @@ import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requireme
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -115,7 +119,7 @@ public class SensorsViewModel extends ViewModel {
             }
             Set<MySensorGroup> mSensorGrps = mSensorGroups.getValue();
             if (mSensorGrps == null) {
-                mSensorGrps = new HashSet<>();
+                mSensorGrps = new LinkedHashSet<>();
             }
 
             for (MySensorGroup sensor : sensorGrps) {
@@ -231,7 +235,27 @@ public class SensorsViewModel extends ViewModel {
                 vm.addManagerAndSensors(context, manager);
             }
         }
-        //TODO: Add the rest
+        else if (managerClassName.equals(MyUSBManager.class.getSimpleName())) {
+            manager = vm.getManager(MyUSBManager.class.getSimpleName());
+            if (manager == null) {
+                manager = new MyUSBManager(context);
+                vm.addManagerAndSensors(context, manager);
+            }
+        }
+        else if (managerClassName.equals(MyWifiManager.class.getSimpleName())) {
+            manager = vm.getManager(MyWifiManager.class.getSimpleName());
+            if (manager == null) {
+                //manager = new MyWifiManager(context);
+                //vm.addManagerAndSensors(context, manager);
+            }
+        }
+        else if (managerClassName.equals(MyBluetoothManager.class.getSimpleName())) {
+            manager = vm.getManager(MyBluetoothManager.class.getSimpleName());
+            if (manager == null) {
+                //manager = new MyBluetoothManager(context);
+                //vm.addManagerAndSensors(context, manager);
+            }
+        }
 
         return manager;
     }

@@ -55,17 +55,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         else if (id == R.id.startCarManualCtrl) {
 
             Log.d(TAG, "startCarManualCtrl");
-            // TODO: Also change to a fragment
             Toast.makeText(this, "Car manual control is not implemented",
                     Toast.LENGTH_SHORT).show();
         }
         else if (id == R.id.startTest) {
 
             Log.d(TAG, "startTest");
-            // TODO: Also change to a fragment
-            //targetActivity = TestActivity.class;
-            Toast.makeText(this, "USB Device test is not implemented",
-                    Toast.LENGTH_SHORT).show();
+            intent = new Intent(this, TestActivity.class);
         }
 
         // Launch the desired activity

@@ -61,6 +61,7 @@ public class RecordingFragment extends Fragment
     }
 
     public static RecordingFragment newInstance() {
+
         RecordingFragment fragment = new RecordingFragment();
         Bundle args = new Bundle();
         fragment.setArguments(args);

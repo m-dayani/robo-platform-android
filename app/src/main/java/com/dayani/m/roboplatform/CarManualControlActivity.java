@@ -73,7 +73,7 @@ public class CarManualControlActivity extends AppCompatActivity
             mControlInput.setKeyboardInput(mWifiManager.getMessage());
             mControlInput.setSensorInput(mUsb.getRawSensor());
             mUsb.setStateBuffer(this.control(mControlInput));
-            mUsb.sendStateUpdates();
+            //mUsb.sendStateUpdates();
 
             mController.postDelayed(this, DEFAULT_CTRL_INTERVAL_MILIS);
         }
@@ -135,9 +135,9 @@ public class CarManualControlActivity extends AppCompatActivity
 
         mSensorManager = new MySensorManager(this);
 
-        mUsb = new MyUSBManager(this, this, mSensorString);
-        mUsb.updateDefaultDeviceAvailability();
-        mUsb.tryOpenDefaultDevice();
+        mUsb = new MyUSBManager(this);
+        mUsb.setConnectionListener(this);
+        //mUsb.tryOpenDefaultDevice();
 
         mWifiManager = new MyWifiManager(this, this);
         //Register receivers & start Bg threads

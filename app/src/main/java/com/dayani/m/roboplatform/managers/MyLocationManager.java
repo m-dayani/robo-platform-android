@@ -232,12 +232,14 @@ public class MyLocationManager extends MyBaseManager implements MeasurementListe
 
     @Override
     public List<Requirement> getRequirements() {
+
         return Arrays.asList(
                 Requirement.PERMISSIONS,
                 Requirement.ENABLE_LOCATION
         );
     }
 
+    @Override
     public boolean passedAllRequirements() {
         return hasAllPermissions() && isLocationEnabled();
     }
@@ -324,8 +326,6 @@ public class MyLocationManager extends MyBaseManager implements MeasurementListe
     @Override
     public void onBroadcastReceived(Context context, Intent intent) {
 
-        super.onBroadcastReceived(context, intent);
-
         if (intent.getAction().matches("android.location.PROVIDERS_CHANGED"))  {
 
             Log.i(TAG, "Location Providers changed");
@@ -343,7 +343,7 @@ public class MyLocationManager extends MyBaseManager implements MeasurementListe
         mIsLocationEnabled = state;
     }
 
-    /*--------------------------------- Lifecycle Management -------------------------------------*/
+    /* -------------------------------- Lifecycle Management ------------------------------------ */
 
     @Override
     public void init(Context context) {

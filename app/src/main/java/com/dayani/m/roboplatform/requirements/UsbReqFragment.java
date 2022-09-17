@@ -1,12 +1,6 @@
 package com.dayani.m.roboplatform.requirements;
 
-import android.content.Context;
 import android.os.Bundle;
-
-import androidx.annotation.NonNull;
-import androidx.fragment.app.Fragment;
-import androidx.lifecycle.ViewModelProvider;
-
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -16,13 +10,15 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
+
 import com.dayani.m.roboplatform.R;
 import com.dayani.m.roboplatform.RequirementsFragment;
 import com.dayani.m.roboplatform.managers.MyUSBManager;
-import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
 import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
 
-import java.util.List;
+import java.util.Locale;
 
 
 /**
@@ -73,14 +69,29 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
 
         super.onCreate(savedInstanceState);
 
-        mUsb = new MyUSBManager(getActivity(),this, new StringBuffer());
-
         mVM_Sensors = new ViewModelProvider(requireActivity()).get(SensorsViewModel.class);
+
+        mUsb = (MyUSBManager) mVM_Sensors.getManager(MyUSBManager.class.getSimpleName());
+        if (mUsb != null) {
+            mUsb.setConnectionListener(this);
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+
+        if (mUsb != null) {
+            // maybe user has already opened the device
+            mUsb.close();
+        }
+
+        super.onDestroy();
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+
         // Inflate the layout for this fragment
         View mView = inflater.inflate(R.layout.fragment_usb_req, container, false);
 
@@ -91,9 +102,12 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
         //mView.findViewById(R.id.onBtn).setOnClickListener(this);
 
         mVidEdit = mView.findViewById(R.id.vendorID);
-        mVidEdit.setText(Integer.toString(MyUSBManager.getDefaultVendorId()));
         mDidEdit = mView.findViewById(R.id.deviceID);
-        mDidEdit.setText(Integer.toString(MyUSBManager.getDefaultDeviceId()));
+        if (mUsb != null) {
+            mVidEdit.setText(String.format(Locale.US, "%d", mUsb.getVendorId()));
+            mDidEdit.setText(String.format(Locale.US, "%d", mUsb.getDeviceId()));
+        }
+
         reportTxt = mView.findViewById(R.id.statView);
 
         usbActionView = mView.findViewById(R.id.usbOpenActionsContainer);
@@ -103,34 +117,18 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
     }
 
     @Override
-    public void onAttach(@NonNull Context context) {
-        super.onAttach(context);
-    }
-
-    @Override
-    public void onDetach() {
-        super.onDetach();
-        //since we didn't call init(), clean is not required.
-        if (mUsb != null) {
-            mUsb.clean();
-        }
-    }
-
-//    @Override
-//    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-//        //super.onActivityResult(requestCode, resultCode, data);
-//        // In fragment class callback
-//        Log.d(TAG, "onActivityResult");
-//
-//    }
-
-    @Override
     public void onClick(View view) {
 
         int id = view.getId();
         if (id == R.id.enumDevs) {
             Log.d(TAG, "Enumerating devices");
-            reportTxt.setText(mUsb.enumerateDevices());
+            if (mUsb != null) {
+                String devices = MyUSBManager.usbDeviceListToString(mUsb.enumerateDevices());
+                reportTxt.setText(devices);
+            }
+            else {
+                reportTxt.setText(R.string.w_usb_manager_null);
+            }
         }
         else if (id == R.id.openDevice) {
             String vId = mVidEdit.getText().toString();
@@ -147,11 +145,6 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
         else if (id == R.id.runTestBtn) {
             Log.d(TAG, "Running test");
             this.runUsbTest();
-//            case R.id.onBtn: {
-//                Log.d(TAG, "On/Off LED");
-//
-//                break;
-//            }
         }
         else {
             Log.e(TAG, "Undefined Action");
@@ -159,7 +152,9 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
     }
 
     private void setActionsEnableState(boolean state, LinearLayout view) {
+
         if (view == null) return;
+
         for (int i = 0; i < view.getChildCount(); i++) {
             Button b = (Button) view.getChildAt(i);
             b.setEnabled(state);
@@ -167,18 +162,47 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
     }
 
     private void openDevice(int vendorId, int deviceId) {
-        mUsb.tryOpenDevice(vendorId, deviceId);
+
+        if (mUsb != null) {
+            mUsb.setVendorId(vendorId);
+            mUsb.setDeviceId(deviceId);
+
+            if (!mUsb.canFindTargetDevice()) {
+                reportTxt.setText(String.format(Locale.US, "%s%d:%d",
+                        getString(R.string.w_cannot_find_dev_header), vendorId, deviceId));
+                return;
+            }
+
+            if (!mUsb.isDevicePermitted()) {
+                reportTxt.setText(R.string.msg_grant_usb_perm);
+                mUsb.requestDevicePermission();
+                return;
+            }
+
+            if (mUsb.tryOpenDeviceAndUpdateInfo()) {
+                this.onUsbConnection(true);
+                reportTxt.setText(R.string.usb_opened_success);
+            }
+        }
     }
 
     private void saveDeviceAsDefault(int vendorId, int deviceId) {
-        MyUSBManager.setDefaultVendorId(vendorId);
-        MyUSBManager.setDefaultDeviceId(deviceId);
+
+        if (mUsb != null) {
+            mUsb.setVendorId(vendorId);
+            mUsb.setDeviceId(deviceId);
+            mUsb.saveVendorAndDeviceId(requireActivity());
+        }
     }
 
     private void runUsbTest() {
-        boolean state = mUsb.testDevice();
-        if (state) {
-            this.permit();
+
+        if (mUsb != null) {
+            boolean state = mUsb.testDevice();
+            if (state) {
+                reportTxt.setText(R.string.test_successful);
+                this.permit();
+            }
         }
     }
 
@@ -189,13 +213,11 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
         getParentFragmentManager()
                 .setFragmentResult(RequirementsFragment.KEY_REQUIREMENT_PASSED_REQUEST, bundle);
 
-        // remove USB requirement
-        List<Requirement> reqs = mVM_Sensors.getRequirements().getValue();
-        if (reqs != null && reqs.contains(Requirement.USB_DEVICE)) {
-            reqs.remove(Requirement.USB_DEVICE);
-            mVM_Sensors.getRequirements().setValue(reqs);
+        if (mUsb != null) {
+            mUsb.updateAvailabilityAndCheckedSensors(requireActivity());
         }
 
+        // remove USB requirement -> not necessary
         // remove current fragment and go back to last (requirements)
         getParentFragmentManager().popBackStack();
     }

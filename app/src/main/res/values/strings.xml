@@ -66,4 +66,9 @@
     <string name="btn_txt_stop">Stop</string>
     <string name="btn_txt_start">Start</string>
     <string name="picture">Picture</string>
+    <string name="w_usb_manager_null">USB manager is not available</string>
+    <string name="w_cannot_find_dev_header">\"Cannot find device: \"</string>
+    <string name="msg_grant_usb_perm">Grant USB device permission</string>
+    <string name="usb_opened_success">USB device opened successfully</string>
+    <string name="test_successful">Test was successful</string>
 </resources>

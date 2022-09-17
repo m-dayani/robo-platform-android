@@ -137,8 +137,9 @@ public class RecordSensorsActivity_old2 extends AppCompatActivity
 
         mSensorManager = new MySensorManager(this);
 
-        mUsb = new MyUSBManager(this, this, mSensorString);
-        mUsb.updateDefaultDeviceAvailability();
+        mUsb = new MyUSBManager(this);
+        mUsb.setConnectionListener(this);
+        //mUsb.tryOpenDefaultDevice();
 
         startSensorThread();
     }
@@ -207,7 +208,7 @@ public class RecordSensorsActivity_old2 extends AppCompatActivity
     @Override
     protected void onDestroy() {
         //mUsb.unregisterUsbPermission();
-        mUsb.clean();
+        mUsb.clean(this);
         //mUsb.close();
         //mUsb = null;
         //cleaning sensor's thread.

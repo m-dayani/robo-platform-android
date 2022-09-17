@@ -55,7 +55,7 @@ public class FastNestedListAdapter {
         mmSensorsViewIds = new HashMap<>();
     }
 
-    public void getSensorsList(Context context, ViewGroup sensorsListView) {
+    public void createSensorsList(Context context, ViewGroup sensorsListView) {
 
         if (mSensorGroups == null) {
             return;
