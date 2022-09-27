@@ -29,6 +29,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         findViewById(R.id.startTest).setOnClickListener(this);
         findViewById(R.id.startCarManualCtrl).setOnClickListener(this);
         findViewById(R.id.startRecordSensors).setOnClickListener(this);
+        findViewById(R.id.startController).setOnClickListener(this);
     }
 
     @Override
@@ -55,8 +56,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         else if (id == R.id.startCarManualCtrl) {
 
             Log.d(TAG, "startCarManualCtrl");
-            Toast.makeText(this, "Car manual control is not implemented",
-                    Toast.LENGTH_SHORT).show();
+            intent = new Intent(this, CarManualControlActivity.class);
+        }
+        else if (id == R.id.startController) {
+
+            Log.d(TAG, "start controller server");
+            intent = new Intent(this, ControllerServerActivity.class);
         }
         else if (id == R.id.startTest) {
 

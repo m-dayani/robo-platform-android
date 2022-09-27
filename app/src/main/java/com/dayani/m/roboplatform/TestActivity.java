@@ -19,6 +19,7 @@ import androidx.lifecycle.ViewModelProvider;
 import com.dayani.m.roboplatform.drivers.MyDrvUsb;
 import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.managers.MyUSBManager;
+import com.dayani.m.roboplatform.managers.MyBaseManager.LifeCycleState;
 import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
 import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
@@ -42,14 +43,14 @@ public class TestActivity extends AppCompatActivity implements ActivityRequireme
     protected void onCreate(Bundle savedInstanceState) {
 
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_record_sensors);
+        setContentView(R.layout.activity_fragment_container);
 
         // instantiate sensors view model
         mVM_Sensors = new ViewModelProvider(this).get(SensorsViewModel.class);
 
         mUsb = SensorsViewModel.getOrCreateManager(
                 this, mVM_Sensors, MyUSBManager.class.getSimpleName());
-        mUsb.init(this);
+        mUsb.execute(this, LifeCycleState.ACT_CREATED);
 
         if (savedInstanceState == null) {
 
@@ -62,7 +63,7 @@ public class TestActivity extends AppCompatActivity implements ActivityRequireme
     @Override
     protected void onDestroy() {
 
-        mUsb.clean(this);
+        mUsb.execute(this, LifeCycleState.ACT_DESTROYED);
         super.onDestroy();
     }
 
@@ -90,7 +91,7 @@ public class TestActivity extends AppCompatActivity implements ActivityRequireme
 
 
     public static class TestFragment extends Fragment  implements View.OnClickListener,
-            MyUSBManager.OnUsbConnectionListener, MyChannels.ChannelTransactions {
+            MyChannels.ChannelTransactions, ActivityRequirements.OnRequirementResolved {
 
         private static final String TAG = TestFragment.class.getSimpleName();
 
@@ -132,7 +133,7 @@ public class TestActivity extends AppCompatActivity implements ActivityRequireme
             // For a multi-fragment activity, use the SensorsViewModel
             mUsb = (MyUSBManager) SensorsViewModel.getOrCreateManager(
                     context, mVM_Sensors, MyUSBManager.class.getSimpleName());
-            mUsb.setConnectionListener(this);
+            mUsb.setRequirementResponseListener(this);
             mUsb.registerChannel(this);
 
             List<MySensorGroup> lUsbGroups = mUsb.getSensorGroups(context);
@@ -154,13 +155,13 @@ public class TestActivity extends AppCompatActivity implements ActivityRequireme
         @Override
         public void onResume() {
             super.onResume();
-            mUsb.initConfigurations(requireActivity());
+            mUsb.execute(requireActivity(), LifeCycleState.RESUMED);
         }
 
         @Override
         public void onPause() {
 
-            mUsb.cleanConfigurations(requireActivity());
+            mUsb.execute(requireActivity(), LifeCycleState.PAUSED);
             super.onPause();
         }
 
@@ -182,7 +183,7 @@ public class TestActivity extends AppCompatActivity implements ActivityRequireme
             view.findViewById(R.id.recieveSensor).setOnClickListener(this);
             view.findViewById(R.id.runTest).setOnClickListener(this);
 
-            rptTxt = (TextView) view.findViewById(R.id.fpReportText);
+            rptTxt = view.findViewById(R.id.fpReportText);
         }
 
         @Override
@@ -229,10 +230,9 @@ public class TestActivity extends AppCompatActivity implements ActivityRequireme
             }
         }
 
-        @Override
         public void onUsbConnection(boolean connStat) {
 
-            Log.i(TAG, "onUsbConnection called from test activity");
+            Log.i(TAG, "onUsbConnection called from test activity, state: "+connStat);
         }
 
         @Override
@@ -264,6 +264,14 @@ public class TestActivity extends AppCompatActivity implements ActivityRequireme
 
                 // report message
                 rptTxt.setText(res);
+            }
+        }
+
+        @Override
+        public void onAvailabilityStateChanged(MyBaseManager manager) {
+
+            if (manager instanceof MyUSBManager) {
+                onUsbConnection(((MyUSBManager) manager).isAvailable());
             }
         }
     }

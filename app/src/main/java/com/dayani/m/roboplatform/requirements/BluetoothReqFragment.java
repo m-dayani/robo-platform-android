@@ -28,7 +28,7 @@ import com.dayani.m.roboplatform.managers.MyWifiManager;
  * create an instance of this fragment.
  */
 public class BluetoothReqFragment extends Fragment
-        implements View.OnClickListener, MyBluetoothManager.OnBluetoothInteractionListener {
+        implements View.OnClickListener {
 
     private static final String TAG = BluetoothReqFragment.class.getSimpleName();
 
@@ -69,7 +69,7 @@ public class BluetoothReqFragment extends Fragment
 //        if (getArguments() != null) {
 //            mConnType = getArguments().getString(ARG_CONN_TYPE);
 //        }
-        mBlth = new MyBluetoothManager(getActivity(), this);
+        mBlth = new MyBluetoothManager(getActivity());
         //mBlth.init();
         //mBlth.registerBrRec;
     }
@@ -116,7 +116,7 @@ public class BluetoothReqFragment extends Fragment
             }
             case R.id.startServer: {
                 Log.d(TAG, "Start Server");
-                mBlth.startServer();
+                mBlth.startServer(requireActivity());
                 break;
             }
             case R.id.saveServiceUuid: {
@@ -161,23 +161,20 @@ public class BluetoothReqFragment extends Fragment
         if (mBlth.updateAvailability()) {
             this.onBluetoothEnabled();
         } else {
-            mBlth.requestBluetoothEnabled();
+            mBlth.requestBluetoothEnabled(requireActivity());
         }
     }
 
-    @Override
     public void onBluetoothEnabled() {
         this.updateViewState(actionsContainer, true);
         reportTxt.setText("1. Start Server.\n2. Run and connect client app to the same service."
                 +'\n'+"3. Send 'test' command from client app to pass this requirement.");
     }
 
-    @Override
     public void onClientConnection() {
         Log.i(TAG, "Client Connected");
     }
 
-    @Override
     public void onMessageReceived(String msg) {
         Log.d(TAG, "received: "+msg);
         if (msg.equals(MyWifiManager.getDefaultTestCommand())) {

@@ -19,6 +19,7 @@ import com.dayani.m.roboplatform.managers.MyLocationManager;
 import com.dayani.m.roboplatform.managers.MySensorManager;
 import com.dayani.m.roboplatform.managers.MyStorageManager;
 import com.dayani.m.roboplatform.managers.MyUSBManager;
+import com.dayani.m.roboplatform.managers.MyBaseManager.LifeCycleState;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.interfaces.MyBackgroundExecutor;
 import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
@@ -52,7 +53,7 @@ public class RecordSensorsActivity extends AppCompatActivity
     protected void onCreate(Bundle savedInstanceState) {
 
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_record_sensors);
+        setContentView(R.layout.activity_fragment_container);
 
         // instantiate sensors view model
         mVM_Sensors = new ViewModelProvider(this).get(SensorsViewModel.class);
@@ -124,7 +125,7 @@ public class RecordSensorsActivity extends AppCompatActivity
 
         // Must always call init. here for symmetry (not in managers' constructor)
         for (MyBaseManager manager : vm.getAllManagers()) {
-            manager.init(this);
+            manager.execute(this, LifeCycleState.ACT_CREATED);
         }
     }
 
@@ -132,7 +133,7 @@ public class RecordSensorsActivity extends AppCompatActivity
 
         for (MyBaseManager manager : lAllManagers) {
 
-            manager.clean(this);
+            manager.execute(this, LifeCycleState.ACT_DESTROYED);
         }
     }
 

@@ -113,7 +113,7 @@ public class MySensorManager extends MyBaseManager {
     public MySensorManager(Context context) {
 
         super(context);
-        mSensorManager = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
+        mSensorManager = (SensorManager) context.getApplicationContext().getSystemService(Context.SENSOR_SERVICE);
         //init(context);
     }
 
@@ -129,9 +129,9 @@ public class MySensorManager extends MyBaseManager {
     @Override
     protected boolean resolveSupport(Context context) {
 
-        SensorManager sensorManager = getSensorManager(context);
-
         int countSupported = 0;
+
+        SensorManager sensorManager = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
 
         for (Integer sensorTypeCode: mAllSensorTypes) {
 
@@ -166,14 +166,6 @@ public class MySensorManager extends MyBaseManager {
     }
 
     /*------------------------------------- Setters/Getters --------------------------------------*/
-
-    private SensorManager getSensorManager(Context context) {
-
-        if (mSensorManager != null) {
-            return mSensorManager;
-        }
-        return (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
-    }
 
     /*------------------------------------- Init. Sensors ----------------------------------------*/
 
@@ -328,12 +320,10 @@ public class MySensorManager extends MyBaseManager {
             return mlSensorGroup;
         }
 
-        SensorManager sensorManager = getSensorManager(context);
-
         List<MySensorGroup> sensorGroups = new ArrayList<>();
 
-        List<MySensorInfo> mImu = getImuSensors(sensorManager);
-        List<MySensorInfo> mMag = getMagnetometerSensors(sensorManager);
+        List<MySensorInfo> mImu = getImuSensors(mSensorManager);
+        List<MySensorInfo> mMag = getMagnetometerSensors(mSensorManager);
 
         MySensorGroup imuGrp = new MySensorGroup(MySensorGroup.getNextGlobalId(),
                 SensorType.TYPE_IMU, "IMU", mImu);
@@ -350,34 +340,46 @@ public class MySensorManager extends MyBaseManager {
     /*---------------------------------- Lifecycle Management ------------------------------------*/
 
     @Override
-    public void start(Context context) {
+    public void execute(Context context, LifeCycleState state) {
 
-        if (!this.isAvailableAndChecked()) {
-            Log.w(TAG, "Sensors are not available, abort");
-            return;
+        switch (state) {
+
+            case START_RECORDING: {
+
+                if (this.isNotAvailableAndChecked()) {
+                    Log.w(TAG, "Sensors are not available, abort");
+                    return;
+                }
+
+                super.execute(context, state);
+                openStorageChannels();
+                registerSensors();
+                break;
+            }
+            case STOP_RECORDING: {
+
+                if (this.isNotAvailableAndChecked() || !this.isProcessing()) {
+                    Log.d(TAG, "Sensors are not running");
+                    return;
+                }
+
+                unregisterSensors();
+                closeStorageChannels();
+                super.execute(context, state);
+                break;
+            }
+            case ACT_CREATED:
+            case ACT_DESTROYED:
+            default: {
+                super.execute(context, state);
+                break;
+            }
         }
-
-        super.start(context);
-        openStorageChannels();
-        registerSensors();
-    }
-
-    @Override
-    public void stop(Context context) {
-
-        if (!this.isAvailableAndChecked() || !this.isProcessing()) {
-            Log.d(TAG, "Sensors are not running");
-            return;
-        }
-
-        unregisterSensors();
-        closeStorageChannels();
-        super.stop(context);
     }
 
     private void registerSensors() {
 
-        if (!this.isAvailableAndChecked() || mSensorManager == null ||
+        if (this.isNotAvailableAndChecked() || mSensorManager == null ||
                 mlSensorGroup == null || mlSensorGroup.isEmpty()) {
             Log.d(TAG, "No sensors to register, abort");
             return;
@@ -399,7 +401,7 @@ public class MySensorManager extends MyBaseManager {
 
     private void unregisterSensors() {
 
-        if (!this.isAvailableAndChecked() || mSensorManager == null) {
+        if (this.isNotAvailableAndChecked() || mSensorManager == null) {
             Log.d(TAG, "No sensors to unregister");
             return;
         }

@@ -23,6 +23,7 @@ import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
 import com.dayani.m.roboplatform.dump.MainActivity_old;
+import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.managers.MyLocationManager;
 import com.dayani.m.roboplatform.managers.MySensorManager;
 import com.dayani.m.roboplatform.managers.MyStateManager;
@@ -198,7 +199,7 @@ public class SensorRecordService extends Service {
         //Keep the device screen on while recording
         //getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         //Registers sensor callbacks
-        mSensorManager.start(this);
+        mSensorManager.execute(this, MyBaseManager.LifeCycleState.START_RECORDING);
         //mUsb.startPeriodicSensorPoll();
         //while we're not saving files, use our handlerThread for location updates
         if (mLocation != null) {
@@ -215,7 +216,7 @@ public class SensorRecordService extends Service {
         //stopSensorThread();
         //Allow device screen to be turned off
         //getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        mSensorManager.stop(this);
+        mSensorManager.execute(this, MyBaseManager.LifeCycleState.STOP_RECORDING);
         //mUsb.stopPeriodicSensorPoll();
         if (mLocation != null) {
             //mLocation.stopLocationUpdates(context);

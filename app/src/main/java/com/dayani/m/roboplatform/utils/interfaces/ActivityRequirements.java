@@ -8,12 +8,19 @@ package com.dayani.m.roboplatform.utils.interfaces;
     TODO: it might be possible to fix this later.
  */
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Parcel;
 import android.os.Parcelable;
 
 import androidx.activity.result.IntentSenderRequest;
 import androidx.fragment.app.Fragment;
+
+import com.dayani.m.roboplatform.managers.MyBaseManager;
+
+import java.util.List;
+import java.util.Map;
 
 public class ActivityRequirements {
 
@@ -52,7 +59,7 @@ public class ActivityRequirements {
     public enum RequirementState {
         PERMITTED,
         PENDING,
-        DISABLED
+        //DISABLED
     }
 
     public static class RequirementItem {
@@ -77,5 +84,57 @@ public class ActivityRequirements {
         void requestResolution(int requestCode, Intent activityIntent);
         void requestResolution(int requestCode, IntentSenderRequest resolutionIntent);
         void requestResolution(Fragment targetFragment);
+    }
+
+    public interface OnRequirementResolved {
+
+        void onAvailabilityStateChanged(MyBaseManager manager);
+    }
+
+    public interface HandlePermissionRequirement {
+
+        List<String> getPermissions();
+
+        boolean hasAllPermissions();
+        void updatePermissionsState(Context context);
+
+        // respond permissions
+        // Nothing needs to be done! (because if permitted hasAllPermissions yields true)
+        void onPermissionsResult(Context context, Map<String, Boolean> permissions);
+        // request permissions
+        void resolvePermissions();
+    }
+
+    public interface HandleEnableSettingsRequirement {
+
+        boolean isSettingsEnabled();
+        // listen for changes in the state of resources (enabled state)
+        void onSettingsChanged(Context context, Intent intent);
+        void enableSettingsRequirement(Context context); // resolve
+        void updateSettingsEnabled();
+    }
+
+    // to listen for requirement changes
+    public interface HandleBroadcastReceivers {
+
+        void registerBrReceivers(Context context, MyBaseManager.LifeCycleState state);
+    }
+
+    public static class ManagerRequirementBroadcastReceiver extends BroadcastReceiver {
+
+        private final MyBaseManager mManager;
+
+        public ManagerRequirementBroadcastReceiver(MyBaseManager manager) {
+
+            mManager = manager;
+        }
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+
+            if (mManager instanceof HandleEnableSettingsRequirement) {
+                ((HandleEnableSettingsRequirement) mManager).onSettingsChanged(context, intent);
+            }
+        }
     }
 }

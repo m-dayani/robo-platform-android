@@ -38,6 +38,7 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
+import android.location.LocationManager;
 import android.os.Build;
 import android.os.SystemClock;
 import android.util.Log;
@@ -49,6 +50,7 @@ import com.dayani.m.roboplatform.utils.AppGlobals;
 import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
 import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgConfig;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MyMessage;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageInfo;
@@ -105,8 +107,6 @@ public class MyUSBManager extends MyBaseManager {
     private BroadcastReceiver mUsbPermissionReceiver = null;
     private final PendingIntent mPermissionIntent;
 
-    private OnUsbConnectionListener mConnListener;
-
     private final UsbManager mUsbManager;
     private UsbDevice mDevice = null;
     private UsbInterface mInterface = null;
@@ -135,19 +135,13 @@ public class MyUSBManager extends MyBaseManager {
 
         super(context);
 
-        mUsbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
+        mUsbManager = (UsbManager) context.getApplicationContext().getSystemService(Context.USB_SERVICE);
 
         mPermissionIntent = PendingIntent.getBroadcast(context, 0,
                 new Intent(ACTION_USB_PERMISSION), 0);
 
         mVendorId = getDefaultVendorId(context);
         mDeviceId = getDefaultDeviceId(context);
-    }
-
-    public MyUSBManager(Context context, OnUsbConnectionListener connListener) {
-
-        this(context);
-        mConnListener = connListener;
     }
 
     /* ===================================== Core Tasks ========================================= */
@@ -240,7 +234,7 @@ public class MyUSBManager extends MyBaseManager {
     }
 
     @Override
-    protected List<String> getPermissions() {
+    public List<String> getPermissions() {
         // no permissions required
         return new ArrayList<>();
     }
@@ -254,25 +248,6 @@ public class MyUSBManager extends MyBaseManager {
 
     private void setIsDevicePermitted(boolean state) { mbIsPermitted = state; }
     public boolean isDevicePermitted() { return mbIsPermitted; }
-
-    private void registerUsbPermission(Context context) {
-
-        if (mUsbPermissionReceiver == null) {
-            mUsbPermissionReceiver = new UsbPermissionReceiver();
-        }
-        IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
-        context.registerReceiver(mUsbPermissionReceiver, filter);
-        Log.d(TAG, "USB Permission Broadcast Receiver Registered.");
-    }
-
-    private void unregisterUsbPermission(Context context) {
-
-        if (mUsbPermissionReceiver != null) {
-            context.unregisterReceiver(mUsbPermissionReceiver);
-            mUsbPermissionReceiver = null;
-            Log.d(TAG, "USB Permission Broadcast Receiver Unregistered.");
-        }
-    }
 
     /**
      * WARNING: This class registers a receiver implicitly.
@@ -293,82 +268,101 @@ public class MyUSBManager extends MyBaseManager {
     /* -------------------------------- Lifecycle Management ------------------------------------ */
 
     @Override
-    public void init(Context context) {
+    public void execute(Context context, LifeCycleState state) {
 
-        super.init(context);
+        switch (state) {
+            case START_RECORDING: {
 
-        registerUsbPermission(context);
-    }
+                if (this.isNotAvailableAndChecked()) {
+                    Log.w(TAG, "Cameras are not available, abort");
+                    return;
+                }
 
-    @Override
-    public void clean(Context context) {
+                super.execute(context, state);
+                openStorageChannels();
+                startAdcSensorLoop();
+                break;
+            }
+            case STOP_RECORDING: {
 
-        // close doesn't hurt if USB hasn't already been opened
-        close();
-        unregisterUsbPermission(context);
+                if (this.isNotAvailableAndChecked() || !this.isProcessing()) {
+                    Log.d(TAG, "Camera Sensors are not running");
+                    return;
+                }
 
-        super.clean(context);
-    }
+                // call first to stop the process (isProcessing)
+                super.execute(context, state);
+                stopAdcSensorLoop();
+                closeStorageChannels();
+                break;
+            }
+            case RESUMED: {
 
-    @Override
-    public void initConfigurations(Context context) {
+                super.execute(context, state);
+                // open usb connection
+                tryOpenDeviceAndUpdateInfo();
+                break;
+            }
+            case PAUSED:
+            case ACT_DESTROYED: {
 
-        registerUsbDetachedListener(context);
-        // open usb connection
-        tryOpenDeviceAndUpdateInfo();
-    }
-
-    @Override
-    public void cleanConfigurations(Context context) {
-
-        // close usb connection
-        close();
-        unregisterUsbDetachedListener(context);
-    }
-
-    @Override
-    public void start(Context context) {
-
-        if (!this.isAvailableAndChecked()) {
-            Log.w(TAG, "Cameras are not available, abort");
-            return;
+                // close doesn't hurt if USB hasn't already been opened
+                close();
+                super.execute(context, state);
+                break;
+            }
+            case ACT_CREATED:
+            default: {
+                super.execute(context, state);
+                break;
+            }
         }
-
-        super.start(context);
-        openStorageChannels();
-        startAdcSensorLoop();
     }
 
     @Override
-    public void stop(Context context) {
+    public void registerBrReceivers(Context context, LifeCycleState state) {
 
-        if (!this.isAvailableAndChecked() || !this.isProcessing()) {
-            Log.d(TAG, "Camera Sensors are not running");
-            return;
-        }
+        switch (state) {
+            case RESUMED: {
 
-        // call first to stop the process (isProcessing)
-        super.stop(context);
-        stopAdcSensorLoop();
-        closeStorageChannels();
-    }
+                if (mUsbDetachedListener == null) {
+                    mUsbDetachedListener = new UsbDetachReceiver();
+                }
+                // register usb detached listener
+                IntentFilter filter = new IntentFilter(UsbManager.ACTION_USB_DEVICE_DETACHED);
+                context.registerReceiver(mUsbDetachedListener, filter);
+                break;
+            }
+            case PAUSED: {
 
-    private void registerUsbDetachedListener(Context context) {
+                if (mUsbDetachedListener != null) {
+                    // unregister usb detached listener
+                    context.unregisterReceiver(mUsbDetachedListener);
+                    mUsbDetachedListener = null;
+                }
+                break;
+            }
+            case ACT_CREATED: {
 
-        if (mUsbDetachedListener == null) {
-            mUsbDetachedListener = new UsbDetachReceiver();
-        }
-        // register usb detached listener
-        IntentFilter filter = new IntentFilter(UsbManager.ACTION_USB_DEVICE_DETACHED);
-        context.registerReceiver(mUsbDetachedListener, filter);
-    }
+                if (mUsbPermissionReceiver == null) {
+                    mUsbPermissionReceiver = new UsbPermissionReceiver(this);
+                }
+                IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
+                context.registerReceiver(mUsbPermissionReceiver, filter);
+                Log.d(TAG, "USB Permission Broadcast Receiver Registered.");
+                break;
+            }
+            case ACT_DESTROYED: {
 
-    private void unregisterUsbDetachedListener(Context context) {
-
-        if (mUsbDetachedListener != null) {
-            // unregister usb detached listener
-            context.unregisterReceiver(mUsbDetachedListener);
-            mUsbDetachedListener = null;
+                if (mUsbPermissionReceiver != null) {
+                    context.unregisterReceiver(mUsbPermissionReceiver);
+                    mUsbPermissionReceiver = null;
+                    Log.d(TAG, "USB Permission Broadcast Receiver Unregistered.");
+                }
+                break;
+            }
+            default:
+                break;
         }
     }
 
@@ -456,13 +450,17 @@ public class MyUSBManager extends MyBaseManager {
         if (msg instanceof MsgUsb) {
 
             MsgUsb usbMsg = (MsgUsb) msg;
-
-            if (usbMsg.getCmd() == null) {
-                usbMsg.setCmd(UsbCommand.CMD_UPDATE_OUTPUT);
-            }
-
             int res = sendControlMsg(usbMsg);
             Log.v(TAG, "Sent "+res+" bytes, cmd: "+usbMsg.getCmd());
+        }
+        else if (msg instanceof MyMessages.MsgWireless) {
+
+            MsgUsb usbMsg = MyDrvUsb.wirelessToUsb((MyMessages.MsgWireless) msg);
+
+            if (usbMsg != null) {
+                int res = sendControlMsg(usbMsg);
+                Log.v(TAG, "Sent " + res + " bytes, cmd: " + usbMsg.getCmd());
+            }
         }
     }
 
@@ -510,10 +508,6 @@ public class MyUSBManager extends MyBaseManager {
 
 //        int minLength = Math.min(buffer.length, mOutputBuffer.length);
 //        System.arraycopy(buffer, 0, mOutputBuffer, 0, minLength);
-    }
-
-    public void setConnectionListener(OnUsbConnectionListener connListener) {
-        mConnListener = connListener;
     }
 
 
@@ -959,16 +953,19 @@ public class MyUSBManager extends MyBaseManager {
         }
     }
 
-    public interface OnUsbConnectionListener {
-        void onUsbConnection(boolean connStat);
-    }
-
     /**
      * Because we don't want to expose the device
      * and openDevice methods, we use a different receiver in
      * this class than the global availability receiver.
      */
     private class UsbPermissionReceiver extends BroadcastReceiver {
+
+        private final MyBaseManager mManager;
+
+        public UsbPermissionReceiver(MyBaseManager manager) {
+
+            mManager = manager;
+        }
 
         public void onReceive(Context context, Intent intent) {
 
@@ -993,8 +990,8 @@ public class MyUSBManager extends MyBaseManager {
                         Log.d(TAG, "permission denied for device " + device);
                     }
 
-                    if (mConnListener != null) {
-                        mConnListener.onUsbConnection(permState);
+                    if (mRequirementResponseListener != null) {
+                        mRequirementResponseListener.onAvailabilityStateChanged(mManager);
                     }
                 }
             }

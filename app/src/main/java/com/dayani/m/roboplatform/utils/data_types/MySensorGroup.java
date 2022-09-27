@@ -18,7 +18,8 @@ public class MySensorGroup {
         TYPE_CAMERA,
         TYPE_MAGNET,
         TYPE_EXTERNAL,
-        TYPE_STORAGE
+        TYPE_STORAGE,
+        TYPE_WIRELESS_NETWORK
     }
 
     private static int mIdGenerator = 0;
@@ -135,6 +136,10 @@ public class MySensorGroup {
     public static int countCheckedSensors(List<MySensorGroup> sensorGroups) {
 
         int totalCount = 0;
+
+        if (sensorGroups == null) {
+            return totalCount;
+        }
 
         for (MySensorGroup sensorGroup : sensorGroups) {
 

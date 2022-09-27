@@ -237,7 +237,7 @@ public class CameraFlyVideo extends MyBaseManager {
 
         super(context);
 
-        mCamManager = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
+        mCamManager = (CameraManager) context.getApplicationContext().getSystemService(Context.CAMERA_SERVICE);
 
         mStateCallback = getCameraStateCallback();
         mCaptureSessionCallback = getCaptureSessionCallback();
@@ -263,7 +263,7 @@ public class CameraFlyVideo extends MyBaseManager {
     }
 
     @Override
-    protected List<String> getPermissions() {
+    public List<String> getPermissions() {
         return Collections.singletonList(Manifest.permission.CAMERA);
     }
 
@@ -307,77 +307,76 @@ public class CameraFlyVideo extends MyBaseManager {
     /* --------------------------------- Lifecycle Management ----------------------------------- */
 
     @Override
-    public void init(Context context) {
+    public void execute(Context context, LifeCycleState state) {
 
-        super.init(context);
-    }
+        switch (state) {
+            case RESUMED: {
 
-    @Override
-    public void clean(Context context) {
+                // ignore if not available
+                if (this.isNotAvailableAndChecked()) {
+                    Log.w(TAG, "Cameras are not available, abort");
+                    return;
+                }
 
-        super.clean(context);
+                // detect selected sensors & config. ImageReaders
+                configureCameraSensorsAndOutputStreams();
 
-        // Also close camera if somewhere opened
-        closeCamera();
-    }
+                // open camera (can come first because doesn't depend on anything)
+                // it internally creates a capture session, with or without a preview
+                openCamera(context);
+                break;
+            }
+            case PAUSED: {
 
-    @Override
-    public void initConfigurations(Context context) {
+                // ignore if not available
+                if (this.isNotAvailableAndChecked()) {
+                    Log.w(TAG, "Cameras are not available, abort");
+                    return;
+                }
 
-        // ignore if not available
-        if (!this.isAvailableAndChecked()) {
-            Log.w(TAG, "Cameras are not available, abort");
-            return;
+                // close camera session
+                // close camera
+                // close surfaces (ImageReader)
+                closeCamera();
+                break;
+            }
+            case ACT_DESTROYED: {
+
+                super.execute(context, state);
+                // Also close camera if somewhere opened
+                closeCamera();
+            }
+            case START_RECORDING: {
+
+                if (this.isNotAvailableAndChecked()) {
+                    Log.w(TAG, "Cameras are not available, abort");
+                    return;
+                }
+
+                super.execute(context, state);
+                openStorageChannels();
+                startPreviewAndCaptureLoop();
+                break;
+            }
+            case STOP_RECORDING: {
+
+                if (this.isNotAvailableAndChecked() || !this.isProcessing()) {
+                    Log.d(TAG, "Camera Sensors are not running");
+                    return;
+                }
+
+                // call first to stop the process (isProcessing)
+                super.execute(context, state);
+                stopPreviewAndCaptureLoop();
+                closeStorageChannels();
+                break;
+            }
+            case ACT_CREATED:
+            default: {
+                super.execute(context, state);
+                break;
+            }
         }
-
-        // detect selected sensors & config. ImageReaders
-        configureCameraSensorsAndOutputStreams();
-
-        // open camera (can come first because doesn't depend on anything)
-        // it internally creates a capture session, with or without a preview
-        openCamera(context);
-    }
-
-    @Override
-    public void cleanConfigurations(Context context) {
-
-        // ignore if not available
-        if (!this.isAvailableAndChecked()) {
-            Log.w(TAG, "Cameras are not available, abort");
-            return;
-        }
-
-        // close camera session
-        // close camera
-        // close surfaces (ImageReader)
-        closeCamera();
-    }
-
-    @Override
-    public void start(Context context) {
-
-        if (!this.isAvailableAndChecked()) {
-            Log.w(TAG, "Cameras are not available, abort");
-            return;
-        }
-
-        super.start(context);
-        openStorageChannels();
-        startPreviewAndCaptureLoop();
-    }
-
-    @Override
-    public void stop(Context context) {
-
-        if (!this.isAvailableAndChecked() || !this.isProcessing()) {
-            Log.d(TAG, "Camera Sensors are not running");
-            return;
-        }
-
-        // call first to stop the process (isProcessing)
-        super.stop(context);
-        stopPreviewAndCaptureLoop();
-        closeStorageChannels();
     }
 
     /* ----------------------------------- Message Passing -------------------------------------- */

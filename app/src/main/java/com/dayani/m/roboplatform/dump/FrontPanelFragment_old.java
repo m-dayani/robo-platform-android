@@ -108,7 +108,7 @@ public class FrontPanelFragment_old extends Fragment implements View.OnClickList
         else if (id == R.id.startCarManualCtrl) {
 
             Log.d(TAG, "startCarManualCtrl");
-            mSensors = CarManualControlActivity.getSensorRequirements(getActivity());
+            //mSensors = CarManualControlActivity.getSensorRequirements(getActivity());
             // TODO: Also change to a fragment
             targetActivity = CarManualControlActivity.class;
         }

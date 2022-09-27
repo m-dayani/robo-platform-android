@@ -18,7 +18,6 @@ package com.dayani.m.roboplatform.managers;
 
 
 import android.content.Context;
-import android.content.Intent;
 import android.os.Handler;
 import android.util.Log;
 import android.util.Pair;
@@ -29,8 +28,11 @@ import com.dayani.m.roboplatform.RecordingFragment;
 import com.dayani.m.roboplatform.utils.AppGlobals;
 import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
 import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.OnRequirementResolved;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.HandlePermissionRequirement;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.RequirementResolution;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.HandleBroadcastReceivers;
 import com.dayani.m.roboplatform.utils.interfaces.MyBackgroundExecutor;
 import com.dayani.m.roboplatform.utils.interfaces.MyChannels.ChannelTransactions;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages;
@@ -47,7 +49,8 @@ import java.util.Set;
 import java.util.concurrent.Executor;
 
 
-public abstract class MyBaseManager implements ChannelTransactions {
+public abstract class MyBaseManager implements ChannelTransactions,
+        HandlePermissionRequirement, HandleBroadcastReceivers {
 
     // Class Variables
 
@@ -69,7 +72,7 @@ public abstract class MyBaseManager implements ChannelTransactions {
     protected final List<MySensorGroup> mlSensorGroup;
 
     protected RequirementResolution mRequirementRequestListener;
-
+    protected OnRequirementResolved mRequirementResponseListener;
 
     //protected final Map<MyChannels.ChannelType, Set<MessageChannel>> mlChannels;
     protected final Set<ChannelTransactions> mlChannels;
@@ -137,9 +140,11 @@ public abstract class MyBaseManager implements ChannelTransactions {
         }
     }
 
-    protected abstract List<String> getPermissions();
+    //public abstract List<String> getPermissions();
 
+    @Override
     public boolean hasAllPermissions() { return mbIsPermitted; }
+    @Override
     public void updatePermissionsState(Context context) {
 
         List<String> lPerms = getPermissions();
@@ -154,12 +159,14 @@ public abstract class MyBaseManager implements ChannelTransactions {
 
     // respond permissions
     // Nothing needs to be done! (because if permitted hasAllPermissions yields true)
+    @Override
     public void onPermissionsResult(Context context, Map<String, Boolean> permissions) {
 
         updatePermissionsState(context);
     }
     // request permissions
-    protected void resolvePermissions() {
+    @Override
+    public void resolvePermissions() {
 
         if (mRequirementRequestListener == null) {
             Log.w(TAG, "Permission launcher is null");
@@ -175,9 +182,9 @@ public abstract class MyBaseManager implements ChannelTransactions {
     public void setRequirementResolutionListener(RequirementResolution requestListener) {
         mRequirementRequestListener = requestListener;
     }
-
-    // listen for changes in the state of resources (enabled state)
-    public void onBroadcastReceived(Context context, Intent intent) {}
+    public void setRequirementResponseListener(OnRequirementResolved responseListener) {
+        mRequirementResponseListener = responseListener;
+    }
 
     // Checked sensors
 
@@ -224,7 +231,7 @@ public abstract class MyBaseManager implements ChannelTransactions {
 
     // Availability
 
-    public boolean isAvailableAndChecked() { return isAvailable() && hasCheckedSensors(); }
+    public boolean isNotAvailableAndChecked() { return !isAvailable() || !hasCheckedSensors(); }
     public void updateAvailabilityAndCheckedSensors(Context context) {
 
         updateRequirementsState(context);
@@ -262,51 +269,63 @@ public abstract class MyBaseManager implements ChannelTransactions {
 
     // Lifecycle
 
-    // these two are called with every activity's onCreate() and onDestroy()
-    public void init(Context context) {
+    public void execute(Context context, LifeCycleState state) {
 
-        if (context instanceof RequirementResolution) {
-            setRequirementResolutionListener((RequirementResolution) context);
-        }
-        if (context instanceof ChannelTransactions) {
-            registerChannel((ChannelTransactions) context);
-        }
-        if (context instanceof MyBackgroundExecutor.JobListener) {
-            mBackgroundJobListener = (MyBackgroundExecutor.JobListener) context;
+        switch (state) {
+            case ACT_CREATED: {
+
+                if (context instanceof RequirementResolution) {
+                    setRequirementResolutionListener((RequirementResolution) context);
+                }
+                if (context instanceof ChannelTransactions) {
+                    registerChannel((ChannelTransactions) context);
+                }
+                if (context instanceof MyBackgroundExecutor.JobListener) {
+                    mBackgroundJobListener = (MyBackgroundExecutor.JobListener) context;
+                }
+                if (context instanceof OnRequirementResolved) {
+                    mRequirementResponseListener = (OnRequirementResolved) context;
+                }
+
+                updateAvailabilityAndCheckedSensors(context);
+                break;
+            }
+            case START_RECORDING: {
+
+                if (this.isProcessing()) {
+                    execute(context, LifeCycleState.STOP_RECORDING);
+                }
+                setIsProcessing(true);
+
+                String mClassName = getClass().getSimpleName();
+                Log.d(TAG, mClassName + " started successfully");
+                // publish a logging message (doesn't care about task Id)
+                logMessage("Started " + mClassName + "\n", RecordingFragment.class.getSimpleName());
+                break;
+            }
+            case STOP_RECORDING: {
+
+                setIsProcessing(false);
+
+                String mClassName = getClass().getSimpleName();
+                Log.d(TAG, mClassName + " stopped successfully");
+                // publish a logging message
+                logMessage("Stopped " + mClassName + "\n", RecordingFragment.class.getSimpleName());
+                break;
+            }
+            case ACT_DESTROYED:
+            default: {
+                Log.v(TAG, "Task is not supported");
+                break;
+            }
         }
 
-        updateAvailabilityAndCheckedSensors(context);
+        registerBrReceivers(context, state);
     }
-    public void clean(Context context) {
-        // no need to clean message channels because it's a set
-    }
 
-    // use these in a fragment's onResume/onPause or onStart/onStop
-    // preconfigure resources for faster start/stop response
-    public void initConfigurations(Context context) {}
-    public void cleanConfigurations(Context context) {}
+    @Override
+    public void registerBrReceivers(Context context, LifeCycleState state) {
 
-    // resource intensive methods, only call based on user interaction
-    public void start(Context context) {
-
-        if (this.isProcessing()) {
-            stop(context);
-        }
-        setIsProcessing(true);
-
-        String mClassName = getClass().getSimpleName();
-        Log.d(TAG, mClassName + " started successfully");
-        // publish a logging message (doesn't care about task Id)
-        logMessage("Started " + mClassName + "\n", RecordingFragment.class.getSimpleName());
-    }
-    public void stop(Context context) {
-
-        setIsProcessing(false);
-
-        String mClassName = getClass().getSimpleName();
-        Log.d(TAG, mClassName + " stopped successfully");
-        // publish a logging message
-        logMessage("Stopped " + mClassName + "\n", RecordingFragment.class.getSimpleName());
     }
 
     // State
@@ -326,6 +345,13 @@ public abstract class MyBaseManager implements ChannelTransactions {
     protected Handler getBgHandler() {
         if (mBackgroundJobListener != null) {
             return mBackgroundJobListener.getBackgroundHandler();
+        }
+        return null;
+    }
+
+    protected Handler getUiHandler() {
+        if (mBackgroundJobListener != null) {
+            return mBackgroundJobListener.getUiHandler();
         }
         return null;
     }
@@ -489,8 +515,6 @@ public abstract class MyBaseManager implements ChannelTransactions {
         private int mId;
         private int mState;
 
-        private String mRI;
-
         public MyResourceIdentifier(int id, int state) {
 
             mId = id;
@@ -512,13 +536,15 @@ public abstract class MyBaseManager implements ChannelTransactions {
         public void setState(int mState) {
             this.mState = mState;
         }
+    }
 
-        public String getResourceId() {
-            return mRI;
-        }
+    public enum LifeCycleState {
 
-        public void setResourceId(String mRI) {
-            this.mRI = mRI;
-        }
+        ACT_CREATED,
+        ACT_DESTROYED,
+        PAUSED,
+        RESUMED,
+        START_RECORDING,
+        STOP_RECORDING
     }
 }

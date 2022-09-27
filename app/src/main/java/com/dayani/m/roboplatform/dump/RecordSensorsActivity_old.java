@@ -28,8 +28,7 @@ import com.dayani.m.roboplatform.utils.data_types.SensorsContainer;
 
 
 public class RecordSensorsActivity_old extends AppCompatActivity
-        implements View.OnClickListener,
-        MyUSBManager.OnUsbConnectionListener {
+        implements View.OnClickListener {
 
     private static final String TAG = "RecordSensorsActivity";
 
@@ -248,7 +247,6 @@ public class RecordSensorsActivity_old extends AppCompatActivity
         Toast.makeText(this.getApplicationContext(), msg, Toast.LENGTH_SHORT).show();
     }
 
-    @Override
     public void onUsbConnection(boolean connStat) {
 
     }

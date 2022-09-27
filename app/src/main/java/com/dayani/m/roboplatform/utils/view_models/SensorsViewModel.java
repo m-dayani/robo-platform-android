@@ -113,24 +113,28 @@ public class SensorsViewModel extends ViewModel {
 
     private void updateSensorGroups(MyBaseManager manager, List<MySensorGroup> sensorGrps) {
 
-            ManagerSensorGroup mapSensor = mmManagerSensors.getValue();
-            if (mapSensor == null) {
-                mapSensor = new ManagerSensorGroup();
-            }
-            Set<MySensorGroup> mSensorGrps = mSensorGroups.getValue();
-            if (mSensorGrps == null) {
-                mSensorGrps = new LinkedHashSet<>();
-            }
+        if (sensorGrps == null) {
+            return;
+        }
 
-            for (MySensorGroup sensor : sensorGrps) {
-                mapSensor.put(sensor.getId(), new Pair<>(manager, sensor));
-                mSensorGrps.add(sensor);
-            }
+        ManagerSensorGroup mapSensor = mmManagerSensors.getValue();
+        if (mapSensor == null) {
+            mapSensor = new ManagerSensorGroup();
+        }
+        Set<MySensorGroup> mSensorGrps = mSensorGroups.getValue();
+        if (mSensorGrps == null) {
+            mSensorGrps = new LinkedHashSet<>();
+        }
 
-            Log.v(TAG, "Added " + sensorGrps.size() + " sensor groups");
+        for (MySensorGroup sensor : sensorGrps) {
+            mapSensor.put(sensor.getId(), new Pair<>(manager, sensor));
+            mSensorGrps.add(sensor);
+        }
 
-            mmManagerSensors.setValue(mapSensor);
-            mSensorGroups.setValue(mSensorGrps);
+        Log.v(TAG, "Added " + sensorGrps.size() + " sensor groups");
+
+        mmManagerSensors.setValue(mapSensor);
+        mSensorGroups.setValue(mSensorGrps);
     }
 
     public MySensorInfo getSensor(int grpId, int sensorId) {
@@ -245,15 +249,15 @@ public class SensorsViewModel extends ViewModel {
         else if (managerClassName.equals(MyWifiManager.class.getSimpleName())) {
             manager = vm.getManager(MyWifiManager.class.getSimpleName());
             if (manager == null) {
-                //manager = new MyWifiManager(context);
-                //vm.addManagerAndSensors(context, manager);
+                manager = new MyWifiManager(context);
+                vm.addManagerAndSensors(context, manager);
             }
         }
         else if (managerClassName.equals(MyBluetoothManager.class.getSimpleName())) {
             manager = vm.getManager(MyBluetoothManager.class.getSimpleName());
             if (manager == null) {
-                //manager = new MyBluetoothManager(context);
-                //vm.addManagerAndSensors(context, manager);
+                manager = new MyBluetoothManager(context);
+                vm.addManagerAndSensors(context, manager);
             }
         }
 

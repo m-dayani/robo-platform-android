@@ -181,7 +181,7 @@ public class MyStorageManager extends MyBaseManager {
     }
 
     @Override
-    protected void resolvePermissions() {
+    public void resolvePermissions() {
 
         if (SDK_INT >= ANDROID_SCOPED_STORAGE_VERSION) {
 
@@ -309,22 +309,23 @@ public class MyStorageManager extends MyBaseManager {
     /* -------------------------------------- Lifecycle ----------------------------------------- */
 
     @Override
-    public void init(Context context) {
-        super.init(context);
-    }
+    public void execute(Context context, LifeCycleState state) {
 
-    @Override
-    public void clean(Context context) {
+        if (state == LifeCycleState.ACT_DESTROYED) {
+            for (int keyStore : mmStorage.keySet()) {
 
-        for (int keyStore : mmStorage.keySet()) {
-
-            StorageHandle store = mmStorage.get(keyStore);
-            if (store != null) {
-                store.close();
+                StorageHandle store = mmStorage.get(keyStore);
+                if (store != null) {
+                    store.close();
+                }
             }
+            super.execute(context, state);
         }
-
-        super.clean(context);
+        else if (state == LifeCycleState.ACT_CREATED) {
+            super.execute(context, state);
+        }
+        // do nothing
+        //super.execute(context, state);
     }
 
     /* -------------------------------------- Resources ----------------------------------------- */
@@ -419,16 +420,12 @@ public class MyStorageManager extends MyBaseManager {
      */
     private static String getSavedBasePath(Context context) {
 
-        SharedPreferences sharedPref = ((AppCompatActivity) context).getPreferences(Context.MODE_PRIVATE);
-        return sharedPref.getString(KEY_BASE_PATH, null);
+        return MyStateManager.getStringPref(context, KEY_BASE_PATH, "");
     }
 
     private static void saveBasePath(Context context, String path) {
 
-        SharedPreferences sharedPref = ((AppCompatActivity) context).getPreferences(Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = sharedPref.edit();
-        editor.putString(MyStorageManager.KEY_BASE_PATH, path);
-        editor.apply();
+        MyStateManager.setStringPref(context, KEY_BASE_PATH, path);
     }
 
     /**

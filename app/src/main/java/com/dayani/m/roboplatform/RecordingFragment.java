@@ -144,7 +144,7 @@ public class RecordingFragment extends Fragment
         if (mlManagers != null) {
             // preconfigure managers for faster start
             for (MyBaseManager manager : mlManagers) {
-                manager.initConfigurations(context);
+                manager.execute(context, MyBaseManager.LifeCycleState.RESUMED);
             }
         }
     }
@@ -162,7 +162,7 @@ public class RecordingFragment extends Fragment
         // clean managers config.
         if (mlManagers != null) {
             for (MyBaseManager manager : mlManagers) {
-                manager.cleanConfigurations(context);
+                manager.execute(context, MyBaseManager.LifeCycleState.PAUSED);
             }
         }
 
@@ -201,7 +201,7 @@ public class RecordingFragment extends Fragment
         updateRecordingUI(true);
 
         for (MyBaseManager manager : mlManagers) {
-            manager.start(requireActivity());
+            manager.execute(requireActivity(), MyBaseManager.LifeCycleState.START_RECORDING);
         }
 
         MyScreenOperations.setScreenOn(requireActivity());
@@ -214,7 +214,7 @@ public class RecordingFragment extends Fragment
         MyScreenOperations.unsetScreenOn(requireActivity());
 
         for (MyBaseManager manager : mlManagers) {
-            manager.stop(requireActivity());
+            manager.execute(requireActivity(), MyBaseManager.LifeCycleState.STOP_RECORDING);
         }
 
         mbIsRecording = false;

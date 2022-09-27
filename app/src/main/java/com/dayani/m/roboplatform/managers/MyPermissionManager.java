@@ -77,8 +77,8 @@ public class MyPermissionManager {
 
     public MyPermissionManager(Context context,
                                String permKey, int permCode, String[] perms) {
-        this.appContext = context;
-        this.mSharedPref = ((Activity) appContext).getPreferences(Context.MODE_PRIVATE);
+        appContext = context;
+        mSharedPref = ((Activity) appContext).getPreferences(Context.MODE_PRIVATE);
         this.mPermissionKey = permKey;
         this.mPermissionCode = permCode;
         this.mPermissions = perms;

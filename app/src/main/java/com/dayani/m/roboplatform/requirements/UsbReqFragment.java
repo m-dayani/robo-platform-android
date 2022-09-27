@@ -15,7 +15,9 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.dayani.m.roboplatform.R;
 import com.dayani.m.roboplatform.RequirementsFragment;
+import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.managers.MyUSBManager;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
 
 import java.util.Locale;
@@ -30,7 +32,7 @@ import java.util.Locale;
  * create an instance of this fragment.
  */
 public class UsbReqFragment extends Fragment implements View.OnClickListener,
-        MyUSBManager.OnUsbConnectionListener {
+        ActivityRequirements.OnRequirementResolved {
 
     private static final String TAG = UsbReqFragment.class.getSimpleName();
     // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -73,7 +75,7 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
 
         mUsb = (MyUSBManager) mVM_Sensors.getManager(MyUSBManager.class.getSimpleName());
         if (mUsb != null) {
-            mUsb.setConnectionListener(this);
+            mUsb.setRequirementResponseListener(this);
         }
     }
 
@@ -180,7 +182,6 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
             }
 
             if (mUsb.tryOpenDeviceAndUpdateInfo()) {
-                this.onUsbConnection(true);
                 reportTxt.setText(R.string.usb_opened_success);
             }
         }
@@ -223,10 +224,10 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
     }
 
     @Override
-    public void onUsbConnection(boolean connStat) {
+    public void onAvailabilityStateChanged(MyBaseManager manager) {
+
         this.setActionsEnableState(true, usbActionView);
         //usbActionView.setEnabled(true);
         //maybe run some tests...
     }
-
 }

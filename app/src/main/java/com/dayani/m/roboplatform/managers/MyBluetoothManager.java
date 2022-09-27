@@ -20,26 +20,39 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
+import android.util.Pair;
+import android.widget.Toast;
 
 import androidx.core.app.ActivityCompat;
 
 import com.dayani.m.roboplatform.utils.AppGlobals;
+import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
+import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.HandleEnableSettingsRequirement;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 import static android.app.Activity.RESULT_CANCELED;
 import static android.app.Activity.RESULT_OK;
 
-public class MyBluetoothManager {
+public class MyBluetoothManager extends MyBaseManager implements HandleEnableSettingsRequirement {
+
+    /* ===================================== Variables ========================================== */
 
     private static final String TAG = MyBluetoothManager.class.getSimpleName();
 
@@ -52,6 +65,7 @@ public class MyBluetoothManager {
     private static final int REQUEST_ENABLE_BT = 239;
     private static final String BLUETOOTH_SERVICE_NAME = AppGlobals.PACKAGE_BASE_NAME;
     private static final UUID BLUETOOTH_SERVICE_UUID = UUID.fromString(DEFAULT_UUID_STRING);
+
     //        new UUID(0xe6a53cbcb10543dbL, 0x9fc8769b6b857e33L);
 
     // Defines several constants used when transmitting messages between the
@@ -68,7 +82,7 @@ public class MyBluetoothManager {
     private static final String DEFAULT_DEVICE_NAME = "RBN_MASTER";
     private static final String DEFAULT_CLIENT_NAME = "RBN_MASTER";
 
-    private static Context appContext;
+    //private static Context appContext;
     private Handler handler = new Handler(); // handler that gets info from Bluetooth service
     private BluetoothSocket mSocket = null;
 
@@ -82,7 +96,9 @@ public class MyBluetoothManager {
     // Get the default adapter
     BluetoothAdapter bluetoothAdapter;
 
-    OnBluetoothInteractionListener mListener;
+    //OnBluetoothInteractionListener mListener;
+
+    private boolean mbBluetoothSettingsEnabled = false;
 
     private BluetoothProfile.ServiceListener profileListener = new BluetoothProfile.ServiceListener() {
         public void onServiceConnected(int profile, BluetoothProfile proxy) {
@@ -98,13 +114,165 @@ public class MyBluetoothManager {
         }
     };
 
-    public MyBluetoothManager(Context context, OnBluetoothInteractionListener listener) {
-        appContext = context;
-        mListener = listener;
+    /* ==================================== Construction ======================================== */
+
+    public MyBluetoothManager(Context context) {
+
+        super(context);
 
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         receiver = new BluetoothDiscoverReceiver();
-        updateAvailability();
+        //updateAvailability();
+    }
+
+//    public MyBluetoothManager(Context context, OnBluetoothInteractionListener listener) {
+//
+//        this(context);
+//        //mListener = listener;
+//    }
+
+    /* ===================================== Core Tasks ========================================= */
+
+    /* -------------------------------------- Support ------------------------------------------- */
+
+    @Override
+    protected boolean resolveSupport(Context context) {
+        return context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH) ||
+                context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE);
+    }
+
+    private boolean isBluetoothSupported() {
+        if (bluetoothAdapter == null) {
+            // Device doesn't support Bluetooth
+            return false;
+        }
+        return true;
+    }
+
+    /* ----------------------------- Requirements & Permissions --------------------------------- */
+
+    @Override
+    protected List<ActivityRequirements.Requirement> getRequirements() {
+
+        // A wireless connection req means adapter is enabled and a comm socket can be opened
+        return Collections.singletonList(ActivityRequirements.Requirement.WIRELESS_CONNECTION);
+    }
+
+    @Override
+    public boolean passedAllRequirements() {
+        return hasAllPermissions() && isSettingsEnabled();
+    }
+
+    @Override
+    protected void updateRequirementsState(Context context) {
+
+        List<ActivityRequirements.Requirement> requirements = getRequirements();
+        if (requirements == null || requirements.isEmpty()) {
+            Log.d(TAG, "No requirements to update");
+            return;
+        }
+
+        // permissions
+        if (requirements.contains(ActivityRequirements.Requirement.PERMISSIONS)) {
+            updatePermissionsState(context);
+        }
+
+        // location settings is enabled
+        if (requirements.contains(ActivityRequirements.Requirement.ENABLE_LOCATION)) {
+            // this is an async request, so we can't retrieve its result immediately
+            updateSettingsEnabled();
+        }
+    }
+
+    @Override
+    protected void resolveRequirements(Context context) {
+
+        List<ActivityRequirements.Requirement> requirements = getRequirements();
+        if (requirements == null || requirements.isEmpty()) {
+            Log.d(TAG, "No requirements to resolve");
+            return;
+        }
+
+        // permissions
+        if (requirements.contains(ActivityRequirements.Requirement.PERMISSIONS)) {
+            if (!hasAllPermissions()) {
+                resolvePermissions();
+                return;
+            }
+        }
+
+        // location setting enabled
+        if (requirements.contains(ActivityRequirements.Requirement.ENABLE_LOCATION)) {
+            if (!isSettingsEnabled()) {
+                enableSettingsRequirement(context);
+            }
+        }
+    }
+
+    // todo: override onActivityResult??
+
+    @Override
+    public List<String> getPermissions() {
+        //return Collections.singletonList(Manifest.permission.WRITE_SETTINGS);
+        // no permissions is required
+        return new ArrayList<>();
+    }
+
+    @Override
+    public void onSettingsChanged(Context context, Intent intent) {
+
+        if (intent.getAction().matches("android.network.Bluetooth"))  {
+
+            Log.i(TAG, "Network Providers changed");
+
+            // todo
+            //updateSettingsEnabled(false);
+        }
+    }
+
+    @Override
+    public boolean isSettingsEnabled() { return mbBluetoothSettingsEnabled; }
+
+    @Override
+    public void updateSettingsEnabled() {
+        mbBluetoothSettingsEnabled = isBluetoothEnabled();
+    }
+
+    @Override
+    public void enableSettingsRequirement(Context context) {
+
+        // prompt the user to enable wifi
+        Toast.makeText(context, "Please Enable the WiFi Network or Hotspot", Toast.LENGTH_SHORT).show();
+    }
+
+    private boolean isBluetoothEnabled() {
+        if (bluetoothAdapter != null) {
+            return bluetoothAdapter.isEnabled();
+        }
+        return false;
+    }
+
+    /* -------------------------------- Lifecycle Management ------------------------------------ */
+
+    /* ----------------------------------- Message Passing -------------------------------------- */
+
+    @Override
+    protected String getResourceId(MyResourceIdentifier resId) {
+        return null;
+    }
+
+    @Override
+    protected List<Pair<String, MyMessages.MsgConfig>> getStorageConfigMessages(MySensorInfo sensor) {
+        return null;
+    }
+
+    /* ====================================== Bluetooth ========================================= */
+
+    /* ----------------------------------- Getters/Setters -------------------------------------- */
+
+    @Override
+    public List<MySensorGroup> getSensorGroups(Context context) {
+        return null;
     }
 
     public static int getRequestEnableBt() {
@@ -123,31 +291,15 @@ public class MyBluetoothManager {
         MyStateManager.setStringPref(context, KEY_DEFAULT_UUID_STRING, uuid);
     }
 
-
-    private boolean isBluetoothSupported() {
-        if (bluetoothAdapter == null) {
-            // Device doesn't support Bluetooth
-            return false;
-        }
-        return true;
-    }
-
-    private boolean isBluetoothEnabled() {
-        if (bluetoothAdapter != null) {
-            return bluetoothAdapter.isEnabled();
-        }
-        return false;
-    }
-
     public boolean updateAvailability() {
         isAvailable = isBluetoothSupported() && isBluetoothEnabled();
         return isAvailable;
     }
 
-    public void requestBluetoothEnabled() {
+    public void requestBluetoothEnabled(Context context) {
         if (!isBluetoothEnabled()) {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            ActivityCompat.startActivityForResult((Activity) appContext,
+            ActivityCompat.startActivityForResult((Activity) context,
                     enableBtIntent, REQUEST_ENABLE_BT, null);
         }
     }
@@ -168,7 +320,10 @@ public class MyBluetoothManager {
                 switch (resultCode) {
                     case RESULT_OK:
                         updateAvailability();
-                        mListener.onBluetoothEnabled();
+                        //mListener.onBluetoothEnabled();
+                        if (mRequirementResponseListener != null) {
+                            mRequirementResponseListener.onAvailabilityStateChanged(this);
+                        }
                         break;
                     case RESULT_CANCELED:
                         break;
@@ -179,11 +334,11 @@ public class MyBluetoothManager {
         }
     }
 
-    public void requestDiscoverabilityEnabled() {
+    public void requestDiscoverabilityEnabled(Context context) {
         Intent discoverableIntent =
                 new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
         discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
-        appContext.startActivity(discoverableIntent);
+        context.startActivity(discoverableIntent);
     }
 
     private void queryPairedDevices() {
@@ -212,18 +367,18 @@ public class MyBluetoothManager {
         return null;
     }
 
-    private void registerDiscoverReceiver() {
+    private void registerDiscoverReceiver(Context context) {
         // Register for broadcasts when a device is discovered.
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
-        appContext.registerReceiver(receiver, filter);
+        context.registerReceiver(receiver, filter);
     }
 
-    private void unregisterDiscoverReceiver() {
+    private void unregisterDiscoverReceiver(Context context) {
         // Don't forget to unregister the ACTION_FOUND receiver.
-        appContext.unregisterReceiver(receiver);
+        context.unregisterReceiver(receiver);
     }
 
-    public void startServer() {
+    public void startServer(Context context) {
         //Is bluetooth supported and enabled?
         if (!updateAvailability()) {
             Log.e(TAG,"Bluetooth is not supported or enabled.");
@@ -233,16 +388,21 @@ public class MyBluetoothManager {
         mBluetoothDevice = getPairedDeviceByName(DEFAULT_CLIENT_NAME);
         //for unpaired devices this server must be visible to client
         if (mBluetoothDevice == null) {
-            requestDiscoverabilityEnabled();
+            requestDiscoverabilityEnabled(context);
         }
-        AcceptThread thAccept = new AcceptThread();
+        AcceptThread thAccept = new AcceptThread(this);
         thAccept.start();
     }
 
     private class AcceptThread extends Thread {
         private final BluetoothServerSocket mmServerSocket;
 
-        public AcceptThread() {
+        private final MyBaseManager mManager;
+
+        public AcceptThread(MyBaseManager manager) {
+
+            mManager = manager;
+
             //Log.d(TAG,"AcceptThread started successfully...");
             // Use a temporary object that is later assigned to mmServerSocket
             // because mmServerSocket is final.
@@ -266,7 +426,10 @@ public class MyBluetoothManager {
                 try {
                     //TODO: Still can't move past this point
                     mSocket = mmServerSocket.accept();
-                    mListener.onClientConnection();
+                    //mListener.onClientConnection();
+                    if (mRequirementResponseListener != null) {
+                        mRequirementResponseListener.onAvailabilityStateChanged(mManager);
+                    }
                 } catch (IOException e) {
                     Log.e(TAG, "Socket's accept() method failed", e);
                     break;
@@ -415,7 +578,7 @@ public class MyBluetoothManager {
                     String msg = new String(mmBuffer, 0, numBytes, "US-ASCII");
                     Log.v(TAG, "Bluetooth out: "+numBytes+": "+msg);
 
-                    mListener.onMessageReceived(msg);
+                    //mListener.onMessageReceived(msg); // todo: publish a wireless message instead
                     // Send the obtained bytes to the UI activity.
                     /*Message readMsg = handler.obtainMessage(
                             MessageConstants.MESSAGE_READ, numBytes, -1,
@@ -464,16 +627,16 @@ public class MyBluetoothManager {
         }
     }
 
-    public interface OnBluetoothInteractionListener {
-        void onBluetoothEnabled();
-        void onClientConnection();
-        void onMessageReceived(String msg);
-    }
+//    public interface OnBluetoothInteractionListener {
+//        void onBluetoothEnabled();
+//        void onClientConnection();
+//        void onMessageReceived(String msg);
+//    }
 
 
-    private void connectHeadsetProxy() {
+    private void connectHeadsetProxy(Context context) {
         // Establish connection to the proxy.
-        bluetoothAdapter.getProfileProxy(appContext, profileListener, BluetoothProfile.HEADSET);
+        bluetoothAdapter.getProfileProxy(context, profileListener, BluetoothProfile.HEADSET);
     }
 
     // ... call functions on bluetoothHeadset

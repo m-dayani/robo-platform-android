@@ -2,8 +2,9 @@ package com.dayani.m.roboplatform.drivers;
 
 import android.hardware.usb.UsbConstants;
 
-import com.dayani.m.roboplatform.utils.interfaces.MyMessages;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgUsb;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgWireless;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgWireless.WirelessCommand;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgUsb.MyControlTransferInfo;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgUsb.UsbCommand;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MyUsbInfo;
@@ -80,6 +81,32 @@ public class MyDrvUsb {
         usbMsg.setCtrlTransInfo(ctrlTransInfo);
 
         return usbMsg;
+    }
+
+    public static MsgUsb wirelessToUsb(MsgWireless msg) {
+
+        if (msg == null) {
+            return null;
+        }
+
+        WirelessCommand cmd = msg.getCmd();
+
+        if (WirelessCommand.CMD_CHAR.equals(cmd) ||
+                WirelessCommand.CMD_DIR.equals(cmd)) {
+
+            MsgUsb usbMsg = getCommandMessage(UsbCommand.CMD_UPDATE_OUTPUT, msg.toString());
+
+            byte[] decodedCmd = getWlCmdEncodedByteMap(msg.toString());
+
+            if (decodedCmd.length >= 3) {
+                usbMsg.setRawBuffer(decodedCmd);
+                usbMsg.getCtrlTransInfo().mCtrlMsgValue = decodedCmd[2];
+            }
+
+            return usbMsg;
+        }
+
+        return null;
     }
 
 
@@ -202,6 +229,46 @@ public class MyDrvUsb {
         String descField = new String(inputBuffer, 2, rdo - 2, StandardCharsets.UTF_16LE);
 
         return descField;
+    }
+
+    public static byte[] getWlCmdEncodedByteMap(String command) {
+
+        // set pins of an 8 pin port
+        byte[] output = new byte[3];
+        output[0] = 1;
+
+        // 6-DoF command
+        switch (command.toLowerCase(Locale.ROOT)) {
+            case "w":
+            case "up": // forward
+                output[2] |= 0x01;
+                break;
+            case "s":
+            case "down": // backward
+                output[2] |= 0x02;
+                break;
+            case "d":
+            case "right":
+                output[2] |= 0x04;
+                break;
+            case "a":
+            case "left":
+                output[2] |= 0x08;
+                break;
+            case "q":
+            //case "up":
+                output[2] |= 0x10;
+                break;
+            case "e":
+            //case "down":
+                output[2] |= 0x20;
+                break;
+            default:
+                //output[2] &= 0x00;
+                break;
+        }
+
+        return output;
     }
 
 

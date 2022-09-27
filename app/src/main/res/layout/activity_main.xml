@@ -26,6 +26,12 @@
         android:text="@string/labelStartCarManual" />
 
     <Button
+        android:id="@+id/startController"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/txt_robo_controller_server" />
+
+    <Button
         android:id="@+id/startTest"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

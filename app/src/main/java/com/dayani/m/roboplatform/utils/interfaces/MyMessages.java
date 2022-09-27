@@ -662,4 +662,27 @@ public interface MyMessages {
         public String productName;
     }
 
+    class MsgWireless extends MyMessage {
+
+        public enum WirelessCommand {
+            BROADCAST,
+            CMD_DIR,
+            CMD_CHAR,
+            CMD_WORD,
+            SENSOR,
+            TEST,
+            CHAT
+        }
+
+        private final WirelessCommand mCmd;
+
+        public MsgWireless(WirelessCommand cmd, String msg) {
+
+            super(ChannelType.DATA, null, msg);
+            mCmd = cmd;
+        }
+
+        public WirelessCommand getCmd() { return mCmd; }
+    }
+
 }

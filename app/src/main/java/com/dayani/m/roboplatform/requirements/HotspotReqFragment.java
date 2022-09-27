@@ -4,7 +4,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -20,8 +19,11 @@ import androidx.fragment.app.Fragment;
 
 import com.dayani.m.roboplatform.R;
 import com.dayani.m.roboplatform.RequirementsFragment;
+import com.dayani.m.roboplatform.managers.MyBaseManager;
+import com.dayani.m.roboplatform.managers.MyBaseManager.LifeCycleState;
 import com.dayani.m.roboplatform.managers.MyPermissionManager;
 import com.dayani.m.roboplatform.managers.MyWifiManager;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -32,7 +34,7 @@ import com.dayani.m.roboplatform.managers.MyWifiManager;
  * create an instance of this fragment.
  */
 public class HotspotReqFragment extends Fragment
-        implements View.OnClickListener, MyWifiManager.OnWifiNetworkInteractionListener {
+        implements View.OnClickListener, ActivityRequirements.OnRequirementResolved {
 
     private static final String TAG = HotspotReqFragment.class.getSimpleName();
 
@@ -73,15 +75,15 @@ public class HotspotReqFragment extends Fragment
 //        if (getArguments() != null) {
 //            mConnType = getArguments().getString(ARG_CONN_TYPE);
 //        }
-        mWifi = new MyWifiManager(getActivity(), this);
-        mWifi.init();
+        mWifi = new MyWifiManager(getActivity());
+        mWifi.execute(requireActivity(), LifeCycleState.ACT_CREATED);
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
-        View mView = inflater.inflate(R.layout.fragment_hotspot_req, container, false);
+        View mView = inflater.inflate(R.layout.z_fragment_hotspot_req, container, false);
 
         mView.findViewById(R.id.hotspotPermission).setOnClickListener(this);
         mView.findViewById(R.id.enableHotspot).setOnClickListener(this);
@@ -89,9 +91,9 @@ public class HotspotReqFragment extends Fragment
         mView.findViewById(R.id.saveDefaultSocket).setOnClickListener(this);
 
         ipAddressTxt = mView.findViewById(R.id.ipTxtView);
-        ipAddressTxt.setText(MyWifiManager.getDefaultHotspotIp(getActivity()));
+        ipAddressTxt.setText(mWifi.getDefaultIp());
         portTxt = mView.findViewById(R.id.portTxtEdit);
-        portTxt.setText(Integer.toString(MyWifiManager.getDefaultPort(getActivity())));
+        portTxt.setText(Integer.toString(mWifi.getDefaultPort()));
         reportTxt = mView.findViewById(R.id.statView);
         actionsContainer = mView.findViewById(R.id.wiNetActionsContainer);
         this.updateViewState(actionsContainer, false);
@@ -106,7 +108,7 @@ public class HotspotReqFragment extends Fragment
 
     @Override
     public void onDetach() {
-        mWifi.clean();
+        mWifi.execute(requireActivity(), LifeCycleState.ACT_DESTROYED);
         super.onDetach();
     }
 
@@ -120,7 +122,7 @@ public class HotspotReqFragment extends Fragment
                 requestCode, permissions, grantResults);
         if (requestCode == MyWifiManager.getRequestPermissionCode() &&
             grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            mWifi.setWifiApState(true);
+            mWifi.setWifiApState(requireActivity(), true);
         }
         //}
     }
@@ -128,10 +130,11 @@ public class HotspotReqFragment extends Fragment
     @Override
     public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == MyWifiManager.getRequestPermissionCode() &&
-                mWifi.hasWriteSettingsPermission(getActivity())) {
+        if (requestCode == MyWifiManager.getRequestPermissionCode())
+                //&& mWifi.hasWriteSettingsPermission(getActivity()))
+        {
             Log.d(TAG, "Write Settings permission granted.");
-            mWifi.setWifiApState(true);
+            mWifi.setWifiApState(requireActivity(), true);
         }
     }
 
@@ -145,7 +148,7 @@ public class HotspotReqFragment extends Fragment
             }
             case R.id.enableHotspot: {
                 Log.d(TAG, "Enable Hotspot");
-                mWifi.setWifiApState(true);
+                mWifi.setWifiApState(requireActivity(), true);
                 break;
             }
             case R.id.startServer: {
@@ -157,8 +160,8 @@ public class HotspotReqFragment extends Fragment
                 String sIp = ipAddressTxt.getText().toString();
                 String sPort = portTxt.getText().toString();
                 Log.d(TAG, "Saving new address: "+sIp+':'+sPort);
-                MyWifiManager.setDefaultHotspotIp(getActivity(), sIp);
-                MyWifiManager.setDefaultPort(getActivity(), Integer.parseInt(sPort));
+                mWifi.setDefaultIp(sIp);
+                mWifi.setDefaultPort(Integer.parseInt(sPort));
                 break;
             }
             default: {
@@ -178,15 +181,14 @@ public class HotspotReqFragment extends Fragment
 
     private void requestHotspotPermission() {
         Log.d(TAG, "requestHotspotPermission");
-        if (!mWifi.hasWriteSettingsPermission(getActivity())) {
-            Intent intent = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS);
-            startActivityForResult(intent, MyWifiManager.getRequestPermissionCode());
-        }
+//        if (!mWifi.hasWriteSettingsPermission(getActivity())) {
+//            Intent intent = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS);
+//            startActivityForResult(intent, MyWifiManager.getRequestPermissionCode());
+//        }
 //        MyPermissionManager.checkAllPermissions(getActivity(), MyWifiManager.getPermissions(),
 //                MyWifiManager.getRequestPermissionCode(), MyWifiManager.getPermissionKey());
     }
 
-    @Override
     public void onWifiEnabled() {
         //mWifi.init();
 //        String defaultIp = mWifi.getLocalIpAddress();
@@ -196,12 +198,10 @@ public class HotspotReqFragment extends Fragment
                 "3. Send 'test' command from client app to pass this requirement.");
     }
 
-    @Override
     public void onClientConnected() {
         Log.i(TAG, "Client Connected");
     }
 
-    @Override
     public void onInputReceived(String msg) {
         Log.d(TAG, "received: "+msg);
         if (msg.equals(MyWifiManager.getDefaultTestCommand())) {
@@ -222,5 +222,10 @@ public class HotspotReqFragment extends Fragment
         bundle.putBoolean(RequirementsFragment.KEY_REQUIREMENT_PASSED, true);
         getParentFragmentManager()
                 .setFragmentResult(RequirementsFragment.KEY_REQUIREMENT_PASSED_REQUEST, bundle);
+    }
+
+    @Override
+    public void onAvailabilityStateChanged(MyBaseManager manager) {
+
     }
 }

@@ -1,322 +1,336 @@
 package com.dayani.m.roboplatform;
 
-import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.HandlerThread;
-import android.os.Looper;
-import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
-import android.view.WindowManager;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.IntentSenderRequest;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentActivity;
+import androidx.lifecycle.ViewModelProvider;
 
+import com.dayani.m.roboplatform.managers.MyBaseManager;
+import com.dayani.m.roboplatform.managers.MyBaseManager.LifeCycleState;
 import com.dayani.m.roboplatform.managers.MySensorManager;
 import com.dayani.m.roboplatform.managers.MyStateManager;
 import com.dayani.m.roboplatform.managers.MyUSBManager;
 import com.dayani.m.roboplatform.managers.MyWifiManager;
 import com.dayani.m.roboplatform.utils.AppGlobals;
-import com.dayani.m.roboplatform.utils.data_types.ControlInput;
-import com.dayani.m.roboplatform.utils.data_types.SensorsContainer;
-import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
+import com.dayani.m.roboplatform.utils.helpers.MyScreenOperations;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
+import com.dayani.m.roboplatform.utils.interfaces.MyBackgroundExecutor;
+import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
 
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.concurrent.Executor;
+
 
 public class CarManualControlActivity extends AppCompatActivity
-        implements View.OnClickListener,
-        MyUSBManager.OnUsbConnectionListener, MyWifiManager.OnWifiNetworkInteractionListener {
+        implements MyBackgroundExecutor.JobListener, ActivityRequirements.RequirementResolution {
 
     private static final String TAG = CarManualControlActivity.class.getSimpleName();
 
-    private static final String KEY_STARTED_STATE = AppGlobals.PACKAGE_BASE_NAME
-            +'.'+TAG+".KEY_STARTED_STATE";
+    private SensorsViewModel mVM_Sensors;
 
-    private static final ArrayList<Requirement> REQUIREMENTS = new ArrayList<>(
-            Arrays.asList(//Requirement.PERMISSIONS,
-            Requirement.USB_DEVICE,
-            Requirement.WIRELESS_CONNECTION)
-    );
-
-    private static final int DEFAULT_CTRL_INTERVAL_MILIS = 128;
-
-    private Button mBtnStart;
-    //private Chronometer mChronometer;
-    //private AutoFitTextureView mTextureView;
-    private TextView reportTxt;
-
-    private boolean mIsStarted = false;
-
-    private MyUSBManager mUsb;
-
-    private MySensorManager mSensorManager;
-
-    private StringBuffer mSensorString;
-
-    private MyWifiManager mWifiManager;
-
-    private HandlerThread mControllerThread;
-    private Looper mControllerLooper;
-    private Handler mController;
-
-    private ControlInput mControlInput = new ControlInput();
-
-    private Runnable controlTask = new Runnable() {
-
-        @Override
-        public void run() {
-            Log.d(TAG, "Message recieved, processing...");
-
-            mControlInput.setKeyboardInput(mWifiManager.getMessage());
-            mControlInput.setSensorInput(mUsb.getRawSensor());
-            mUsb.setStateBuffer(this.control(mControlInput));
-            //mUsb.sendStateUpdates();
-
-            mController.postDelayed(this, DEFAULT_CTRL_INTERVAL_MILIS);
-        }
-
-        /**
-         *
-         * @param input sensor readings
-         * @return output state to controller device
-         */
-        protected byte[] control(ControlInput input) {
-
-            byte[] outState = new byte[64];
-
-            if (input.getKeyboardInput() == null) {
-                outState[0] = 0;
-                return outState;
-            }
-            switch (input.getKeyboardInput().charAt(0)) {
-                case 'w':   //forward
-                    Log.d(TAG, "Forward command detected.");
-                    outState[0] |= 0x01;
-                    //mUsb.setStateBuffer((byte) 0x01, 0);
-                    break;
-                case 's':   //backward
-                    outState[0] |= 0x02;
-                    break;
-                case 'a':   //left
-                    outState[0] |= 0x04;
-                    break;
-                case 'd':   //right
-                    outState[0] |= 0x08;
-                    break;
-                case 'f':   //up
-                    outState[0] |= 0x10;
-                    break;
-                case 'e':   //down
-                    outState[0] |= 0x20;
-                    break;
-                default:
-                    outState[0] &= 0x00;
-                    //mUsb.setStateBuffer((byte) 0x00, 0);
-                    break;
-            }
-
-            return outState;
-        }
-    };
+    private MyBackgroundExecutor mBackgroundExecutor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_car_manual_control);
+        setContentView(R.layout.activity_fragment_container);
 
-        mBtnStart = (Button) findViewById(R.id.startPorcess);
-        mBtnStart.setOnClickListener(this);
-        reportTxt = findViewById(R.id.reportTxt);
+        // instantiate sensors view model
+        mVM_Sensors = new ViewModelProvider(this).get(SensorsViewModel.class);
 
-        mSensorString = new StringBuffer();
+        initManagers();
 
-        mSensorManager = new MySensorManager(this);
+        mBackgroundExecutor = new MyBackgroundExecutor();
+        mBackgroundExecutor.initWorkerThread(TAG);
 
-        mUsb = new MyUSBManager(this);
-        mUsb.setConnectionListener(this);
-        //mUsb.tryOpenDefaultDevice();
+        if (savedInstanceState == null) {
 
-        mWifiManager = new MyWifiManager(this, this);
-        //Register receivers & start Bg threads
-        mWifiManager.init();
-
-        startSensorThread();
-    }
-
-    @Override
-    protected void onStart() {
-        super.onStart();
-
-        mIsStarted = MyStateManager.getBoolPref(this, KEY_STARTED_STATE, false);
-        updateButtonState(mIsStarted);
-        // Connect to a wifi network
-        mWifiManager.setWifiState(true);
-    }
-
-    @Override
-    protected void onStop() {
-        if (mIsStarted) {
-            stop();
+            getSupportFragmentManager().beginTransaction().setReorderingAllowed(true)
+                    .add(R.id.fragment_container_view, ManualControlFragment.class, null, "car-front-panel")
+                    .commit();
         }
-        mWifiManager.setWifiState(false);
-        super.onStop();
+    }
+
+    private void initManagers() {
+
+        SensorsViewModel.getOrCreateManager(this, mVM_Sensors, MySensorManager.class.getSimpleName());
+
+        SensorsViewModel.getOrCreateManager(this, mVM_Sensors, MyUSBManager.class.getSimpleName());
+
+        SensorsViewModel.getOrCreateManager(this, mVM_Sensors, MyWifiManager.class.getSimpleName());
+
+        //Register receivers
+        for (MyBaseManager manager : mVM_Sensors.getAllManagers()) {
+            manager.execute(this, LifeCycleState.ACT_CREATED);
+        }
     }
 
     @Override
     protected void onDestroy() {
-        mWifiManager.clean();
-        stopSensorThread();
+
+        for (MyBaseManager manager : mVM_Sensors.getAllManagers()) {
+            manager.execute(this, LifeCycleState.ACT_DESTROYED);
+        }
+
         super.onDestroy();
     }
 
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        View decorView = getWindow().getDecorView();
         if (hasFocus) {
-            decorView.setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
-                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
-                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
-                    View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
-                    View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
-                    View.SYSTEM_UI_FLAG_FULLSCREEN
-            );
+            MyScreenOperations.setFullScreen(this);
         }
     }
 
-    private void start() {
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    /* ---------------------------------- Request Resolutions ----------------------------------- */
 
-        //mSensorManager.start();
-        //mUsb.startPeriodicSensorPoll();
-        mWifiManager.startServer();
+    @Override
+    public void requestResolution(String[] perms) {
 
-        mController.postDelayed(controlTask, 0);
-
-        mIsStarted = true;
-        MyStateManager.setBoolPref(this, KEY_STARTED_STATE, mIsStarted);
-        // UI
-        updateButtonState(mIsStarted);
     }
 
-    private void stop() {
-        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    @Override
+    public void requestResolution(int requestCode, Intent activityIntent) {
 
-        //mSensorManager.stop();
-        //mUsb.stopPeriodicSensorPoll();
-        mWifiManager.stopServer();
-
-        mController.removeCallbacks(controlTask);
-
-        mIsStarted = false;
-        MyStateManager.setBoolPref(this, KEY_STARTED_STATE, mIsStarted);
-        // UI
-        updateButtonState(mIsStarted);
     }
 
-    private void updateButtonState(boolean state) {
-        if (state) {
-            mBtnStart.setText("Stop");
-            //mButtonVideo.setImageResource(R.drawable.ic_action_pause_over_video);
-        } else {
-            mBtnStart.setText("Start");
-            //mButtonVideo.setImageResource(R.drawable.ic_action_play_over_video);
+    @Override
+    public void requestResolution(int requestCode, IntentSenderRequest resolutionIntent) {
+
+    }
+
+    @Override
+    public void requestResolution(Fragment targetFragment) {
+
+        MainActivity.startNewFragment(getSupportFragmentManager(),
+                R.id.fragment_container_view, targetFragment, "sensors");
+    }
+
+    /* ------------------------------------ Multi-threading ------------------------------------- */
+
+    @Override
+    public Executor getBackgroundExecutor() {
+
+        if (mBackgroundExecutor != null) {
+            return mBackgroundExecutor.getBackgroundExecutor();
+        }
+        return null;
+    }
+
+    @Override
+    public Handler getBackgroundHandler() {
+
+        if (mBackgroundExecutor != null) {
+            return mBackgroundExecutor.getBackgroundHandler();
+        }
+        return null;
+    }
+
+    @Override
+    public Handler getUiHandler() {
+
+        if (mBackgroundExecutor != null) {
+            return mBackgroundExecutor.getUiHandler();
+        }
+        return null;
+    }
+
+    @Override
+    public void execute(Runnable r) {
+
+        if (mBackgroundExecutor != null) {
+            mBackgroundExecutor.execute(r);
         }
     }
 
     @Override
-    public void onClick(View view) {
-        switch (view.getId()) {
-            case R.id.startPorcess:
+    public void handle(Runnable r) {
+
+        if (mBackgroundExecutor != null) {
+            mBackgroundExecutor.handle(r);
+        }
+    }
+
+    /*============================ Static ActivityRequirements interface =========================*/
+
+    public static class ManualControlFragment extends Fragment
+            implements View.OnClickListener {
+
+        private static final String TAG = ManualControlFragment.class.getSimpleName();
+
+        private static final String KEY_STARTED_STATE = AppGlobals.PACKAGE_BASE_NAME
+                +'.'+TAG+".KEY_STARTED_STATE";
+
+        private Button mBtnStart;
+        //private Chronometer mChronometer;
+        //private AutoFitTextureView mTextureView;
+        private TextView reportTxt;
+
+        private boolean mIsStarted = false;
+
+        private MyUSBManager mUsb;
+
+        private MyWifiManager mWifiManager;
+
+        MyBackgroundExecutor.JobListener mBackgroundHandler;
+
+
+        public ManualControlFragment() {
+            // Required empty public constructor
+        }
+
+        /**
+         * Use this factory method to create a new instance of
+         * this fragment using the provided parameters.
+         *
+         * @return A new instance of fragment FrontPanelFragment.
+         */
+        public static ManualControlFragment newInstance() {
+
+            ManualControlFragment fragment = new ManualControlFragment();
+            Bundle args = new Bundle();
+            fragment.setArguments(args);
+            return fragment;
+        }
+
+        @Override
+        public void onCreate(@Nullable Bundle savedInstanceState) {
+            super.onCreate(savedInstanceState);
+
+            FragmentActivity context = requireActivity();
+
+            SensorsViewModel mVM_Sensors = new ViewModelProvider(context).get(SensorsViewModel.class);
+
+            mUsb = (MyUSBManager) SensorsViewModel.getOrCreateManager(
+                    context, mVM_Sensors, MyUSBManager.class.getSimpleName());
+
+            mWifiManager = (MyWifiManager) SensorsViewModel.getOrCreateManager(
+                    context, mVM_Sensors, MyWifiManager.class.getSimpleName());
+
+            // establish connections
+            mUsb.registerChannel(mWifiManager);
+            mWifiManager.registerChannel(mUsb);
+
+            if (context instanceof MyBackgroundExecutor.JobListener) {
+                mBackgroundHandler = (MyBackgroundExecutor.JobListener) context;
+            }
+        }
+
+        @Nullable
+        @Override
+        public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+                                 @Nullable Bundle savedInstanceState) {
+
+            View view = inflater.inflate(R.layout.activity_car_manual_control, container, false);
+
+            mBtnStart = view.findViewById(R.id.startPorcess);
+            mBtnStart.setOnClickListener(this);
+            reportTxt = view.findViewById(R.id.reportTxt);
+
+            return view;
+        }
+
+        @Override
+        public void onStart() {
+            super.onStart();
+
+            mIsStarted = MyStateManager.getBoolPref(requireActivity(), KEY_STARTED_STATE, false);
+            updateButtonState(mIsStarted);
+            // Connect to a wifi network
+            //mWifiManager.setWifiState(true);
+        }
+
+        @Override
+        public void onStop() {
+            if (mIsStarted) {
+                stop();
+            }
+            //mWifiManager.setWifiState(false);
+            super.onStop();
+        }
+
+        @Override
+        public void onClick(View view) {
+
+            if (view.getId() == R.id.startPorcess) {
+
+                FragmentActivity context = requireActivity();
+
+                // check and resolve availability
+                if (!mUsb.isAvailable()) {
+                    mUsb.resolveAvailability(context);
+                    return;
+                }
+                if (!mWifiManager.isAvailable()) {
+                    mWifiManager.resolveAvailability(context);
+                    return;
+                }
+
                 if (mIsStarted) {
                     stop();
-                } else {
+                }
+                else {
                     start();
                 }
-                break;
-            default:
-                break;
+            }
         }
-    }
 
-    /**
-     * Starts a background thread and its {@link Handler}.
-     */
-    private void startSensorThread() {
+        private void start() {
 
-        mControllerThread = new HandlerThread(TAG+"SensorBackground");
-        mControllerThread.start();
-        mControllerLooper = mControllerThread.getLooper();
-        mController = new Handler(mControllerLooper);
-    }
+            FragmentActivity context = requireActivity();
 
-    /**
-     * Stops the background thread and its {@link Handler}.
-     */
-    private void stopSensorThread() {
+            MyScreenOperations.setScreenOn(context);
 
-        mControllerThread.quitSafely();
-        try {
-            mControllerThread.join();
-            mControllerThread = null;
-            mController = null;
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+            if (mUsb != null) {
+                mUsb.tryOpenDeviceAndUpdateInfo();
+            }
+
+            mIsStarted = true;
+            MyStateManager.setBoolPref(context, KEY_STARTED_STATE, true);
+            // UI
+            updateButtonState(mIsStarted);
         }
-    }
 
-    /*============================ Static ActivityRequirements interface =========================*/
-//    @Override
-//    public boolean usesActivityRequirementsInterface() {
-//        return true;
-//    }
-//
-//    public static ArrayList<Requirement> getActivityRequirements() {
-//        return REQUIREMENTS;
-//    }
-//
-//    public static String[] getActivityPermissions() {
-//        String[] allPermissions = null;
-//        Log.i(TAG, Arrays.toString(allPermissions));
-//        return allPermissions;
-//    }
-    /*============================ Static ActivityRequirements interface =========================*/
+        private void stop() {
 
-    public static SensorsContainer getSensorRequirements(Context mContext) {
+            FragmentActivity context = requireActivity();
 
-        SensorsContainer sensors = new SensorsContainer();
+            MyScreenOperations.unsetScreenOn(context);
 
-//        MyUSBManager.getSensorRequirements(mContext, sensors);
-//        MyWifiManager.getSensorRequirements(mContext, sensors);
+            if (mUsb != null) {
+                mUsb.close();
+            }
 
-        return sensors;
-    }
+            mIsStarted = false;
+            MyStateManager.setBoolPref(context, KEY_STARTED_STATE, false);
+            // UI
+            updateButtonState(mIsStarted);
+        }
 
-    public void toastMsgShort(String msg) {
-        Toast.makeText(this.getApplicationContext(), msg, Toast.LENGTH_SHORT).show();
-    }
-
-    @Override
-    public void onUsbConnection(boolean connStat) {
-
-    }
-
-    @Override
-    public void onWifiEnabled() {
-
-    }
-
-    @Override
-    public void onClientConnected() {
-
-    }
-
-    @Override
-    public void onInputReceived(String msg) {
-
+        private void updateButtonState(boolean state) {
+            if (state) {
+                mBtnStart.setText(R.string.btn_txt_stop);
+                //mButtonVideo.setImageResource(R.drawable.ic_action_pause_over_video);
+            }
+            else {
+                mBtnStart.setText(R.string.btn_txt_start);
+                //mButtonVideo.setImageResource(R.drawable.ic_action_play_over_video);
+            }
+        }
     }
 }

@@ -33,6 +33,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.dayani.m.roboplatform.R;
 import com.dayani.m.roboplatform.managers.CameraFlyVideo;
+import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.managers.MyLocationManager;
 import com.dayani.m.roboplatform.managers.MySensorManager;
 import com.dayani.m.roboplatform.managers.MyStateManager;
@@ -46,8 +47,7 @@ import java.io.File;
 
 
 public class RecordSensorsActivity_old2 extends AppCompatActivity
-        implements View.OnClickListener,
-        MyUSBManager.OnUsbConnectionListener {
+        implements View.OnClickListener {
 
     private static final String TAG = "RecordAllActivity";
 
@@ -138,7 +138,7 @@ public class RecordSensorsActivity_old2 extends AppCompatActivity
         mSensorManager = new MySensorManager(this);
 
         mUsb = new MyUSBManager(this);
-        mUsb.setConnectionListener(this);
+        //mUsb.setConnectionListener(this);
         //mUsb.tryOpenDefaultDevice();
 
         startSensorThread();
@@ -164,7 +164,7 @@ public class RecordSensorsActivity_old2 extends AppCompatActivity
         //mUsb.registerUsbPermission();
         //mUsb.tryOpenDefaultDevice();
         //actually, starts preview
-        mCam.start(this);
+        mCam.execute(this, MyBaseManager.LifeCycleState.START_RECORDING);
 
         // Within {@code onPause()}, we remove location updates. Here, we resume receiving
         // location updates if the user has requested them.
@@ -191,7 +191,7 @@ public class RecordSensorsActivity_old2 extends AppCompatActivity
         }
         //mUsb.unregisterUsbSensorReciever();
         //mUsb.unregisterUsbPermission();
-        mCam.clean(this);
+        mCam.execute(this, MyBaseManager.LifeCycleState.ACT_DESTROYED);
 
         //mLocation.stopLocationUpdates();
         //mSensorManager.onPause();
@@ -208,7 +208,7 @@ public class RecordSensorsActivity_old2 extends AppCompatActivity
     @Override
     protected void onDestroy() {
         //mUsb.unregisterUsbPermission();
-        mUsb.clean(this);
+        mUsb.execute(this, MyBaseManager.LifeCycleState.ACT_DESTROYED);
         //mUsb.close();
         //mUsb = null;
         //cleaning sensor's thread.
@@ -258,7 +258,7 @@ public class RecordSensorsActivity_old2 extends AppCompatActivity
         //Keep the device screen on while recording
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         //Registers sensor callbacks
-        mSensorManager.start(this);
+        mSensorManager.execute(this, MyBaseManager.LifeCycleState.START_RECORDING);
         mUsb.startPeriodicSensorPoll();
         //while we're not saving files, use our handlerThread for location updates
         //mLocation.startLocationUpdates(mSensorLooper);
@@ -273,7 +273,7 @@ public class RecordSensorsActivity_old2 extends AppCompatActivity
         //stopSensorThread();
         //Allow device screen to be turned off
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        mSensorManager.stop(this);
+        mSensorManager.execute(this, MyBaseManager.LifeCycleState.STOP_RECORDING);
         mUsb.stopPeriodicSensorPoll();
         mLocation.stopLocationUpdates(this);
         //mCam.stopRecordingVideo();
@@ -375,7 +375,6 @@ public class RecordSensorsActivity_old2 extends AppCompatActivity
         Toast.makeText(this.getApplicationContext(), msg, Toast.LENGTH_SHORT).show();
     }
 
-    @Override
     public void onUsbConnection(boolean connStat) {
 
     }

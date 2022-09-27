@@ -66,27 +66,27 @@ import androidx.activity.result.IntentSenderRequest;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.fragment.app.FragmentActivity;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.dayani.m.roboplatform.RecordingFragment;
-import com.dayani.m.roboplatform.utils.interfaces.MyMessages;
+import com.dayani.m.roboplatform.utils.AppGlobals;
+import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
+import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.HandleEnableSettingsRequirement;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.ManagerRequirementBroadcastReceiver;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgConfig;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgGnssMeasurement;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgGnssNavigation;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgLocation;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgLogging;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MyMessage;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageConfig;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageInfo;
 import com.dayani.m.thirdparty.google.gnsslogger.DetectedActivitiesIntentReceiver;
 import com.dayani.m.thirdparty.google.gnsslogger.MeasurementListener;
 import com.dayani.m.thirdparty.google.gnsslogger.MeasurementProvider;
 import com.dayani.m.thirdparty.google.gnsslogger.RealTimePositionVelocityCalculator;
-import com.dayani.m.roboplatform.utils.AppGlobals;
-import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
-import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
-import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
-import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageInfo;
-import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgConfig;
-import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageConfig;
-import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MyMessage;
-import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgLocation;
-import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgGnssMeasurement;
-import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgGnssNavigation;
-import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgLogging;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -111,6 +111,7 @@ import java.util.Map;
 
 
 public class MyLocationManager extends MyBaseManager implements MeasurementListener,
+        HandleEnableSettingsRequirement,
         GoogleApiClient.OnConnectionFailedListener, GoogleApiClient.ConnectionCallbacks {
 
     /* ===================================== Variables ========================================== */
@@ -197,7 +198,7 @@ public class MyLocationManager extends MyBaseManager implements MeasurementListe
         mSettingsClient = LocationServices.getSettingsClient(context);
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(context);
         mLocalBrManager = LocalBroadcastManager.getInstance(context);
-        mLocationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+        mLocationManager = (LocationManager) context.getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
 
         mLocationProviderChangedBR = new ManagerRequirementBroadcastReceiver(this);
 
@@ -241,7 +242,7 @@ public class MyLocationManager extends MyBaseManager implements MeasurementListe
 
     @Override
     public boolean passedAllRequirements() {
-        return hasAllPermissions() && isLocationEnabled();
+        return hasAllPermissions() && isSettingsEnabled();
     }
 
     @Override
@@ -284,8 +285,8 @@ public class MyLocationManager extends MyBaseManager implements MeasurementListe
 
         // location setting enabled
         if (requirements.contains(Requirement.ENABLE_LOCATION)) {
-            if (!isLocationEnabled()) {
-                changeLocationSettings(context, LocationSettingAction.REQUEST_ENABLE, null);
+            if (!isSettingsEnabled()) {
+                enableSettingsRequirement(context);
             }
         }
     }
@@ -306,7 +307,7 @@ public class MyLocationManager extends MyBaseManager implements MeasurementListe
             if (result.getResultCode() == Activity.RESULT_OK) {
 
                 Log.i(TAG, "User agreed to make required location settings changes.");
-                updateLocationEnabledState(true);
+                updateSettingsEnabled();
 
                 // TODO: broadcast location settings enabled??
                 //mLocalBrManager.sendBroadcast(new Intent(Constants.ACTION_LOCATION_SETTINGS_AVAILABILITY));
@@ -324,7 +325,7 @@ public class MyLocationManager extends MyBaseManager implements MeasurementListe
     }
 
     @Override
-    public void onBroadcastReceived(Context context, Intent intent) {
+    public void onSettingsChanged(Context context, Intent intent) {
 
         if (intent.getAction().matches("android.location.PROVIDERS_CHANGED"))  {
 
@@ -333,56 +334,88 @@ public class MyLocationManager extends MyBaseManager implements MeasurementListe
             boolean isGpsEnabled = mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
             boolean isNetworkEnabled = mLocationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
 
-            updateLocationEnabledState(isGpsEnabled || isNetworkEnabled);
+            updateSettingsEnabled();
         }
     }
 
-    private boolean isLocationEnabled() { return mIsLocationEnabled; }
+    @Override
+    public boolean isSettingsEnabled() { return mIsLocationEnabled; }
 
-    private void updateLocationEnabledState(boolean state) {
-        mIsLocationEnabled = state;
+    @Override
+    public void updateSettingsEnabled() {
+
+        //boolean isFusedEnabled = mLocationManager.isProviderEnabled(LocationManager.FUSED_PROVIDER);
+        mIsLocationEnabled = mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);// || isFusedEnabled;
+    }
+
+    @Override
+    public void enableSettingsRequirement(Context context) {
+        changeLocationSettings(context, LocationSettingAction.REQUEST_ENABLE, null);
     }
 
     /* -------------------------------- Lifecycle Management ------------------------------------ */
 
     @Override
-    public void init(Context context) {
+    public void execute(Context context, LifeCycleState state) {
 
-        super.init(context);
-        registerLocationChangeBrReceiver(context);
-    }
+        switch (state) {
+            case START_RECORDING: {
 
-    @Override
-    public void clean(Context context) {
+                if (this.isNotAvailableAndChecked()) {
+                    Log.w(TAG, "Location Sensors are not available, abort");
+                    return;
+                }
 
-        unregisterLocationChangeBrReceiver(context);
-        super.clean(context);
-    }
+                super.execute(context, state);
+                openStorageChannels();
+                registerLocationServices(context);
+                break;
+            }
+            case STOP_RECORDING: {
 
-    @Override
-    public void start(Context context) {
+                if (this.isNotAvailableAndChecked() || !this.isProcessing()) {
+                    Log.d(TAG, "Location Sensors are not running");
+                    return;
+                }
 
-        if (!this.isAvailableAndChecked()) {
-            Log.w(TAG, "Location Sensors are not available, abort");
-            return;
+                unregisterLocationServices(context);
+                closeStorageChannels();
+                super.execute(context, state);
+                break;
+            }
+            default: {
+                super.execute(context, state);
+                break;
+            }
         }
-
-        super.start(context);
-        openStorageChannels();
-        registerLocationServices(context);
     }
 
     @Override
-    public void stop(Context context) {
+    public void registerBrReceivers(Context context, LifeCycleState state) {
 
-        if (!this.isAvailableAndChecked() || !this.isProcessing()) {
-            Log.d(TAG, "Location Sensors are not running");
-            return;
+        switch (state) {
+            case ACT_CREATED: {
+                if (mLocationProviderChangedBR != null) {
+                    IntentFilter locationFilter = new IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION);
+                    context.getApplicationContext().registerReceiver(mLocationProviderChangedBR, locationFilter);
+                    Log.d(TAG, "Registered onProviderChangedBrReceiver");
+                }
+                break;
+            }
+            case ACT_DESTROYED: {
+                if (mLocationProviderChangedBR != null) {
+                    try {
+                        context.getApplicationContext().unregisterReceiver(mLocationProviderChangedBR);
+                        Log.d(TAG, "Unregistered onProviderChangedBrReceiver");
+                    } catch (IllegalArgumentException e) {
+                        e.printStackTrace();
+                    }
+                }
+                break;
+            }
+            default:
+                break;
         }
-
-        unregisterLocationServices(context);
-        closeStorageChannels();
-        super.stop(context);
     }
 
     private void registerLocationServices(Context context) {
@@ -410,28 +443,6 @@ public class MyLocationManager extends MyBaseManager implements MeasurementListe
         stopLocationUpdates(context);
 //        }
 
-    }
-
-    private void registerLocationChangeBrReceiver(Context context) {
-
-        if (mLocationProviderChangedBR != null) {
-            IntentFilter locationFilter = new IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION);
-            context.getApplicationContext().registerReceiver(mLocationProviderChangedBR, locationFilter);
-            Log.d(TAG, "Registered onProviderChangedBrReceiver");
-        }
-    }
-
-    private void unregisterLocationChangeBrReceiver(Context context) {
-
-        if (mLocationProviderChangedBR != null) {
-            try {
-                context.getApplicationContext().unregisterReceiver(mLocationProviderChangedBR);
-                Log.d(TAG, "Unregistered onProviderChangedBrReceiver");
-            }
-            catch (IllegalArgumentException e) {
-                e.printStackTrace();
-            }
-        }
     }
 
     /* ----------------------------------- Message Passing -------------------------------------- */
@@ -560,7 +571,7 @@ public class MyLocationManager extends MyBaseManager implements MeasurementListe
         };
     }
 
-    private synchronized void buildGoogleApiClient(Context context) {
+    /*private synchronized void buildGoogleApiClient(Context context) {
         mGoogleApiClient =
                 new GoogleApiClient.Builder(context)
                         .enableAutoManage((FragmentActivity) context, this)
@@ -569,7 +580,7 @@ public class MyLocationManager extends MyBaseManager implements MeasurementListe
                         .addApi(ActivityRecognition.API)
                         .addApi(LocationServices.API)
                         .build();
-    }
+    }*/
 
 
     private static boolean hasGpsSensor(Context context) {
@@ -682,7 +693,7 @@ public class MyLocationManager extends MyBaseManager implements MeasurementListe
 
                             if (action.equals(LocationSettingAction.CHECK_ENABLED)) {
 
-                                updateLocationEnabledState(true);
+                                updateSettingsEnabled();
                             }
                             else if (action.equals(LocationSettingAction.REQUEST_UPDATES)) {
 
@@ -882,7 +893,7 @@ public class MyLocationManager extends MyBaseManager implements MeasurementListe
     @SuppressWarnings("MissingPermission")
     public void getLastLocation(Context context) {
 
-        if (!isAvailableAndChecked())
+        if (isNotAvailableAndChecked())
             return;
 
         try {
@@ -946,21 +957,5 @@ public class MyLocationManager extends MyBaseManager implements MeasurementListe
 
     /* ======================================= Data Types ======================================= */
 
-    public static class ManagerRequirementBroadcastReceiver extends BroadcastReceiver {
 
-        private final MyBaseManager mManager;
-
-        public ManagerRequirementBroadcastReceiver(MyBaseManager manager) {
-
-            mManager = manager;
-        }
-
-        @Override
-        public void onReceive(Context context, Intent intent) {
-
-            if (mManager != null) {
-                mManager.onBroadcastReceived(context, intent);
-            }
-        }
-    }
 }

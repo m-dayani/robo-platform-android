@@ -1,328 +1,455 @@
 package com.dayani.m.roboplatform.managers;
 
+/*
+ * Note1: Two methods to enable wifi:
+ *      1. prompt the user to enable wifi and listen for changes (recommended)
+ *      2. request change settings permission and enable wifi by brute force
+ *          (also good for other settings like location or bluetooth)
+ * Note2: Two modes of connection:
+ *      1. Both server and client connect to an intermediary AP
+ *      2. P2P connection
+ * Note3: Each device can be either a server or client ->
+ *      better to set the desktop as server and the Android app as client
+ * Note4: This can already work with LAN, Wifi-Direct, and Hotspot, although
+ *      the last choice is a bit problematic on devices that can't enable
+ *      wifi and hotspot at the same time
+ *
+ * todo: more robust lifecycle and resource management
+ */
+
+
+import static android.content.Context.WIFI_SERVICE;
+
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
-import android.os.Handler;
-import android.os.HandlerThread;
-import android.os.Looper;
 import android.provider.Settings;
 import android.util.Log;
+import android.util.Pair;
+import android.widget.Toast;
 
-import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
+import com.dayani.m.roboplatform.drivers.MyDrvWireless;
+import com.dayani.m.roboplatform.requirements.WiNetReqFragment;
 import com.dayani.m.roboplatform.utils.AppGlobals;
-import com.dayani.m.roboplatform.utils.data_types.SensorsContainer;
+import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
+import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.HandleEnableSettingsRequirement;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgWireless;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
-import static android.content.Context.WIFI_SERVICE;
 
-public class MyWifiManager {
+public class MyWifiManager extends MyBaseManager implements HandleEnableSettingsRequirement {
+
+    /* ===================================== Variables ========================================== */
 
     private static final String TAG = MyWifiManager.class.getSimpleName();
 
+    private static final String PACKAGE_NAME = AppGlobals.PACKAGE_BASE_NAME;
+
     private static final int WIFI_AP_STATE_FAILED = -1;
 
-    private static final String DEFAULT_IP_ADDRESS = "0.0.0.0";
+    private static final String DEFAULT_IP_ADDRESS = "192.168.1.100";
     private static final String DEFAULT_HOTSPOT_IP = "192.168.43.1";
     private static final int DEFAULT_PORT = 27015;
 
-    private static final String DEFAULT_TEST_COMMAND = "test";
+    public static final String DEFAULT_TEST_COMMAND = "wl-8749";
+    public static final String DEFAULT_TEST_RESPONSE = "wl-0462";
 
-    private static final String KEY_DEFAULT_HOTSPOT_IP = AppGlobals.PACKAGE_BASE_NAME+
-            ".KEY_DEFAULT_HOTSPOT_IP";
-    private static final String KEY_DEFAULT_PORT = AppGlobals.PACKAGE_BASE_NAME+".KEY_DEFAULT_PORT";
+    private static final String KEY_DEFAULT_HOTSPOT_IP = PACKAGE_NAME+".KEY_DEFAULT_HOTSPOT_IP";
+    private static final String KEY_DEFAULT_REMOTE_IP = PACKAGE_NAME+".KEY_DEFAULT_REMOTE_IP";
+    private static final String KEY_DEFAULT_PORT = PACKAGE_NAME+".KEY_DEFAULT_PORT";
+    private static final String KEY_WRITE_SETTINGS_PERMISSION = PACKAGE_NAME+".WRITE_SETTINGS_PERMISSION_KEY";
 
-    static final String KEY_WRITE_SETTINGS_PERMISSION = AppGlobals.PACKAGE_BASE_NAME +
-            ".WRITE_SETTINGS_PERMISSION_KEY";
+    private static final int REQUEST_WRITE_SETTINGS_PERMISSION = 234;
 
-    static final int REQUEST_WRITE_SETTINGS_PERMISSION = 234;
+    private static final int SENSOR_ID_NETWORK = 0;
+    private static final int SENSOR_ID_HOTSPOT = 1;
 
-    static final String[] WRITE_SETTINGS_PERMISSIONS = {
-            android.Manifest.permission.WRITE_SETTINGS,
-    };
+    //private boolean isWriteSettingGranted = false;
+    private boolean mbWifiSettingsEnabled = false;
+    //private boolean mbHotspotSettingsEnabled = false;
+    private boolean mbIsWifiAvailable = false;
 
-    private boolean isWriteSettingGranted = false;
+    private boolean mbIsServerMode = false;
 
-    private static Context appContext;
+    private final WifiManager mWifiManager;
 
-    private WifiManager mWifiManager;
-    private ServerSocket mServerSocket;
     private BroadcastReceiver mWifiStateChangedReceiver;
-    private String mIpAddress;
-    private OnWifiNetworkInteractionListener mListener;
 
     private Method wifiControlMethod;
     private Method wifiApConfigurationMethod;
     private Method wifiApState;
 
-    private String command = "x";
+    private String mIpAddress;
+    private int mPort;
+
+    private ServerSocket mServerSocket;
+    private Socket mConnSocket;
+
     private PrintWriter output;
     private BufferedReader input;
 
-    private HandlerThread mServerThread;
-    private HandlerThread mInputThread;
-    private HandlerThread mOutputThread;
-    private Handler mServerHandler;
-    private Handler mInputHandler;
-    private Handler mOutputHandler;
-    private Handler mUiHandler = new Handler();
-
     private ServerTask mServerTask;
+    private InputTask mInputTask;
 
+    private String command = "x";
 
-    public MyWifiManager(Context context, OnWifiNetworkInteractionListener listener) {
-        appContext = context;
-        mListener = listener;
-        //mUiHandler = new Handler(appContext.getMainLooper());
-        mWifiManager = (WifiManager) appContext.getSystemService(WIFI_SERVICE);
+    /* ==================================== Construction ======================================== */
 
-        //isWriteSettingGranted = this.hasWriteSettingsPermission(appContext);
+    public MyWifiManager(Context context) {
+
+        super(context);
+        mWifiManager = (WifiManager) context.getApplicationContext().getSystemService(WIFI_SERVICE);
+
+        mIpAddress = getDefaultIpAddress(context);
+        mPort = getDefaultPort(context);
     }
 
-    public boolean getAvailableFlag() {
-        return isWriteSettingGranted;
+    /* ===================================== Core Tasks ========================================= */
+
+    /* -------------------------------------- Support ------------------------------------------- */
+
+    @Override
+    protected boolean resolveSupport(Context context) {
+        return context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI);
     }
+
+    /* ----------------------------- Requirements & Permissions --------------------------------- */
 
     public static int getRequestPermissionCode() {
         return REQUEST_WRITE_SETTINGS_PERMISSION;
-    }
-
-    public static String[] getPermissions() {
-        return WRITE_SETTINGS_PERMISSIONS;
     }
 
     public static String getPermissionKey() {
         return KEY_WRITE_SETTINGS_PERMISSION;
     }
 
-    public static void getSensorRequirements(Context mContext, SensorsContainer sensors) {
+    @Override
+    protected List<Requirement> getRequirements() {
 
-        // add requirements
-        if (!sensors.getRequirements().contains(ActivityRequirements.Requirement.PERMISSIONS)) {
+        // A wireless connection req means adapter is enabled,
+        // a comm socket can be opened, and
+        // the remote server responds to test command
+        return Collections.singletonList(Requirement.WIRELESS_CONNECTION);
+    }
 
-            sensors.addRequirement(ActivityRequirements.Requirement.PERMISSIONS);
+    @Override
+    public boolean passedAllRequirements() {
+
+        return isSettingsEnabled() && mbIsWifiAvailable;
+    }
+
+    @Override
+    protected void updateRequirementsState(Context context) {
+
+        List<ActivityRequirements.Requirement> requirements = getRequirements();
+        if (requirements == null || requirements.isEmpty()) {
+            Log.d(TAG, "No requirements to update");
+            return;
         }
 
-        // add permissions
-        for (String perm : WRITE_SETTINGS_PERMISSIONS) {
-            sensors.addPermission(perm);
+        // permissions
+        if (requirements.contains(ActivityRequirements.Requirement.PERMISSIONS)) {
+
+            updatePermissionsState(context);
         }
+
+        // settings is enabled
+        if (requirements.contains(ActivityRequirements.Requirement.WIRELESS_CONNECTION)) {
+
+            updateSettingsEnabled();
+        }
+    }
+
+    @Override
+    protected void resolveRequirements(Context context) {
+
+        List<ActivityRequirements.Requirement> requirements = getRequirements();
+        if (requirements == null || requirements.isEmpty()) {
+            Log.d(TAG, "No requirements to resolve");
+            return;
+        }
+
+        // permissions
+        if (requirements.contains(ActivityRequirements.Requirement.PERMISSIONS)) {
+            if (!hasAllPermissions()) {
+                resolvePermissions();
+                return;
+            }
+        }
+
+        // wifi setting enabled & a connection is established
+        if (requirements.contains(Requirement.WIRELESS_CONNECTION)) {
+            if (mRequirementRequestListener != null) {
+                // the fragment should deal with attached state and permission (request permissions)
+                mRequirementRequestListener.requestResolution(WiNetReqFragment.newInstance());
+            }
+        }
+    }
+
+    // todo: override onActivityResult??
+
+    @Override
+    public List<String> getPermissions() {
+
+        //return Collections.singletonList(Manifest.permission.WRITE_SETTINGS);
+        // no permissions is required
+        return new ArrayList<>();
+    }
+
+    @Override
+    public void onSettingsChanged(Context context, Intent intent) {
+
+        String action = intent.getAction();
+        if (action.matches(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION) ||
+                action.matches(WifiManager.NETWORK_STATE_CHANGED_ACTION))  {
+
+            Log.i(TAG, "Network Providers changed");
+            updateSettingsEnabled();
+        }
+    }
+
+    @Override
+    public boolean isSettingsEnabled() { return isWifiEnabled(); }// || isHotspotEnabled(); }
+
+    public boolean isWifiEnabled() { return mbWifiSettingsEnabled; }
+    //public boolean isHotspotEnabled() { return mbHotspotSettingsEnabled; }
+
+    @Override
+    public void updateSettingsEnabled() {
+
+        // wifi
+        mbWifiSettingsEnabled = mWifiManager.isWifiEnabled();
+
+        // hotspot
+        //mbHotspotSettingsEnabled = checkHsEnabled();
+    }
+
+    @Override
+    public void enableSettingsRequirement(Context context) {
+
+        if (!isSettingsEnabled()) {
+            // prompt the user to enable wifi
+            Toast.makeText(context, "Please Enable the WiFi Network", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+
+    private boolean checkHsEnabled() {
+
+        try {
+            Method method = mWifiManager.getClass().getDeclaredMethod("getWifiApState");
+            method.setAccessible(true);
+            int actualState = (Integer) method.invoke(mWifiManager, (Object[]) null);
+            return actualState != WIFI_AP_STATE_FAILED;
+        }
+        catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public boolean hasWriteSettingsPermission(Context context) {
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return Settings.System.canWrite(context);
+        }
+        else {
+            return this.hasAllPermissions();
+        }
+    }
+
+    /* -------------------------------- Lifecycle Management ------------------------------------ */
+
+    @Override
+    public void execute(Context context, LifeCycleState state) {
+
+        if (state == LifeCycleState.ACT_CREATED) {
+
+            super.execute(context, state); // register/unregister br receivers
+        }
+        else if (state == LifeCycleState.ACT_DESTROYED) {
+
+            this.close();
+            super.execute(context, state);
+        }
+    }
+
+    @Override
+    public void registerBrReceivers(Context context, LifeCycleState state) {
+
+        if (state == LifeCycleState.ACT_CREATED) {
+
+            if (mWifiStateChangedReceiver == null) {
+                mWifiStateChangedReceiver = new WifiStateBrReceiver(this);
+            }
+            IntentFilter intentFilter = new IntentFilter();
+            intentFilter.addAction(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION);
+            intentFilter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
+            context.registerReceiver(mWifiStateChangedReceiver, intentFilter);
+            Log.i(TAG, "registered WifiStateReceiver");
+        }
+        else if (state == LifeCycleState.ACT_DESTROYED) {
+
+            if (mWifiStateChangedReceiver != null) {
+                context.unregisterReceiver(mWifiStateChangedReceiver);
+                mWifiStateChangedReceiver = null;//new WifiStateBrReceiver();
+                Log.i(TAG, "unregistered WifiStateReceiver");
+            }
+        }
+    }
+
+    /* ----------------------------------- Message Passing -------------------------------------- */
+
+    @Override
+    protected String getResourceId(MyResourceIdentifier resId) {
+
+        if (resId == null) {
+            return "Unknown_Sensor";
+        }
+
+        int id = resId.getId();
+        if (id == SENSOR_ID_NETWORK) {
+            return "Wifi_Network";
+        }
+        else if (id == SENSOR_ID_HOTSPOT) {
+            return "Wifi_Hotspot";
+        }
+        else {
+            return "Unknown_Sensor";
+        }
+    }
+
+    @Override
+    protected List<Pair<String, MyMessages.MsgConfig>> getStorageConfigMessages(MySensorInfo sensor) {
+
+        // no storage for now
+        return new ArrayList<>();
+    }
+
+    /* ====================================== Networking ======================================== */
+
+    /* ----------------------------------- Getters/Setters -------------------------------------- */
+
+    @Override
+    public List<MySensorGroup> getSensorGroups(Context context) {
+
+        if (mlSensorGroup != null) {
+            return mlSensorGroup;
+        }
+
+        List<MySensorGroup> sensorGroups = new ArrayList<>();
+        List<MySensorInfo> sensors = new ArrayList<>();
 
         // add sensors:
-        // there are no sensors here
+        sensors.add(new MySensorInfo(SENSOR_ID_NETWORK, "Wifi Network"));
+        sensors.add(new MySensorInfo(SENSOR_ID_HOTSPOT, "Wifi Hotspot"));
+
+        sensorGroups.add(new MySensorGroup(MySensorGroup.getNextGlobalId(),
+                MySensorGroup.SensorType.TYPE_WIRELESS_NETWORK, "Wireless Network", sensors));
+
+        return sensorGroups;
     }
 
     public String getMessage() {
         return command;
     }
 
-    public static String getDefaultIpAddress() {
-        return DEFAULT_IP_ADDRESS;
+
+    public void setDefaultIp(String ip) { if (isValidIP(ip)) mIpAddress = ip; }
+    public String getDefaultIp() { return mIpAddress; }
+
+    public void setDefaultPort(int port) { mPort = port; }
+    public int getDefaultPort() { return mPort; }
+
+    private static String getDefaultIpAddress(Context context) {
+        return MyStateManager.getStringPref(context,KEY_DEFAULT_REMOTE_IP,DEFAULT_IP_ADDRESS);
     }
 
-    public static String getDefaultHotspotIp(Context context) {
+    private static String getDefaultHotspotIp(Context context) {
         return MyStateManager.getStringPref(context,KEY_DEFAULT_HOTSPOT_IP,DEFAULT_HOTSPOT_IP);
     }
 
-    public static void setDefaultHotspotIp(Context context, String hIp) {
-        MyStateManager.setStringPref(context,KEY_DEFAULT_HOTSPOT_IP,hIp);
-    }
-
-    public static int getDefaultPort(Context context) {
+    private static int getDefaultPort(Context context) {
         return MyStateManager.getIntegerPref(context,KEY_DEFAULT_PORT,DEFAULT_PORT);
-    }
-
-    public static void setDefaultPort(Context context, int port) {
-        MyStateManager.setIntegerPref(context,KEY_DEFAULT_PORT,port);
     }
 
     public static String getDefaultTestCommand() {
         return DEFAULT_TEST_COMMAND;
     }
 
-    public boolean hasWriteSettingsPermission(Context context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            return Settings.System.canWrite(context);
-        } else {
-            return MyPermissionManager.hasAllPermissions(
-                context,getPermissions(),getPermissionKey());
-        }
+    public void saveRemoteIpAndPort(Context context) {
+        MyStateManager.setStringPref(context, KEY_DEFAULT_REMOTE_IP, mIpAddress);
+        MyStateManager.setIntegerPref(context, KEY_DEFAULT_PORT, mPort);
     }
 
-    public void init() {
-        registerBrReceivers();
-        startBackgroundThreads();
-    }
+    public void setServerMode(boolean state) { mbIsServerMode = state; }
 
-    public void clean() {
-        unregisterBrReceivers();
-        stopBackgroundThreads();
-    }
+    public boolean isServerMode() { return mbIsServerMode; }
 
-    private void startBackgroundThreads() {
-        startServerThread();
-        startInputThread();
-        startOutputThread();
-    }
+    public boolean isConnected() {
 
-    private void stopBackgroundThreads() {
-        stopServerThread();
-        stopInputThread();
-        stopOutputThread();
-    }
-
-    private void registerBrReceivers() {
-        registerWifiStateReciever();
-    }
-
-    private void unregisterBrReceivers() {
-        unregisterWifiStateReciever();
-    }
-
-    private void registerWifiStateReciever() {
-        if (mWifiStateChangedReceiver == null) {
-            mWifiStateChangedReceiver = new WifiStateBrReceiver();
-        }
-        IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION);
-        intentFilter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
-        appContext.registerReceiver(mWifiStateChangedReceiver, intentFilter);
-        Log.i(TAG, "registered WifiStateReceiver");
-    }
-    private void unregisterWifiStateReciever() {
-        if (mWifiStateChangedReceiver != null) {
-            appContext.unregisterReceiver(mWifiStateChangedReceiver);
-            mWifiStateChangedReceiver = null;//new WifiStateBrReceiver();
-            Log.i(TAG, "unregistered WifiStateReceiver");
-        }
-    }
-
-    /**
-     * Starts a background thread and its {@link Handler}.
-     */
-    private void startServerThread() {
-
-        mServerThread = new HandlerThread(TAG+"ServerBackground");
-        mServerThread.start();
-        Looper mServerLooper = mServerThread.getLooper();
-        mServerHandler = new Handler(mServerLooper);
-        Log.i(TAG, "Server Thread started successfully.");
-    }
-
-    /**
-     * Stops the background thread and its {@link Handler}.
-     */
-    private void stopServerThread() {
-
-        if (mServerSocket != null) {
-            try {
-                mServerSocket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        if (mServerThread == null) return;
-        mServerThread.quitSafely();
-        try {
-            mServerThread.join();
-            mServerThread = null;
-            mServerHandler = null;
-            Log.i(TAG, "Server Thread stopped successfully.");
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void startInputThread() {
-
-        mInputThread = new HandlerThread(TAG+"InputBackground");
-        mInputThread.start();
-        Looper mInputLooper = mInputThread.getLooper();
-        mInputHandler = new Handler(mInputLooper);
-        Log.i(TAG, "Input Thread started successfully.");
-    }
-
-    private void stopInputThread() {
-
-        if (mInputHandler == null) return;
-        mInputThread.quitSafely();
-        try {
-            mInputThread.join();
-            mInputThread = null;
-            mInputHandler = null;
-            Log.i(TAG, "Input Thread stopped successfully.");
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void startOutputThread() {
-
-        mOutputThread = new HandlerThread(TAG+"OutputBackground");
-        mOutputThread.start();
-        Looper mOutputLooper = mOutputThread.getLooper();
-        mOutputHandler = new Handler(mOutputLooper);
-        Log.i(TAG, "Output Thread started successfully.");
-    }
-
-    private void stopOutputThread() {
-
-        if (mOutputThread == null) return;
-        mOutputThread.quitSafely();
-        try {
-            mOutputThread.join();
-            mOutputThread = null;
-            mOutputHandler = null;
-            Log.i(TAG, "Output Thread stopped successfully.");
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        return isWifiEnabled() && mConnSocket != null;
     }
 
     /*-------------------------------------- Wifi Hotspot ----------------------------------------*/
 
+    // todo: use P2P instead of hotspot
+
     private void getHotspotMethods() {
         try {
             wifiControlMethod = mWifiManager.getClass().
-                    getMethod("setWifiApEnabled", WifiConfiguration.class,boolean.class);
+                    getMethod("setWifiApEnabled", WifiConfiguration.class, boolean.class);
             //wifiControlMethod.setAccessible(true);
             wifiApConfigurationMethod = mWifiManager.getClass().
                     getMethod("getWifiApConfiguration",null);
             wifiApState = mWifiManager.getClass().getMethod("getWifiApState");
             //or Method method = mWifiManager.getClass().getDeclaredMethod("isWifiApEnabled");
             //            method.setAccessible(true);
-        } catch (NoSuchMethodException e) {
+        }
+        catch (NoSuchMethodException e) {
             e.printStackTrace();
         }
     }
 
-    public boolean setWifiApState(boolean enabled) {
+    public boolean setWifiApState(Context context, boolean enabled) {
+
         if (mWifiManager == null) return false;
+
         if (wifiControlMethod == null) {
-            if (this.hasWriteSettingsPermission(appContext)) {
-                this.getHotspotMethods();
-            }
-            else {
+            //if (this.hasWriteSettingsPermission(context)) {
+            //    this.getHotspotMethods();
+            //}
+            //else {
                 return false;
-            }
+            //}
         }
         WifiConfiguration config = this.getWifiApConfiguration();
         try {
@@ -330,14 +457,17 @@ public class MyWifiManager {
                 mWifiManager.setWifiEnabled(!enabled);
             }
             return (Boolean) wifiControlMethod.invoke(mWifiManager, config, enabled);
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             Log.e(TAG, "", e);
             return false;
         }
     }
 
     private WifiConfiguration getWifiApConfiguration() {
+
         if (wifiApConfigurationMethod == null) return null;
+
         try {
             return (WifiConfiguration)wifiApConfigurationMethod.invoke(mWifiManager, null);
         }
@@ -347,10 +477,12 @@ public class MyWifiManager {
     }
 
     public int getWifiApState() {
+
         if (wifiApState == null) return WIFI_AP_STATE_FAILED;
         try {
             return (Integer) wifiApState.invoke(mWifiManager);
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             Log.e(TAG, "", e);
             return WIFI_AP_STATE_FAILED;
         }
@@ -364,94 +496,258 @@ public class MyWifiManager {
                 mWifiManager.setWifiEnabled(state);
                 Log.i(TAG, "Wifi State: " + state);
             } else {
-                mListener.onWifiEnabled();
+                //mListener.onWifiEnabled();
+                if (mRequirementResponseListener != null) {
+                    mRequirementResponseListener.onAvailabilityStateChanged(this);
+                }
                 Log.i(TAG, "Wifi has already enabled!");
             }
         }
     }
 
     public void startServer() {
-        //Maybe first enable wifi then do this!
-        mIpAddress = getLocalIpAddress();
-        Log.i(TAG, "Server IP: "+mIpAddress);
-        if (mServerTask == null) {
-            mServerTask = new ServerTask();
+
+        if (!isWifiEnabled() || mConnSocket != null) {
+            return;
         }
-        mServerHandler.post(mServerTask);
+
+        mIpAddress = getLocalIpAddress();
+        Log.i(TAG, "Server IP: "+ mIpAddress);
+
+        if (mPort < 0) {
+            mPort = DEFAULT_PORT;
+        }
+
+        doInBackground(new ServerTask(this, mPort));
     }
 
     public void stopServer() {
-        if (mServerTask != null) {
-            mServerHandler.removeCallbacks(mServerTask);
-            mServerTask = null;
+
+        if (mServerSocket != null) {
+            try {
+                Log.i(TAG, "Stopping server");
+                mServerSocket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            mServerSocket = null;
         }
     }
 
-    public void connectClient(final String addr, int port) {
-        if (port == -1) {
-            port = DEFAULT_PORT;
+    public void connectClient() {
+
+        if (!isWifiEnabled() || mConnSocket != null) {
+            return;
         }
-        //SERVER_IP = addr;
-        mServerHandler.post(new ConnectionTask(addr,port));
+
+        if (mPort < 0) {
+            mPort = DEFAULT_PORT;
+        }
+        //SERVER_IP = ip;
+        doInBackground(new ConnectionTask(this, mIpAddress, mPort));
     }
 
     public String getLocalIpAddress() {
+
         assert mWifiManager != null;
         WifiInfo wifiInfo = mWifiManager.getConnectionInfo();
         int ipInt = wifiInfo.getIpAddress();
+
         String res = null;
         try {
             res = InetAddress.getByAddress(ByteBuffer.allocate(4).
                     order(ByteOrder.LITTLE_ENDIAN).putInt(ipInt).array()).getHostAddress();
-        } catch (UnknownHostException e) {
+        }
+        catch (UnknownHostException e) {
             e.printStackTrace();
         }
         return res;
     }
 
     private void sendMessage(String msg) {
-        mOutputHandler.post(new OutputTask(msg));
+
+        // the remote input reader needs \n to detect lines
+        doInBackground(new OutputTask(msg+"\n"));
     }
 
-    public interface OnWifiNetworkInteractionListener {
-        void onWifiEnabled();
-        void onClientConnected();
-        void onInputReceived(String msg);
+    public void initTestSequence() {
+
+        if (!isWifiEnabled() || mConnSocket == null) {
+            return;
+        }
+
+        // send the test command
+        sendMessage(MyDrvWireless.getTestRequest());
+
+        // get the response elsewhere and check
     }
+
+    private void onTestResponseReceived() {
+
+        if (!isWifiEnabled()) {
+            mbIsWifiAvailable = false;
+            return;
+        }
+
+        Log.v(TAG, "Test response received successfully");
+
+        if (mConnSocket != null) {
+            mbIsWifiAvailable = true;
+        }
+
+        if (mRequirementResponseListener != null) {
+            mRequirementResponseListener.onAvailabilityStateChanged(this);
+        }
+    }
+
+    public void close() {
+
+        if (mInputTask != null) {
+            mInputTask.stop();
+            mInputTask = null;
+        }
+        if (mServerSocket != null) {
+            try {
+                mServerSocket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            mServerSocket = null;
+        }
+        if (mConnSocket != null) {
+            try {
+                mConnSocket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            mConnSocket = null;
+        }
+        if (output != null) {
+            output.close();
+            output = null;
+        }
+        if (input != null) {
+            //input.close();
+            input = null;
+        }
+
+        mbIsWifiAvailable = false;
+        updateSettingsEnabled();
+    }
+
+    @Override
+    public void onMessageReceived(MyMessages.MyMessage msg) {
+
+        if (msg == null) {
+            return;
+        }
+
+        // send module's messages to the remote server
+        if (msg instanceof MsgWireless) {
+            sendMessage(MyDrvWireless.encodeMessage((MsgWireless) msg));
+        }
+    }
+
+    /* ======================================== Helpers ========================================= */
+
+    public static boolean isValidIP(String ip) {
+        try {
+            if ( ip == null || ip.isEmpty() ) {
+                return false;
+            }
+
+            String[] parts = ip.split( "\\." );
+            if ( parts.length != 4 ) {
+                return false;
+            }
+
+            for ( String s : parts ) {
+                int i = Integer.parseInt( s );
+                if ( (i < 0) || (i > 255) ) {
+                    return false;
+                }
+            }
+            return !ip.endsWith(".");
+
+        } catch (NumberFormatException nfe) {
+            return false;
+        }
+    }
+
+    public static String getSuggestedInterfaces(boolean useIPv4, String sp) {
+
+        StringBuilder sb = new StringBuilder();
+
+        try {
+            List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
+            for (NetworkInterface intf : interfaces) {
+                List<InetAddress> addrs = Collections.list(intf.getInetAddresses());
+                for (InetAddress addr : addrs) {
+                    if (!addr.isLoopbackAddress()) {
+                        String sAddr = addr.getHostAddress();
+                        //boolean isIPv4 = InetAddressUtils.isIPv4Address(sAddr);
+                        boolean isIPv4 = sAddr != null && sAddr.indexOf(':')<0;
+
+                        if (useIPv4) {
+                            if (isIPv4) {
+                                sb.append(sp).append(intf.getDisplayName()).append(":\t").append(sAddr).append("\n");
+                            }
+                        }
+                        else {
+                            if (!isIPv4 && sAddr != null) {
+                                int delim = sAddr.indexOf('%'); // drop ip6 zone suffix
+                                String res = delim<0 ? sAddr.toUpperCase() : sAddr.substring(0, delim).toUpperCase();
+                                sb.append(sp).append(intf.getDisplayName()).append(":\t").append(res).append("\n");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ignored) {
+            sb.append("Error while trying to read interfaces\n");
+        } // for now eat exceptions
+        return sb.toString();
+    }
+
+    /* ======================================= Data Types ======================================= */
 
     class ServerTask implements Runnable {
+
+        private final MyBaseManager mManager;
+        private final int mPort;
+
+        public ServerTask(MyBaseManager manager, int port) {
+
+            mManager = manager;
+            mPort = port;
+        }
+
         @Override
         public void run() {
+
             Log.i(TAG, "Starting server service...");
-            Socket socket;
             try {
-                mServerSocket = new ServerSocket(DEFAULT_PORT);
-                mUiHandler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        /*tvMessages.setText("Not connected");
-                        tvIP.setText("IP: " + SERVER_IP);
-                        tvPort.setText("Port: " + String.valueOf(SERVER_PORT));*/
-                    }
-                });
-                try {
-                    Log.i(TAG, "Waiting for client to connect...");
-                    socket = mServerSocket.accept();
-                    output = new PrintWriter(socket.getOutputStream());
-                    input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                    mListener.onClientConnected();
-                    Log.i(TAG, "Client connected successfully.");
-//                    mUiHandler.post(new Runnable() {
-//                        @Override
-//                        public void run() {
-//                            //tvMessages.setText("Connected\n");
-//                        }
-//                    });
-                    mInputHandler.post(new InputTask());
-                } catch (IOException e) {
-                    e.printStackTrace();
+                mServerSocket = new ServerSocket(mPort);
+
+                Log.i(TAG, "Waiting for client to connect...");
+
+                mConnSocket = mServerSocket.accept();
+
+                output = new PrintWriter(mConnSocket.getOutputStream());
+                input = new BufferedReader(new InputStreamReader(mConnSocket.getInputStream()));
+
+                String mClientIp = mConnSocket.getRemoteSocketAddress().toString();
+                Log.i(TAG, mClientIp+" connected successfully.");
+
+                mInputTask = new InputTask();
+                doInBackground(mInputTask);
+
+                if (mRequirementResponseListener != null) {
+                    mRequirementResponseListener.onAvailabilityStateChanged(mManager);
                 }
-            } catch (IOException e) {
+            }
+            catch (IOException e) {
                 e.printStackTrace();
             }
         }
@@ -459,31 +755,43 @@ public class MyWifiManager {
 
     class ConnectionTask implements Runnable {
 
-        private String connAddr;
-        private int connPort;
+        private final MyBaseManager mManager;
+        private final String connIp;
+        private final int connPort;
 
-        ConnectionTask(String addr, int port) {
-            connAddr = addr;
+        ConnectionTask(MyBaseManager manager, String ip, int port) {
+
+            mManager = manager;
+            connIp = ip;
             connPort = port;
         }
 
         public void run() {
-            Log.i(TAG, "Connection task started...");
-            Socket socket;
+
             try {
-                socket = new Socket(connAddr, connPort);
-                output = new PrintWriter(socket.getOutputStream());
-                input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                Log.i(TAG, "Connected to "+connAddr+':'+connPort);
-                mUiHandler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        //tvMessages.setText("Connected\n");
-                    }
-                });
-                //say hello to server
-                mOutputHandler.post(new OutputTask("Hello Server!"));
-            } catch (IOException e) {
+                Log.i(TAG, "Connection task started...");
+
+                mConnSocket = new Socket(connIp, connPort);
+
+                output = new PrintWriter(mConnSocket.getOutputStream());
+                input = new BufferedReader(new InputStreamReader(mConnSocket.getInputStream()));
+
+                String clientIp = mConnSocket.getLocalSocketAddress().toString();
+                Log.i(TAG, clientIp+" connected to "+ connIp +':'+connPort);
+
+                // read data from the server
+                mInputTask = new InputTask();
+                doInBackground(mInputTask);
+
+                // initiate test sequence
+                //initTestSequence();
+
+                if (mRequirementResponseListener != null) {
+                    mRequirementResponseListener.onAvailabilityStateChanged(mManager);
+                }
+            }
+            catch (IOException e) {
+                close();
                 e.printStackTrace();
             }
         }
@@ -491,33 +799,45 @@ public class MyWifiManager {
 
     private class InputTask implements Runnable {
 
-        char inChar = 0;
         boolean isRunning = true;
 
         @Override
         public void run() {
+
             Log.i(TAG, "Input service started successfully.");
+
             while (isRunning) {
+
                 try {
+                    if (input == null) {
+                        this.stop();
+                        close();
+                        return;
+                    }
+
                     command = input.readLine();
-                    //inChar = (char) input.read();
                     if (command != null) {
-                        mListener.onInputReceived(command);
-                        //inChar = command.charAt(0);
-                        Log.v(TAG, "Client: "+command);
-                        /*mUiHandler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                //tvMessages.append("client:" + message + "\n");
-                            }
-                        });*/
-                        //mOutputHandler.post(new OutputTask("Hello alie."));
+
+                        MsgWireless msg = MyDrvWireless.decodeMessage(command);
+
+                        if (MyDrvWireless.matchesTestRequest(msg)) {
+                            MsgWireless res = new MsgWireless(MsgWireless.WirelessCommand.TEST, DEFAULT_TEST_RESPONSE);
+                            sendMessage(MyDrvWireless.encodeMessage(res));
+                        }
+                        else if (MyDrvWireless.matchesTestResponse(msg)) {
+                            onTestResponseReceived();
+                        }
+                        else {
+                            publishMessage(msg);
+                        }
+                        Log.v(TAG, "Remote: "+msg);
                     }
                     else {
                         //startServer();
                         return;
                     }
-                } catch (IOException e) {
+                }
+                catch (IOException e) {
                     e.printStackTrace();
                 }
             }
@@ -529,23 +849,25 @@ public class MyWifiManager {
     }
 
     class OutputTask implements Runnable {
-        private String message;
+
+        private final String message;
+
         OutputTask(String message) {
             this.message = message;
         }
+
         @Override
         public void run() {
+
+            if (output == null) {
+                close();
+                return;
+            }
+
             Log.i(TAG, "Output service started successfully.");
             output.write(message);
             output.flush();
             Log.i(TAG, "message: "+message+" sent successfully.");
-            mUiHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    //tvMessages.append("server: " + message + "\n");
-                    //etMessage.setText("");
-                }
-            });
         }
     }
 
@@ -556,6 +878,12 @@ public class MyWifiManager {
     private class WifiStateBrReceiver extends BroadcastReceiver {
 
         //private static final String TAG = "WifiStateBrReceiver";
+
+        private final MyBaseManager mManager;
+
+        private WifiStateBrReceiver(MyBaseManager manager) {
+            this.mManager = manager;
+        }
 
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -592,7 +920,10 @@ public class MyWifiManager {
                     case WifiManager.WIFI_STATE_UNKNOWN:
                         //this happens when user activates hotspot manually!
                         Log.i(TAG, "WIFI_STATE_UNKNOWN");
-                        mListener.onWifiEnabled();
+                        //mListener.onWifiEnabled();
+                        if (mRequirementResponseListener != null) {
+                            mRequirementResponseListener.onAvailabilityStateChanged(mManager);
+                        }
                         break;
                 }
             }
@@ -601,7 +932,7 @@ public class MyWifiManager {
 
                 isConnectedViaWifi(intent);
 
-                isConnectedViaWifi();
+                isConnectedViaWifi(context);
             }
             else if (action.equalsIgnoreCase(WifiManager.WIFI_STATE_CHANGED_ACTION)) {
                 Log.d(TAG, "WIFI_STATE_CHANGED_ACTION");
@@ -620,7 +951,10 @@ public class MyWifiManager {
                 //boolean connected = info.isConnected();
                 if (netInfo.getDetailedState().equals(NetworkInfo.DetailedState.CONNECTED)) {
                     Log.d(TAG, "Network state: connected");
-                    mListener.onWifiEnabled();
+                    //mListener.onWifiEnabled();
+                    if (mRequirementResponseListener != null) {
+                        mRequirementResponseListener.onAvailabilityStateChanged(mManager);
+                    }
                 }
 
                 //call your method
@@ -629,9 +963,9 @@ public class MyWifiManager {
             //mWifiStateChangedReceiver = null;
         }
 
-        private boolean isConnectedViaWifi() {
+        private boolean isConnectedViaWifi(Context context) {
             ConnectivityManager conManager =
-                    (ConnectivityManager) appContext.getSystemService(Context.CONNECTIVITY_SERVICE);
+                    (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
             NetworkInfo mWifiInfo = conManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
 
             if (mWifiInfo != null &&
@@ -649,9 +983,9 @@ public class MyWifiManager {
             return mWifiInfo.isConnected();
         }
 
-        private void checkNetworkConnectivity() {
+        private void checkNetworkConnectivity(Context context) {
             ConnectivityManager conMan =
-                    (ConnectivityManager) appContext.getSystemService(Context.CONNECTIVITY_SERVICE);
+                    (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
             while (conMan.getActiveNetworkInfo() == null ||
                     conMan.getActiveNetworkInfo().getState() != NetworkInfo.State.CONNECTED) {
                 try {
@@ -681,12 +1015,11 @@ public class MyWifiManager {
             return false;
         }
 
-        private String getWifiNetSSID() {
+        private String getWifiNetSSID(Context context) {
             // e.g. To check the Network Name or other info:
-            WifiManager wifiManager = (WifiManager) appContext.getSystemService(Context.WIFI_SERVICE);
+            WifiManager wifiManager = (WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
             WifiInfo wifiInfo = wifiManager.getConnectionInfo();
-            String ssid = wifiInfo.getSSID();
-            return ssid;
+            return wifiInfo.getSSID();
         }
     }
 }
