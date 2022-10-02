@@ -15,6 +15,7 @@ import android.view.ViewGroup;
 import android.widget.Toast;
 
 import com.dayani.m.roboplatform.managers.MyBaseManager;
+import com.dayani.m.roboplatform.managers.MyBluetoothManager;
 import com.dayani.m.roboplatform.managers.MyWifiManager;
 import com.dayani.m.roboplatform.utils.AppGlobals;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
@@ -108,6 +109,9 @@ public class ServerWaitConnFragment extends Fragment implements View.OnClickList
         if (mManager instanceof MyWifiManager) {
             ((MyWifiManager) mManager).startServer();
         }
+        else if (mManager instanceof MyBluetoothManager) {
+            ((MyBluetoothManager) mManager).startServer();
+        }
     }
 
     private void stopServer() {
@@ -115,20 +119,27 @@ public class ServerWaitConnFragment extends Fragment implements View.OnClickList
         if (mManager instanceof MyWifiManager) {
             ((MyWifiManager) mManager).stopServer();
         }
+        if (mManager instanceof MyBluetoothManager) {
+            ((MyBluetoothManager) mManager).stopServer();
+        }
     }
 
     @Override
     public void onAvailabilityStateChanged(MyBaseManager manager) {
 
+        boolean bIsConnected = false;
         if (mManager instanceof MyWifiManager) {
+            bIsConnected = ((MyWifiManager) mManager).isConnected();
+        }
+        else if (mManager instanceof MyBluetoothManager) {
+            bIsConnected = true; // todo: check connection
+        }
 
-            MyWifiManager mWifi = (MyWifiManager) mManager;
-            if (mWifi.isConnected()) {
-
-                Log.i(TAG, "starting control panel fragment");
-                Fragment frag = ControlPanelFragment.newInstance(mManager.getClass().getSimpleName());
-                MainActivity.startNewFragment(getParentFragmentManager(), R.id.fragment_container_view, frag, "control-panel");
-            }
+        if (bIsConnected) {
+            Log.i(TAG, "starting control panel fragment");
+            Fragment frag = ControlPanelFragment.newInstance(mManager.getClass().getSimpleName());
+            MainActivity.startNewFragment(getParentFragmentManager(),
+                    R.id.fragment_container_view, frag, "control-panel");
         }
     }
 }

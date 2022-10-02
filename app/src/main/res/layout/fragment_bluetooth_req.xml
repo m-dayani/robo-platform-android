@@ -1,68 +1,86 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:padding="4dp"
     tools:context=".requirements.BluetoothReqFragment">
 
-    <LinearLayout
+    <Button
+        android:id="@+id/enableBluetooth"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="@string/enable_bluetooth"
+        app:layout_constraintBottom_toTopOf="@+id/devNameTxtEdit"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/devNameTxtEdit"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:ems="10"
+        android:hint="@string/blth_server_name"
+        android:padding="5dp"
+        android:textColorHint="#546E7A"
+        android:textSize="18sp"
+        app:layout_constraintBottom_toTopOf="@id/btnFindRemote"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/enableBluetooth" />
+
+    <Button
+        android:id="@+id/btnFindRemote"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="@string/txt_find_remote_server"
+        app:layout_constraintBottom_toTopOf="@+id/btnInitTest"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/devNameTxtEdit"/>
+
+    <Button
+        android:id="@+id/btnInitTest"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="@string/run_test"
+        app:layout_constraintBottom_toTopOf="@+id/startServer"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/btnFindRemote"/>
+
+    <Button
+        android:id="@+id/startServer"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="@string/start_server"
+        app:layout_constraintBottom_toTopOf="@+id/pairedDevsTitle"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/btnInitTest"/>
+
+
+    <TextView
+        android:id="@+id/pairedDevsTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:padding="8dp"
+        android:text="@string/txt_paired_devices"
+        app:layout_constraintBottom_toTopOf="@+id/foundPeers"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/startServer" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/foundPeers"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:dividerPadding="5dp"
-        android:orientation="vertical"
-        android:padding="10dp"
-        tools:ignore="UselessParent">
+        android:layout_height="0dp"
+        android:padding="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/pairedDevsTitle" />
 
-
-        <Button
-            android:id="@+id/enableBluetooth"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/enable_bluetooth" />
-
-        <TextView
-            android:id="@+id/devNameTxtEdit"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ems="10"
-            android:hint="@string/blth_server_name"
-            android:padding="5dp"
-            android:textSize="18sp" />
-
-        <EditText
-            android:id="@+id/serviceUuidTxtEdit"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ems="10"
-            android:hint="@string/service_uuid"
-            android:inputType="number" />
-
-        <LinearLayout
-            android:id="@+id/wiNetActionsContainer"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical" >
-
-            <Button
-                android:id="@+id/startServer"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/start_server" />
-
-            <Button
-                android:id="@+id/saveServiceUuid"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/save_as_default_service" />
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/statView"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:padding="30dp"
-            android:textAlignment="center" />
-
-    </LinearLayout>
-
-</FrameLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

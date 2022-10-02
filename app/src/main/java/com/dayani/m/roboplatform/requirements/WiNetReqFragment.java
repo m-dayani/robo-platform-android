@@ -96,7 +96,7 @@ public class WiNetReqFragment extends Fragment
         portTxt = mView.findViewById(R.id.portTxtEdit);
         portTxt.setText(String.format(Locale.US, "%d", mWifi.getDefaultPort()));
 
-        reportTxt = mView.findViewById(R.id.statView);
+        reportTxt = mView.findViewById(R.id.foundPeers);
         //reportTxt.setText(getString(R.string.establish_wifi_conn_proc));
 
         actionsContainer = mView.findViewById(R.id.wiNetActionsContainer);
@@ -167,7 +167,7 @@ public class WiNetReqFragment extends Fragment
         }
         else if (id == R.id.testWirelessConn) {
 
-            mWifi.initTestSequence();
+            mWifi.handleTestAsynchronous(null);
         }
         else {
             Log.e(TAG, "Undefined Action");
@@ -199,8 +199,11 @@ public class WiNetReqFragment extends Fragment
     public void onAvailabilityStateChanged(MyBaseManager manager) {
 
         Log.i(TAG, "Wifi availability is changed");
-        if (manager != null && manager.isAvailable()) {
-            this.permit();
+        if (manager != null) {
+            manager.updateAvailabilityAndCheckedSensors(requireActivity());
+            if (manager.isAvailable()) {
+                this.permit();
+            }
         }
     }
 }

@@ -38,7 +38,6 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
-import android.location.LocationManager;
 import android.os.Build;
 import android.os.SystemClock;
 import android.util.Log;
@@ -52,14 +51,14 @@ import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgConfig;
-import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MyMessage;
-import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageInfo;
-import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageConfig;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgStorage;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgUsb;
-import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgUsb.UsbCommand;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgUsb.MyControlTransferInfo;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgUsb.UsbCommand;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MyMessage;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MyUsbInfo;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageConfig;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageInfo;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -69,7 +68,7 @@ import java.util.Locale;
 import java.util.Map;
 
 
-public class MyUSBManager extends MyBaseManager {
+public class MyUSBManager extends MyBaseManager implements ActivityRequirements.ConnectivityTest {
 
     /* ===================================== Variables ========================================== */
 
@@ -94,10 +93,6 @@ public class MyUSBManager extends MyBaseManager {
             AppGlobals.PACKAGE_BASE_NAME+".USB_PERMISSION";
     public static final String ACTION_USB_AVAILABILITY =
             AppGlobals.PACKAGE_BASE_NAME+".ACTION_USB_AVAILABILITY";
-//    public static final String ACTION_SENSOR_RECEIVE =
-//            AppGlobals.PACKAGE_BASE_NAME+".USB_SENSOR_RECEIVE";
-
-    //private static final int SENSOR_UPDATE_INTERVAL_MILLIS = 256;
 
     private static final int SENSOR_ID = 0;
 
@@ -116,6 +111,7 @@ public class MyUSBManager extends MyBaseManager {
 
     private boolean mbIsPermitted = false;
     private boolean mbUsbDeviceAvailable = false;
+    private boolean mbPassedConnTest = false;
 
     // detect device detach events
     private BroadcastReceiver mUsbDetachedListener = null;
@@ -207,7 +203,8 @@ public class MyUSBManager extends MyBaseManager {
         if (tryOpenDeviceAndUpdateInfo()) {
 
             // 4. is this a V-USB device?
-            if (testDevice()) {
+            handleTestSynchronous(null);
+            if (passedConnectivityTest()) {
                 setUsbAvailability(true);
             }
 
@@ -740,7 +737,10 @@ public class MyUSBManager extends MyBaseManager {
         return usbInMsg;
     }
 
-    public boolean testDevice() {
+    @Override
+    public void handleTestSynchronous(MyMessage msg) {
+
+        // we don't use the msg here
 
         // send a two way command to query the device's internal code
         MsgUsb usbInMsg = sendDataCommand(UsbCommand.CMD_RUN_TEST, DEFAULT_TEST_IN_MESSAGE);
@@ -749,7 +749,21 @@ public class MyUSBManager extends MyBaseManager {
         Log.d(TAG, "testDevice, test result: "+ mRecMsg);
 
         // if response has expected values, return true
-        return mRecMsg != null && mRecMsg.equals(DEFAULT_TEST_OUT_MESSAGE);
+        mbPassedConnTest = mRecMsg.equals(DEFAULT_TEST_OUT_MESSAGE);
+
+        if (mRequirementResponseListener != null) {
+            mRequirementResponseListener.onAvailabilityStateChanged(this);
+        }
+    }
+
+    @Override
+    public void handleTestAsynchronous(MyMessage msg) {
+
+    }
+
+    @Override
+    public boolean passedConnectivityTest() {
+        return mbPassedConnTest;
     }
 
     private void populateDescriptionInfo() {

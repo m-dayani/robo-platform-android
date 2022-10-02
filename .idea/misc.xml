@@ -14,8 +14,9 @@
         <entry key="app/src/main/res/layout/activity_record_sensors2.xml" value="0.19375" />
         <entry key="app/src/main/res/layout/activity_settings.xml" value="0.1" />
         <entry key="app/src/main/res/layout/activity_test.xml" value="0.1" />
+        <entry key="app/src/main/res/layout/bt_peer_item.xml" value="0.33" />
         <entry key="app/src/main/res/layout/fragment_blank.xml" value="0.15367180417044424" />
-        <entry key="app/src/main/res/layout/fragment_bluetooth_req.xml" value="0.22" />
+        <entry key="app/src/main/res/layout/fragment_bluetooth_req.xml" value="0.25" />
         <entry key="app/src/main/res/layout/fragment_control_panel.xml" value="0.25" />
         <entry key="app/src/main/res/layout/fragment_front_panel.xml" value="0.22" />
         <entry key="app/src/main/res/layout/fragment_hotspot_req.xml" value="0.25" />

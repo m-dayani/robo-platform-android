@@ -20,7 +20,7 @@ public class MyDrvWireless {
 
     public static String encodeMessage(MsgWireless msg) {
 
-        return cmdToString(msg.getCmd())+CMD_SEPARATOR_CHAR+ msg;
+        return cmdToString(msg.getCmd())+CMD_SEPARATOR_CHAR+msg+"\n";
     }
 
     public static MsgWireless decodeMessage(String msg) {

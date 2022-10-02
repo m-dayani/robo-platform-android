@@ -226,7 +226,7 @@ public class TestActivity extends AppCompatActivity implements ActivityRequireme
             }
             else if (id == R.id.runTest) {
 
-                mUsb.testDevice();
+                mUsb.handleTestSynchronous(null);
             }
         }
 

@@ -44,11 +44,13 @@ import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.HandleEnableSettingsRequirement;
+import com.dayani.m.roboplatform.utils.interfaces.MyChannels;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgWireless;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
@@ -65,7 +67,8 @@ import java.util.Collections;
 import java.util.List;
 
 
-public class MyWifiManager extends MyBaseManager implements HandleEnableSettingsRequirement {
+public class MyWifiManager extends MyBaseManager implements HandleEnableSettingsRequirement,
+        ActivityRequirements.ConnectivityTest {
 
     /* ===================================== Variables ========================================== */
 
@@ -79,8 +82,8 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
     private static final String DEFAULT_HOTSPOT_IP = "192.168.43.1";
     private static final int DEFAULT_PORT = 27015;
 
-    public static final String DEFAULT_TEST_COMMAND = "wl-8749";
-    public static final String DEFAULT_TEST_RESPONSE = "wl-0462";
+//    public static final String DEFAULT_TEST_COMMAND = "wl-8749";
+//    public static final String DEFAULT_TEST_RESPONSE = "wl-0462";
 
     private static final String KEY_DEFAULT_HOTSPOT_IP = PACKAGE_NAME+".KEY_DEFAULT_HOTSPOT_IP";
     private static final String KEY_DEFAULT_REMOTE_IP = PACKAGE_NAME+".KEY_DEFAULT_REMOTE_IP";
@@ -90,12 +93,12 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
     private static final int REQUEST_WRITE_SETTINGS_PERMISSION = 234;
 
     private static final int SENSOR_ID_NETWORK = 0;
-    private static final int SENSOR_ID_HOTSPOT = 1;
 
     //private boolean isWriteSettingGranted = false;
     private boolean mbWifiSettingsEnabled = false;
     //private boolean mbHotspotSettingsEnabled = false;
     private boolean mbIsWifiAvailable = false;
+    private boolean mbPassedConnTest = false;
 
     private boolean mbIsServerMode = false;
 
@@ -116,10 +119,10 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
     private PrintWriter output;
     private BufferedReader input;
 
-    private ServerTask mServerTask;
+    //private ServerTask mServerTask;
     private InputTask mInputTask;
 
-    private String command = "x";
+    //private String command = "x";
 
     /* ==================================== Construction ======================================== */
 
@@ -177,14 +180,13 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
 
         // permissions
         if (requirements.contains(ActivityRequirements.Requirement.PERMISSIONS)) {
-
             updatePermissionsState(context);
         }
 
         // settings is enabled
         if (requirements.contains(ActivityRequirements.Requirement.WIRELESS_CONNECTION)) {
-
             updateSettingsEnabled();
+            mbIsWifiAvailable = isSettingsEnabled() && mConnSocket != null && mbPassedConnTest;
         }
     }
 
@@ -339,9 +341,6 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
         if (id == SENSOR_ID_NETWORK) {
             return "Wifi_Network";
         }
-        else if (id == SENSOR_ID_HOTSPOT) {
-            return "Wifi_Hotspot";
-        }
         else {
             return "Unknown_Sensor";
         }
@@ -369,17 +368,14 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
         List<MySensorInfo> sensors = new ArrayList<>();
 
         // add sensors:
+        // we can have different sensors for different purposes
+        // (Wifi-direct, Hotspot, Server, Client, ...), but this is enough for now
         sensors.add(new MySensorInfo(SENSOR_ID_NETWORK, "Wifi Network"));
-        sensors.add(new MySensorInfo(SENSOR_ID_HOTSPOT, "Wifi Hotspot"));
 
         sensorGroups.add(new MySensorGroup(MySensorGroup.getNextGlobalId(),
                 MySensorGroup.SensorType.TYPE_WIRELESS_NETWORK, "Wireless Network", sensors));
 
         return sensorGroups;
-    }
-
-    public String getMessage() {
-        return command;
     }
 
 
@@ -402,7 +398,7 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
     }
 
     public static String getDefaultTestCommand() {
-        return DEFAULT_TEST_COMMAND;
+        return MyDrvWireless.DEFAULT_TEST_COMMAND;
     }
 
     public void saveRemoteIpAndPort(Context context) {
@@ -507,7 +503,7 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
 
     public void startServer() {
 
-        if (!isWifiEnabled() || mConnSocket != null) {
+        if (!isSettingsEnabled() || mConnSocket != null) {
             return;
         }
 
@@ -529,14 +525,15 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
                 mServerSocket.close();
             } catch (IOException e) {
                 e.printStackTrace();
+            } finally {
+                mServerSocket = null;
             }
-            mServerSocket = null;
         }
     }
 
     public void connectClient() {
 
-        if (!isWifiEnabled() || mConnSocket != null) {
+        if (!isSettingsEnabled() || mConnSocket != null) {
             return;
         }
 
@@ -564,40 +561,49 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
         return res;
     }
 
-    private void sendMessage(String msg) {
+    @Override
+    public void handleTestSynchronous(MyMessages.MyMessage msg) {
 
-        // the remote input reader needs \n to detect lines
-        doInBackground(new OutputTask(msg+"\n"));
     }
 
-    public void initTestSequence() {
+    @Override
+    public void handleTestAsynchronous(MyMessages.MyMessage msg) {
 
-        if (!isWifiEnabled() || mConnSocket == null) {
+        if (!isSettingsEnabled() || mConnSocket == null) {
+            mbPassedConnTest = false;
             return;
         }
 
-        // send the test command
-        sendMessage(MyDrvWireless.getTestRequest());
+        if (msg == null) {
+            // init. test & send the test command
+            doInBackground(new OutputTask(output, MyDrvWireless.getTestRequest()));
+            // get the response elsewhere and check
+        }
+        else if (msg instanceof MsgWireless){
 
-        // get the response elsewhere and check
+            MsgWireless wlMsg = (MsgWireless) msg;
+
+            if (MyDrvWireless.matchesTestRequest(wlMsg)) {
+                MsgWireless res = new MsgWireless(MsgWireless.WirelessCommand.TEST,
+                        MyDrvWireless.DEFAULT_TEST_RESPONSE);
+                doInBackground(new OutputTask(output, MyDrvWireless.encodeMessage(res)));
+            }
+            else if (MyDrvWireless.matchesTestResponse(wlMsg)) {
+
+                Log.v(TAG, "Test response received successfully");
+
+                mbPassedConnTest = true;
+
+                if (mRequirementResponseListener != null) {
+                    mRequirementResponseListener.onAvailabilityStateChanged(this);
+                }
+            }
+        }
     }
 
-    private void onTestResponseReceived() {
-
-        if (!isWifiEnabled()) {
-            mbIsWifiAvailable = false;
-            return;
-        }
-
-        Log.v(TAG, "Test response received successfully");
-
-        if (mConnSocket != null) {
-            mbIsWifiAvailable = true;
-        }
-
-        if (mRequirementResponseListener != null) {
-            mRequirementResponseListener.onAvailabilityStateChanged(this);
-        }
+    @Override
+    public boolean passedConnectivityTest() {
+        return mbPassedConnTest;
     }
 
     public void close() {
@@ -644,7 +650,7 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
 
         // send module's messages to the remote server
         if (msg instanceof MsgWireless) {
-            sendMessage(MyDrvWireless.encodeMessage((MsgWireless) msg));
+            doInBackground(new OutputTask(output, MyDrvWireless.encodeMessage((MsgWireless) msg)));
         }
     }
 
@@ -712,7 +718,7 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
 
     /* ======================================= Data Types ======================================= */
 
-    class ServerTask implements Runnable {
+    private class ServerTask implements Runnable {
 
         private final MyBaseManager mManager;
         private final int mPort;
@@ -740,7 +746,7 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
                 String mClientIp = mConnSocket.getRemoteSocketAddress().toString();
                 Log.i(TAG, mClientIp+" connected successfully.");
 
-                mInputTask = new InputTask();
+                mInputTask = new InputTask(mManager, input);
                 doInBackground(mInputTask);
 
                 if (mRequirementResponseListener != null) {
@@ -753,7 +759,7 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
         }
     }
 
-    class ConnectionTask implements Runnable {
+    private class ConnectionTask implements Runnable {
 
         private final MyBaseManager mManager;
         private final String connIp;
@@ -780,7 +786,7 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
                 Log.i(TAG, clientIp+" connected to "+ connIp +':'+connPort);
 
                 // read data from the server
-                mInputTask = new InputTask();
+                mInputTask = new InputTask(mManager, input);
                 doInBackground(mInputTask);
 
                 // initiate test sequence
@@ -797,9 +803,17 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
         }
     }
 
-    private class InputTask implements Runnable {
+    public static class InputTask implements Runnable {
 
-        boolean isRunning = true;
+        private boolean isRunning = true;
+        private final BufferedReader mInput;
+        private final MyBaseManager mManager;
+
+        public InputTask(MyBaseManager manager, BufferedReader input) {
+
+            mManager = manager;
+            mInput = input;
+        }
 
         @Override
         public void run() {
@@ -809,26 +823,24 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
             while (isRunning) {
 
                 try {
-                    if (input == null) {
+                    if (mInput == null) {
                         this.stop();
-                        close();
+                        //close();
                         return;
                     }
 
-                    command = input.readLine();
+                    String command = mInput.readLine();
                     if (command != null) {
 
                         MsgWireless msg = MyDrvWireless.decodeMessage(command);
 
-                        if (MyDrvWireless.matchesTestRequest(msg)) {
-                            MsgWireless res = new MsgWireless(MsgWireless.WirelessCommand.TEST, DEFAULT_TEST_RESPONSE);
-                            sendMessage(MyDrvWireless.encodeMessage(res));
+                        if (MsgWireless.WirelessCommand.TEST.equals(msg.getCmd())) {
+                            if (mManager instanceof ActivityRequirements.ConnectivityTest) {
+                                ((ActivityRequirements.ConnectivityTest) mManager).handleTestAsynchronous(msg);
+                            }
                         }
-                        else if (MyDrvWireless.matchesTestResponse(msg)) {
-                            onTestResponseReceived();
-                        }
-                        else {
-                            publishMessage(msg);
+                        else if (mManager != null) {
+                            mManager.publishMessage(msg);
                         }
                         Log.v(TAG, "Remote: "+msg);
                     }
@@ -848,25 +860,27 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
         }
     }
 
-    class OutputTask implements Runnable {
+    public static class OutputTask implements Runnable {
 
+        private final PrintWriter mOutput;
         private final String message;
 
-        OutputTask(String message) {
+        OutputTask(PrintWriter output, String message) {
+            mOutput = output;
             this.message = message;
         }
 
         @Override
         public void run() {
 
-            if (output == null) {
-                close();
+            if (mOutput == null) {
+                //close();
                 return;
             }
 
             Log.i(TAG, "Output service started successfully.");
-            output.write(message);
-            output.flush();
+            mOutput.write(message);
+            mOutput.flush();
             Log.i(TAG, "message: "+message+" sent successfully.");
         }
     }

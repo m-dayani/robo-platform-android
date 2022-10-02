@@ -95,4 +95,11 @@
     <string name="txt_btn_w">W</string>
     <string name="txt_btn_e">E</string>
     <string name="txt_btn_q">Q</string>
+    <string name="btn_check_usb">Check USB</string>
+    <string name="btn_check_wifi">Check Wifi</string>
+    <string name="btn_check_bluetooth">Check Bluetooth</string>
+    <string name="txt_find_remote_server">Find Remote Server</string>
+    <string name="txt_peer_name">Peer Name</string>
+    <string name="txt_wifi">Wifi</string>
+    <string name="txt_paired_devices">Paired Devices:</string>
 </resources>

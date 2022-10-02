@@ -94,7 +94,7 @@ public class HotspotReqFragment extends Fragment
         ipAddressTxt.setText(mWifi.getDefaultIp());
         portTxt = mView.findViewById(R.id.portTxtEdit);
         portTxt.setText(Integer.toString(mWifi.getDefaultPort()));
-        reportTxt = mView.findViewById(R.id.statView);
+        reportTxt = mView.findViewById(R.id.foundPeers);
         actionsContainer = mView.findViewById(R.id.wiNetActionsContainer);
         this.updateViewState(actionsContainer, false);
 

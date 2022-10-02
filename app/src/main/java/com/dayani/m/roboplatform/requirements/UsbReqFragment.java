@@ -5,9 +5,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.EditText;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.fragment.app.Fragment;
@@ -40,7 +38,7 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
     EditText mVidEdit;
     EditText mDidEdit;
     TextView reportTxt;
-    LinearLayout usbActionView;
+    //LinearLayout usbActionView;
 
     private MyUSBManager mUsb = null;
 
@@ -110,10 +108,10 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
             mDidEdit.setText(String.format(Locale.US, "%d", mUsb.getDeviceId()));
         }
 
-        reportTxt = mView.findViewById(R.id.statView);
+        reportTxt = mView.findViewById(R.id.foundPeers);
 
-        usbActionView = mView.findViewById(R.id.usbOpenActionsContainer);
-        this.setActionsEnableState(false, usbActionView);
+        //usbActionView = mView.findViewById(R.id.usbOpenActionsContainer);
+        //this.setActionsEnableState(mUsb.isUsbDeviceAvailable(), usbActionView);
 
         return mView;
     }
@@ -123,6 +121,7 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
 
         int id = view.getId();
         if (id == R.id.enumDevs) {
+
             Log.d(TAG, "Enumerating devices");
             if (mUsb != null) {
                 String devices = MyUSBManager.usbDeviceListToString(mUsb.enumerateDevices());
@@ -133,33 +132,26 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
             }
         }
         else if (id == R.id.openDevice) {
+
             String vId = mVidEdit.getText().toString();
             String dId = mDidEdit.getText().toString();
             Log.d(TAG, "Open device: " + vId + ':' + dId);
             this.openDevice(Integer.parseInt(vId), Integer.parseInt(dId));
         }
         else if (id == R.id.saveDevice) {
+
             String vId = mVidEdit.getText().toString();
             String dId = mDidEdit.getText().toString();
             Log.d(TAG, "Save device: " + vId + ':' + dId);
             this.saveDeviceAsDefault(Integer.parseInt(vId), Integer.parseInt(dId));
         }
         else if (id == R.id.runTestBtn) {
+
             Log.d(TAG, "Running test");
-            this.runUsbTest();
+            mUsb.handleTestSynchronous(null);
         }
         else {
             Log.e(TAG, "Undefined Action");
-        }
-    }
-
-    private void setActionsEnableState(boolean state, LinearLayout view) {
-
-        if (view == null) return;
-
-        for (int i = 0; i < view.getChildCount(); i++) {
-            Button b = (Button) view.getChildAt(i);
-            b.setEnabled(state);
         }
     }
 
@@ -196,17 +188,6 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
         }
     }
 
-    private void runUsbTest() {
-
-        if (mUsb != null) {
-            boolean state = mUsb.testDevice();
-            if (state) {
-                reportTxt.setText(R.string.test_successful);
-                this.permit();
-            }
-        }
-    }
-
     private void permit() {
 
         Bundle bundle = new Bundle();
@@ -226,8 +207,15 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
     @Override
     public void onAvailabilityStateChanged(MyBaseManager manager) {
 
-        this.setActionsEnableState(true, usbActionView);
+        //this.setActionsEnableState(mUsb.isUsbDeviceAvailable(), usbActionView);
         //usbActionView.setEnabled(true);
         //maybe run some tests...
+        if (manager != null) {
+            manager.updateAvailabilityAndCheckedSensors(requireActivity());
+            if (manager.isAvailable()) {
+                reportTxt.setText(R.string.test_successful);
+                this.permit();
+            }
+        }
     }
 }

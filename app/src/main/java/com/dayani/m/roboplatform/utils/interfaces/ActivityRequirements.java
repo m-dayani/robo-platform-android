@@ -120,6 +120,12 @@ public class ActivityRequirements {
         void registerBrReceivers(Context context, MyBaseManager.LifeCycleState state);
     }
 
+    public interface ConnectivityTest {
+        void handleTestSynchronous(MyMessages.MyMessage msg);
+        void handleTestAsynchronous(MyMessages.MyMessage msg);
+        boolean passedConnectivityTest();
+    }
+
     public static class ManagerRequirementBroadcastReceiver extends BroadcastReceiver {
 
         private final MyBaseManager mManager;

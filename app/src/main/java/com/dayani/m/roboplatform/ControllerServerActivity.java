@@ -1,5 +1,12 @@
 package com.dayani.m.roboplatform;
 
+import android.content.Intent;
+import android.os.Bundle;
+import android.os.Handler;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+
 import androidx.activity.result.IntentSenderRequest;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -8,17 +15,8 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.lifecycle.ViewModelProvider;
 
-import android.content.Intent;
-import android.os.Bundle;
-import android.os.Handler;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-
 import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.managers.MyBluetoothManager;
-import com.dayani.m.roboplatform.managers.MySensorManager;
-import com.dayani.m.roboplatform.managers.MyUSBManager;
 import com.dayani.m.roboplatform.managers.MyWifiManager;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.interfaces.MyBackgroundExecutor;
@@ -153,9 +151,10 @@ public class ControllerServerActivity extends AppCompatActivity
     public static class ConnectionListFragment extends Fragment
             implements View.OnClickListener {
 
-        private static final String TAG = ConnectionListFragment.class.getSimpleName();
+        //private static final String TAG = ConnectionListFragment.class.getSimpleName();
 
         private MyWifiManager mWifiManager;
+        private MyBluetoothManager mBtManager;
 
         MyBackgroundExecutor.JobListener mBackgroundHandler;
 
@@ -176,9 +175,11 @@ public class ControllerServerActivity extends AppCompatActivity
 
             mWifiManager = (MyWifiManager) SensorsViewModel.getOrCreateManager(
                     context, mVM_Sensors, MyWifiManager.class.getSimpleName());
-
-            // set server mode
             mWifiManager.setServerMode(true);
+
+            mBtManager = (MyBluetoothManager) SensorsViewModel.getOrCreateManager(
+                    context, mVM_Sensors, MyBluetoothManager.class.getSimpleName());
+            mBtManager.setServerMode(true);
 
             if (context instanceof MyBackgroundExecutor.JobListener) {
                 mBackgroundHandler = (MyBackgroundExecutor.JobListener) context;
@@ -193,7 +194,6 @@ public class ControllerServerActivity extends AppCompatActivity
             View view = inflater.inflate(R.layout.activity_controller_server, container, false);
 
             view.findViewById(R.id.btnWifiServer).setOnClickListener(this);
-            view.findViewById(R.id.btnP2pServer).setOnClickListener(this);
             view.findViewById(R.id.btnBluetoothServer).setOnClickListener(this);
 
             return view;
@@ -209,6 +209,12 @@ public class ControllerServerActivity extends AppCompatActivity
 
                 if (!mWifiManager.isAvailable()) {
                     mWifiManager.resolveAvailability(context);
+                }
+            }
+            else if (id == R.id.btnBluetoothServer) {
+
+                if (!mBtManager.isAvailable()) {
+                    mBtManager.resolveAvailability(context);
                 }
             }
         }
