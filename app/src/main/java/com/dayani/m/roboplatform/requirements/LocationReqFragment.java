@@ -14,8 +14,8 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import com.dayani.m.roboplatform.R;
-import com.dayani.m.roboplatform.RequirementsFragment;
 import com.dayani.m.roboplatform.managers.MyLocationManager;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
 import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
 
@@ -128,9 +128,9 @@ public class LocationReqFragment extends Fragment implements View.OnClickListene
     private void permit() {
 
         Bundle bundle = new Bundle();
-        bundle.putBoolean(RequirementsFragment.KEY_REQUIREMENT_PASSED, true);
+        bundle.putBoolean(ActivityRequirements.KEY_REQUIREMENT_PASSED, true);
         getParentFragmentManager()
-                .setFragmentResult(RequirementsFragment.KEY_REQUIREMENT_PASSED_REQUEST, bundle);
+                .setFragmentResult(ActivityRequirements.KEY_REQUIREMENT_PASSED_REQUEST, bundle);
 
         // remove location requirement
         List<Requirement> reqs = mVM_Sensors.getRequirements().getValue();

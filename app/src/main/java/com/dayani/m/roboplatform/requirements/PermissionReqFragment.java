@@ -25,10 +25,10 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.dayani.m.roboplatform.R;
-import com.dayani.m.roboplatform.RequirementsFragment;
 import com.dayani.m.roboplatform.managers.MyPermissionManager;
 import com.dayani.m.roboplatform.managers.MyStateManager;
 import com.dayani.m.roboplatform.managers.MyStorageManager;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
 import com.dayani.m.roboplatform.utils.AppGlobals;
 import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
@@ -41,7 +41,7 @@ import java.util.List;
 /**
  * A simple {@link Fragment} subclass.
  * Activities that contain this fragment must implement the
- * {@link com.dayani.m.roboplatform.RequirementsFragment.OnRequirementsInteractionListener} interface
+ * {@link RequirementsFragment.OnRequirementsInteractionListener} interface
  * to handle interaction events.
  * Use the {@link PermissionReqFragment#newInstance} factory method to
  * create an instance of this fragment.
@@ -363,10 +363,10 @@ public class PermissionReqFragment extends Fragment implements View.OnClickListe
 
         // notify parent that this task is finished
         Bundle bundle = new Bundle();
-        bundle.putBoolean(RequirementsFragment.KEY_REQUIREMENT_PASSED, true);
+        bundle.putBoolean(ActivityRequirements.KEY_REQUIREMENT_PASSED, true);
         //bundle.putInt("KEY", Requirement.PERMISSIONS);
         getParentFragmentManager()
-                .setFragmentResult(RequirementsFragment.KEY_REQUIREMENT_PASSED_REQUEST, bundle);
+                .setFragmentResult(ActivityRequirements.KEY_REQUIREMENT_PASSED_REQUEST, bundle);
 
         // remove permission requirement
         List<Requirement> reqs = mVM_Sensors.getRequirements().getValue();

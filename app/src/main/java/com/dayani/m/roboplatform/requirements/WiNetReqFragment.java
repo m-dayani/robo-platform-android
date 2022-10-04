@@ -18,7 +18,6 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.dayani.m.roboplatform.MainActivity;
 import com.dayani.m.roboplatform.R;
-import com.dayani.m.roboplatform.RequirementsFragment;
 import com.dayani.m.roboplatform.ServerWaitConnFragment;
 import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.managers.MyWifiManager;
@@ -99,8 +98,8 @@ public class WiNetReqFragment extends Fragment
         reportTxt = mView.findViewById(R.id.foundPeers);
         //reportTxt.setText(getString(R.string.establish_wifi_conn_proc));
 
-        actionsContainer = mView.findViewById(R.id.wiNetActionsContainer);
-        this.updateViewState(actionsContainer, false);
+        //actionsContainer = mView.findViewById(R.id.wiNetActionsContainer);
+        //this.updateViewState(actionsContainer, false);
 
         // if wifi manager is in server mode:
         // disable the ip input, change connection text, and show available interfaces
@@ -187,9 +186,9 @@ public class WiNetReqFragment extends Fragment
     private void permit() {
 
         Bundle bundle = new Bundle();
-        bundle.putBoolean(RequirementsFragment.KEY_REQUIREMENT_PASSED, true);
+        bundle.putBoolean(ActivityRequirements.KEY_REQUIREMENT_PASSED, true);
         getParentFragmentManager()
-                .setFragmentResult(RequirementsFragment.KEY_REQUIREMENT_PASSED_REQUEST, bundle);
+                .setFragmentResult(ActivityRequirements.KEY_REQUIREMENT_PASSED_REQUEST, bundle);
 
         // remove current fragment and go back to last
         getParentFragmentManager().popBackStack();

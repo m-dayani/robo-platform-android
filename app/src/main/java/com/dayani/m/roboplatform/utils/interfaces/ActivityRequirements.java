@@ -18,11 +18,17 @@ import androidx.activity.result.IntentSenderRequest;
 import androidx.fragment.app.Fragment;
 
 import com.dayani.m.roboplatform.managers.MyBaseManager;
+import com.dayani.m.roboplatform.utils.AppGlobals;
 
 import java.util.List;
 import java.util.Map;
 
 public class ActivityRequirements {
+
+    public static final String KEY_REQUIREMENT_PASSED = AppGlobals.PACKAGE_BASE_NAME +
+            "key-requirement-passed";
+    public static final String KEY_REQUIREMENT_PASSED_REQUEST = AppGlobals.PACKAGE_BASE_NAME +
+            "key-requirement-passed-request";
 
     //Or go with enums but very hard for later use.
     public enum Requirement implements Parcelable {

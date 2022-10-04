@@ -12,7 +12,6 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.dayani.m.roboplatform.R;
-import com.dayani.m.roboplatform.RequirementsFragment;
 import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.managers.MyUSBManager;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
@@ -191,9 +190,9 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
     private void permit() {
 
         Bundle bundle = new Bundle();
-        bundle.putBoolean(RequirementsFragment.KEY_REQUIREMENT_PASSED, true);
+        bundle.putBoolean(ActivityRequirements.KEY_REQUIREMENT_PASSED, true);
         getParentFragmentManager()
-                .setFragmentResult(RequirementsFragment.KEY_REQUIREMENT_PASSED_REQUEST, bundle);
+                .setFragmentResult(ActivityRequirements.KEY_REQUIREMENT_PASSED_REQUEST, bundle);
 
         if (mUsb != null) {
             mUsb.updateAvailabilityAndCheckedSensors(requireActivity());

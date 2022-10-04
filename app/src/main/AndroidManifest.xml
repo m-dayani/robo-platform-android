@@ -53,11 +53,6 @@
             android:name=".RecordSensorsActivity"
             android:exported="false" />
 
-        <service
-            android:name=".SensorRecordService"
-            android:enabled="true"
-            android:exported="false" />
-
         <activity android:name=".CarManualControlActivity">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"

@@ -18,7 +18,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.dayani.m.roboplatform.MainActivity;
 import com.dayani.m.roboplatform.R;
-import com.dayani.m.roboplatform.RequirementsFragment;
 import com.dayani.m.roboplatform.ServerWaitConnFragment;
 import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.managers.MyBluetoothManager;
@@ -197,9 +196,9 @@ public class BluetoothReqFragment extends Fragment
         Log.d(TAG, "Connection requirement passed.");
 
         Bundle bundle = new Bundle();
-        bundle.putBoolean(RequirementsFragment.KEY_REQUIREMENT_PASSED, true);
+        bundle.putBoolean(ActivityRequirements.KEY_REQUIREMENT_PASSED, true);
         getParentFragmentManager()
-                .setFragmentResult(RequirementsFragment.KEY_REQUIREMENT_PASSED_REQUEST, bundle);
+                .setFragmentResult(ActivityRequirements.KEY_REQUIREMENT_PASSED_REQUEST, bundle);
 
         getParentFragmentManager().popBackStack();
     }
