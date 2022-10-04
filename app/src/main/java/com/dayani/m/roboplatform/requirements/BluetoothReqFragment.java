@@ -220,10 +220,14 @@ public class BluetoothReqFragment extends Fragment
     public void onItemClicked(String item) {
 
         if (mBlth != null) {
+
             // set bt manager's selected device
             mBlth.setDefaultDevice(item);
             Log.d(TAG, "Set default device: "+item);
-            mBlth.connectToRemote();
+
+            if (!mBlth.isServerMode()) {
+                mBlth.connectToRemote();
+            }
         }
     }
 }

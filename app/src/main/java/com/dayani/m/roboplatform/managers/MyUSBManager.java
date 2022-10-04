@@ -205,7 +205,12 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
             // 4. is this a V-USB device?
             handleTestSynchronous(null);
             if (passedConnectivityTest()) {
+
                 setUsbAvailability(true);
+
+                if (mRequirementResponseListener != null) {
+                    mRequirementResponseListener.onAvailabilityStateChanged(this);
+                }
             }
 
             // since this is a simple update operation, don't retain the communication
@@ -271,7 +276,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
             case START_RECORDING: {
 
                 if (this.isNotAvailableAndChecked()) {
-                    Log.w(TAG, "Cameras are not available, abort");
+                    Log.w(TAG, "USB is not available, abort");
                     return;
                 }
 
@@ -667,7 +672,6 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
             populateSensorInfo();
             return true;
         }
-
         return false;
     }
 
@@ -750,10 +754,6 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
 
         // if response has expected values, return true
         mbPassedConnTest = mRecMsg.equals(DEFAULT_TEST_OUT_MESSAGE);
-
-        if (mRequirementResponseListener != null) {
-            mRequirementResponseListener.onAvailabilityStateChanged(this);
-        }
     }
 
     @Override
@@ -834,7 +834,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
     public void initiateAdcSingleRead() {
 
         if (!this.isAvailable()) {
-            Log.w(TAG, "Cameras are not available, abort");
+            Log.w(TAG, "USB is not available, abort");
             return;
         }
 

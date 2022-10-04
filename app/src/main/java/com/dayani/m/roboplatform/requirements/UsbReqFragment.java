@@ -80,6 +80,8 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
     public void onDestroy() {
 
         if (mUsb != null) {
+
+            mUsb.setRequirementResponseListener(null);
             // maybe user has already opened the device
             mUsb.close();
         }
@@ -147,7 +149,8 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
         else if (id == R.id.runTestBtn) {
 
             Log.d(TAG, "Running test");
-            mUsb.handleTestSynchronous(null);
+            //mUsb.handleTestSynchronous(null);
+            mUsb.updateUsbAvailabilityState();
         }
         else {
             Log.e(TAG, "Undefined Action");
@@ -161,7 +164,7 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
             mUsb.setDeviceId(deviceId);
 
             if (!mUsb.canFindTargetDevice()) {
-                reportTxt.setText(String.format(Locale.US, "%s%d:%d",
+                reportTxt.setText(String.format(Locale.US, "%s: \"%d:%d\"",
                         getString(R.string.w_cannot_find_dev_header), vendorId, deviceId));
                 return;
             }
@@ -194,10 +197,6 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
         getParentFragmentManager()
                 .setFragmentResult(ActivityRequirements.KEY_REQUIREMENT_PASSED_REQUEST, bundle);
 
-        if (mUsb != null) {
-            mUsb.updateAvailabilityAndCheckedSensors(requireActivity());
-        }
-
         // remove USB requirement -> not necessary
         // remove current fragment and go back to last (requirements)
         getParentFragmentManager().popBackStack();
@@ -206,11 +205,9 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
     @Override
     public void onAvailabilityStateChanged(MyBaseManager manager) {
 
-        //this.setActionsEnableState(mUsb.isUsbDeviceAvailable(), usbActionView);
-        //usbActionView.setEnabled(true);
         //maybe run some tests...
         if (manager != null) {
-            manager.updateAvailabilityAndCheckedSensors(requireActivity());
+            //manager.updateAvailabilityAndCheckedSensors(requireActivity());
             if (manager.isAvailable()) {
                 reportTxt.setText(R.string.test_successful);
                 this.permit();

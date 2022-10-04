@@ -43,6 +43,7 @@ import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageConfig;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -439,8 +440,9 @@ public abstract class MyBaseManager implements ChannelTransactions,
             return;
         }
 
-        for (MsgConfig configMsg : mmResources.values()) {
+        for (Iterator<Map.Entry<String, MsgConfig>> iter = mmResources.entrySet().iterator(); iter.hasNext();) {
 
+            MsgConfig configMsg = iter.next().getValue();
             if (configMsg instanceof StorageConfig) {
 
                 StorageConfig storageConfig = (StorageConfig) configMsg;
@@ -448,6 +450,8 @@ public abstract class MyBaseManager implements ChannelTransactions,
                         storageConfig.getSender(), storageConfig.getStorageInfo());
 
                 publishMessage(closeMsg);
+
+                iter.remove();
             }
 
         }

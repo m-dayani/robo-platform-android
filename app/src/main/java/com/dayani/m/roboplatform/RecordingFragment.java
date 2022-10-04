@@ -95,6 +95,16 @@ public class RecordingFragment extends Fragment
     }
 
     @Override
+    public void onDestroy() {
+
+        for (MyBaseManager manager : mlManagers) {
+
+            manager.unregisterChannel(this);
+        }
+        super.onDestroy();
+    }
+
+    @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
 

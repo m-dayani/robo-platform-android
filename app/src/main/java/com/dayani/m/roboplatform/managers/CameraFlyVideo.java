@@ -345,6 +345,7 @@ public class CameraFlyVideo extends MyBaseManager {
                 super.execute(context, state);
                 // Also close camera if somewhere opened
                 closeCamera();
+                break;
             }
             case START_RECORDING: {
 
