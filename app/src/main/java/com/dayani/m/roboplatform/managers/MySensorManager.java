@@ -71,42 +71,8 @@ public class MySensorManager extends MyBaseManager {
 
     private final SensorManager mSensorManager;
 
-    private SensorEvent mSensorEvent;
 
-    private final SensorEventListener mSensorCallback = new SensorEventListener() {
-
-        @Override
-        public void onAccuracyChanged(android.hardware.Sensor sensor, int accuracy) {
-            // Do something here if sensor accuracy changes.
-        }
-
-        @Override
-        public void onSensorChanged(SensorEvent event) {
-
-            // The light sensor returns a single value.
-            // Many sensors return 3 values, one for each axis.
-            mSensorEvent = event;
-            doInBackground(sensorReceiveTask);
-        }
-    };
-
-    private final Runnable sensorReceiveTask = new Runnable() {
-
-        @Override
-        public void run() {
-            Log.d(TAG,"Processing Sensor receive job in background.");
-            handleEvent(mSensorEvent);
-        }
-
-        private void handleEvent(SensorEvent event) {
-
-            MyResourceIdentifier rId = new MyResourceIdentifier(event.sensor.getType(), -1);
-            int targetId = getTargetId(rId);
-
-            MyMessage sensorMsg = new MyMessages.MsgSensor(event, targetId);
-            publishMessage(sensorMsg);
-        }
-    };
+    private final SensorEventListener mSensorCallback = new MySensorListener(this);
 
     /* ==================================== Construction ======================================== */
 
@@ -165,9 +131,9 @@ public class MySensorManager extends MyBaseManager {
         mbIsPermitted = true;
     }
 
-    /*------------------------------------- Setters/Getters --------------------------------------*/
+    /* ----------------------------------- Setters/Getters -------------------------------------- */
 
-    /*------------------------------------- Init. Sensors ----------------------------------------*/
+    /* ------------------------------------ Init. Sensors --------------------------------------- */
 
     private static List<Integer> initCalibratedTypes() {
         return Arrays.asList(
@@ -322,6 +288,9 @@ public class MySensorManager extends MyBaseManager {
 
         List<MySensorGroup> sensorGroups = new ArrayList<>();
 
+        SensorManager mSensorManager = (SensorManager) context.getApplicationContext().
+                getSystemService(Context.SENSOR_SERVICE);
+
         List<MySensorInfo> mImu = getImuSensors(mSensorManager);
         List<MySensorInfo> mMag = getMagnetometerSensors(mSensorManager);
 
@@ -337,7 +306,7 @@ public class MySensorManager extends MyBaseManager {
         return sensorGroups;
     }
 
-    /*---------------------------------- Lifecycle Management ------------------------------------*/
+    /* --------------------------------- Lifecycle Management ----------------------------------- */
 
     @Override
     public void execute(Context context, LifeCycleState state) {
@@ -514,5 +483,49 @@ public class MySensorManager extends MyBaseManager {
         public android.hardware.Sensor getSensor() { return mMotionSensor; }
 
         private android.hardware.Sensor mMotionSensor;
+    }
+
+    private static class MySensorListener implements SensorEventListener {
+
+        private final MyBaseManager mManager;
+
+        public MySensorListener(MyBaseManager manager) {
+            mManager = manager;
+        }
+
+        @Override
+        public void onAccuracyChanged(android.hardware.Sensor sensor, int accuracy) {
+            // Do something here if sensor accuracy changes.
+        }
+
+        @Override
+        public void onSensorChanged(SensorEvent event) {
+
+            mManager.doInBackground(new SensorReceiveTask(mManager, event));
+        }
+    }
+
+    private static class SensorReceiveTask implements Runnable {
+
+        private final MyBaseManager mManager;
+        private final SensorEvent mEvent;
+
+        public SensorReceiveTask(MyBaseManager manager, SensorEvent event) {
+
+            mManager = manager;
+            mEvent = event;
+        }
+
+        @Override
+        public void run() {
+
+            Log.d(TAG,"Processing Sensor receive job in background.");
+
+            MyResourceIdentifier rId = new MyResourceIdentifier(mEvent.sensor.getType(), -1);
+            int targetId = mManager.getTargetId(rId);
+
+            MyMessage sensorMsg = new MyMessages.MsgSensor(mEvent, targetId);
+            mManager.publishMessage(sensorMsg);
+        }
     }
 }
