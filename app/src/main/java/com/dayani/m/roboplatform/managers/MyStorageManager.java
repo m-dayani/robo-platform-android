@@ -402,7 +402,7 @@ public class MyStorageManager extends MyBaseManager {
             if (testTargetPathWritable(suggestedPath)) {
 
                 saveBasePath(context, basePath);
-                setBasePath(mBasePath);
+                setBasePath(basePath);
                 updateWritableBasePathState();
             }
         }
