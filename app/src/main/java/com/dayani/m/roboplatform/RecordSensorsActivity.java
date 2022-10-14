@@ -1,300 +1,255 @@
 package com.dayani.m.roboplatform;
 
-/*
-  Activity to record and store only sensor data:
-       IMU, Magnet, GPS, -> No Camera. -> TODO: Add camera
-  All Sensors are onboard, no external USB device attached to the cellphone.
- */
-
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
-import android.view.View;
-import android.widget.Button;
-import android.widget.TextView;
-import android.widget.Toast;
 
-import androidx.annotation.NonNull;
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.IntentSenderRequest;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 
+import com.dayani.m.roboplatform.managers.CameraFlyVideo;
+import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.managers.MyLocationManager;
-import com.dayani.m.roboplatform.managers.MyStateManager;
+import com.dayani.m.roboplatform.managers.MySensorManager;
 import com.dayani.m.roboplatform.managers.MyStorageManager;
 import com.dayani.m.roboplatform.managers.MyUSBManager;
-import com.dayani.m.roboplatform.utils.ActivityRequirements;
-import com.dayani.m.roboplatform.utils.AppGlobals;
-import com.google.android.gms.common.util.ArrayUtils;
+import com.dayani.m.roboplatform.managers.MyBaseManager.LifeCycleState;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
+import com.dayani.m.roboplatform.utils.interfaces.MyBackgroundExecutor;
+import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
 
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Executor;
 
 
+/**
+ * Responsible for all fragment interactions from requirement handling to recording
+ */
 public class RecordSensorsActivity extends AppCompatActivity
-        implements View.OnClickListener, ActivityRequirements,
-        MyUSBManager.OnUsbConnectionListener {
+        implements ActivityRequirements.RequirementResolution,
+                MyBackgroundExecutor.JobListener {
 
-    private static final String TAG = "RecordSensorsActivity";
+    private static final String TAG = RecordSensorsActivity.class.getSimpleName();
 
-    public static final String KEY_IS_RECORDING_STATE = AppGlobals.PACKAGE_BASE_NAME
-            +".KEY_IS_RECORDING_STATE";
+    public static final String EXTRA_KEY_RECORD_EXTERNAL = TAG + "key_record_external";
 
-    private static final ArrayList<Requirement> REQUIREMENTS = new ArrayList<>(
-            Arrays.asList(Requirement.PERMISSIONS,
-                    Requirement.ENABLE_LOCATION)
-    );
+    private SensorsViewModel mVM_Sensors;
 
-    private Button mBtnRecord;
-    private TextView reportTxt;
+    private int mRequestCode = 0;
 
-    /**
-     * Whether the app is recording video now
-     */
-    private boolean mIsRecording = false;
+    private MyBackgroundExecutor mBackgroundExecutor;
 
+
+    /* -------------------------------------- Lifecycle ----------------------------------------- */
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_record_sensors);
+        setContentView(R.layout.activity_fragment_container);
 
-        mBtnRecord = findViewById(R.id.record);
-        mBtnRecord.setOnClickListener(this);
-        findViewById(R.id.info).setOnClickListener(this);
-    }
+        // instantiate sensors view model
+        mVM_Sensors = new ViewModelProvider(this).get(SensorsViewModel.class);
 
-    @Override
-    public void onStart() {
-        super.onStart();
-        /*if (!mLocation.checkPermissions()) {
-            reportTxt.setText("You've denied location permissions!");
-        } else {
-            //mLocation.getLastLocation();
-        }*/
-        mIsRecording = MyStateManager.getBoolPref(this, KEY_IS_RECORDING_STATE, false);
-        updateButtonState(mIsRecording);
-    }
+        // resolve the record external sensor state (use USB device)
+        Intent intent = getIntent();
+        boolean mbRecordExternal = intent.getBooleanExtra(EXTRA_KEY_RECORD_EXTERNAL, false);
 
-    @Override
-    public void onResume() {
-        super.onResume();
+        initManagersAndSensors(mVM_Sensors, mbRecordExternal);
 
-        //mUsb.registerUsbSensorReciever();
-        //mUsb.registerUsbPermission();
-        //mUsb.tryOpenDefaultDevice();
-        //actually, starts preview
-        //mCam.onResume();
+        mBackgroundExecutor = new MyBackgroundExecutor();
+        mBackgroundExecutor.initWorkerThread(TAG);
 
-        // Within {@code onPause()}, we remove location updates. Here, we resume receiving
-        // location updates if the user has requested them.
-        //if (mLocation.checkRequestingLocUpdates() && mLocation.checkPermissions()) {
-        //mLocation.startLocationUpdates();
-        /*} else if (!mLocation.checkPermissions()) {
-            reportTxt.setText("You've denied location permissions!");
-        }*/
-        //Registers sensor callbacks
-        //mSensorManager.onResume();
-    }
+        if (savedInstanceState == null) {
 
-    @Override
-    protected void onSaveInstanceState(@NonNull Bundle outState) {
-        //mLocation.setBundleData(outState);
-        // ...
-        super.onSaveInstanceState(outState);
-    }
-
-    @Override
-    public void onPause() {
-        //with foreground service we can run this indefinitly so
-        //won't need this
-        //if (mIsRecording) {
-            //stopService();
-        //}
-        //mUsb.unregisterUsbSensorReciever();
-        //mUsb.unregisterUsbPermission();
-        //mCam.clean();
-
-        //mLocation.stopLocationUpdates();
-        //mSensorManager.onPause();
-        super.onPause();
-    }
-
-    @Override
-    protected void onStop() {
-        //call the superclass method first
-        //mUsb.usbClose();
-        super.onStop();
+            getSupportFragmentManager().beginTransaction().setReorderingAllowed(true)
+                    .add(R.id.fragment_container_view, SensorsListFragment.class, null, "root-container")
+                    .commit();
+        }
     }
 
     @Override
     protected void onDestroy() {
-        //mUsb.unregisterUsbPermission();
-        //mUsb.clean();
-        //mUsb.close();
-        //mUsb = null;
-        //cleaning sensor's thread.
-        //mSensorManager.clean();
 
+        if (mVM_Sensors != null) {
+            // Only the context that creates managers (in onCreate) must call this
+            this.cleanManagers(mVM_Sensors.getAllManagers());
+        }
+        mBackgroundExecutor.cleanWorkerThread();
         super.onDestroy();
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        Log.d(TAG, "onActivityResult");
-        //ToDo: find a way to notify service of this or maybe not
-        //if (mLocation != null) {
-            //mLocation.onActivityResult(requestCode, resultCode, data);
-        //}
-    }
+    protected void onResume() {
+        super.onResume();
 
-    @Override
-    public void onWindowFocusChanged(boolean hasFocus) {
-        super.onWindowFocusChanged(hasFocus);
-        View decorView = getWindow().getDecorView();
-        if (hasFocus) {
-            decorView.setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
-                            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
-                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
-                            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
-                            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
-                            View.SYSTEM_UI_FLAG_FULLSCREEN
-            );
+        // update permissions state (in case user changes in the settings)
+        // TODO: find a broadcast or callback method to listen for these changes
+        for (MyBaseManager manager : mVM_Sensors.getAllManagers()) {
+            manager.updatePermissionsState(this);
         }
     }
 
-     /*
-    //Here we don't deal with any permission handling/request &...
-    //If permission are not available, we don't do anything.
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        Log.d(TAG, "onRequestPermissionsResult");
-        //mCam.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        //mStore.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        //mLocation.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-    }*/
+    /* ------------------------------------ Init. & Clean --------------------------------------- */
 
+    private void initManagersAndSensors(SensorsViewModel vm, boolean withUSB) {
 
+        MyStorageManager storageManager = (MyStorageManager) SensorsViewModel.getOrCreateManager(
+                this, vm, MyStorageManager.class.getSimpleName());
 
-    @Override
-    public void onClick(View view) {
-        switch (view.getId()) {
-            case R.id.record: {
-                if (mIsRecording) {
-                    stopService();
-                } else {
-                    startService();
-                }
-                break;
+        MyBaseManager mManager = SensorsViewModel.getOrCreateManager(
+                this, vm, MySensorManager.class.getSimpleName());
+        mManager.registerChannel(storageManager);
+
+        mManager = SensorsViewModel.getOrCreateManager(
+                this, vm, MyLocationManager.class.getSimpleName());
+        mManager.registerChannel(storageManager);
+
+        mManager = SensorsViewModel.getOrCreateManager(
+                this, vm, CameraFlyVideo.class.getSimpleName());
+        mManager.registerChannel(storageManager);
+
+        if (withUSB) {
+            Log.d(TAG, "USB manager is enabled");
+            mManager = SensorsViewModel.getOrCreateManager(
+                    this, vm, MyUSBManager.class.getSimpleName());
+            mManager.registerChannel(storageManager);
+        }
+
+        // Must always call init. here for symmetry (not in managers' constructor)
+        for (MyBaseManager manager : vm.getAllManagers()) {
+            manager.execute(this, LifeCycleState.ACT_CREATED);
+        }
+    }
+
+    private void cleanManagers(List<MyBaseManager> lAllManagers) {
+
+        for (MyBaseManager manager : lAllManagers) {
+
+            manager.execute(this, LifeCycleState.ACT_DESTROYED);
+        }
+    }
+
+    /* ---------------------------------- Request Resolutions ----------------------------------- */
+
+    private final ActivityResultLauncher<String[]> mPermsLauncher = registerForActivityResult(
+            new ActivityResultContracts.RequestMultiplePermissions(),
+            this::processPermissions);
+
+    private final ActivityResultLauncher<Intent> mIntentLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> this.processActivityResult(mRequestCode, result));
+
+    private final ActivityResultLauncher<IntentSenderRequest> mIntentSender = registerForActivityResult(
+            new ActivityResultContracts.StartIntentSenderForResult(),
+            result -> this.processActivityResult(mRequestCode, result));
+
+    private void processActivityResult(int requestCode, ActivityResult result) {
+
+        Intent data = result.getData();
+        if (data == null) {
+            return;
+        }
+        data.putExtra(MyBaseManager.KEY_INTENT_ACTIVITY_LAUNCHER, requestCode);
+
+        if (mVM_Sensors != null) {
+            for (MyBaseManager manager : mVM_Sensors.getAllManagers()) {
+                manager.onActivityResult(this, result);
             }
-            case R.id.info: {
-                Toast.makeText(this,"Record All sensors except camera.",
-                        Toast.LENGTH_LONG).show();
-                break;
+        }
+    }
+
+    private void processPermissions(Map<String, Boolean> permissions) {
+
+        if (mVM_Sensors != null && permissions != null) {
+            for (MyBaseManager manager : mVM_Sensors.getAllManagers()) {
+                manager.onPermissionsResult(this, permissions);
             }
         }
     }
 
-    private void updateButtonState(boolean state) {
-        if (state) {
-            //mChronometer.setVisibility(View.VISIBLE);
-            //mChronometer.start();
-            mBtnRecord.setText("Stop");
-            //mButtonVideo.setImageResource(R.drawable.ic_action_pause_over_video);
-        } else {
-            //mChronometer.stop();
-            //mChronometer.setVisibility(View.INVISIBLE);
-            mBtnRecord.setText("Start");
-            //mButtonVideo.setImageResource(R.drawable.ic_action_play_over_video);
-        }
-    }
-
-    public void startService() {
-        Intent serviceIntent = new Intent(this, SensorRecordService.class);
-        serviceIntent.putExtra("inputExtra", "Foreground Service Example in Android");
-
-        ContextCompat.startForegroundService(this, serviceIntent);
-
-        mIsRecording = true;
-        MyStateManager.setBoolPref(this, KEY_IS_RECORDING_STATE, mIsRecording);
-        updateButtonState(mIsRecording);
-    }
-
-    public void stopService() {
-        Intent serviceIntent = new Intent(this, SensorRecordService.class);
-        stopService(serviceIntent);
-
-        mIsRecording = false;
-        MyStateManager.setBoolPref(this, KEY_IS_RECORDING_STATE, mIsRecording);
-        updateButtonState(mIsRecording);
-    }
-
-    /*============================ Static ActivityRequirements interface =========================*/
     @Override
-    public boolean usesActivityRequirementsInterface() {
-        return true;
-    }
+    public void requestResolution(String[] perms) {
 
-    public static ArrayList<Requirement> getActivityRequirements() {
-        return REQUIREMENTS;
-    }
-
-    public static String[] getActivityPermissions() {
-        String[] allPermissions = ArrayUtils.concat(MyStorageManager.getPermissions(),
-                MyLocationManager.getPermissions());
-        Log.i(TAG, Arrays.toString(allPermissions));
-        return allPermissions;
-    }
-    /*============================ Static ActivityRequirements interface =========================*/
-
-    public void toastMsgShort(String msg) {
-        Toast.makeText(this.getApplicationContext(), msg, Toast.LENGTH_SHORT).show();
+        mPermsLauncher.launch(perms);
     }
 
     @Override
-    public void onUsbConnection(boolean connStat) {
+    public void requestResolution(int requestCode, Intent activityIntent) {
 
+        if (activityIntent == null) {
+            return;
+        }
+        mRequestCode = requestCode;
+        mIntentLauncher.launch(activityIntent);
     }
 
-    /*--------------------------------------------------------------------------------------------*/
+    @Override
+    public void requestResolution(int requestCode, IntentSenderRequest resolutionIntent) {
 
-    /**
-     * Maybe it's better to use handlerThread instead of this
-     *  because we don't have post UI work.
-     */
-    /*private class SensorWriteTask extends AsyncTask<String, Integer, String> {
-
-        //private final BroadcastReceiver.PendingResult pendingResult;
-        //private final Intent intent;
-
-        /private SensorRecTask(BroadcastReceiver.PendingResult pendingResult, Intent intent) {
-            this.pendingResult = pendingResult;
-            this.intent = intent;
-        }/
-
-        @Override
-        protected String doInBackground(String... strings) {
-
-            Log.d(TAG,"Doing Sensor write job in background.");
-
-            mStore.writeBuffered(new File(MyStorageManager.getNextFilePath(
-                    mSensorFile.getAbsolutePath(),mTimePerfix,"csv")),
-                    mSensorString.toString());
-            return "";
+        if (resolutionIntent == null) {
+            return;
         }
+        mRequestCode = requestCode;
+        mIntentSender.launch(resolutionIntent);
+    }
 
-        /@Override
-        protected void onPostExecute(String s) {
-            super.onPostExecute(s);
-            // Must call finish() so the BroadcastReceiver can be recycled.
-            if (this.pendingResult != null) {
-                this.pendingResult.finish();
-            }
-        }*
-    }*/
+    @Override
+    public void requestResolution(Fragment targetFragment) {
+
+        MainActivity.startNewFragment(getSupportFragmentManager(),
+                R.id.fragment_container_view, targetFragment, "sensors");
+    }
+
+    /* ------------------------------------ Multi-threading ------------------------------------- */
+
+    @Override
+    public Executor getBackgroundExecutor() {
+
+        if (mBackgroundExecutor != null) {
+            return mBackgroundExecutor.getBackgroundExecutor();
+        }
+        return null;
+    }
+
+    @Override
+    public Handler getBackgroundHandler() {
+
+        if (mBackgroundExecutor != null) {
+            return mBackgroundExecutor.getBackgroundHandler();
+        }
+        return null;
+    }
+
+    @Override
+    public Handler getUiHandler() {
+
+        if (mBackgroundExecutor != null) {
+            return mBackgroundExecutor.getUiHandler();
+        }
+        return null;
+    }
+
+    @Override
+    public void execute(Runnable r) {
+
+        if (mBackgroundExecutor != null) {
+            mBackgroundExecutor.execute(r);
+        }
+    }
+
+    @Override
+    public void handle(Runnable r) {
+
+        if (mBackgroundExecutor != null) {
+            mBackgroundExecutor.handle(r);
+        }
+    }
 }
-

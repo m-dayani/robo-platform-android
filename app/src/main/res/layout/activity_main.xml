@@ -1,7 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:id="@+id/fragment_container"
-    tools:context=".MainActivity"/>
+    android:orientation="vertical"
+    tools:ignore="UselessParent"
+    tools:context=".MainActivity">
+
+    <Button
+        android:id="@+id/startRecordAll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/labelStartRecordAll" />
+
+    <Button
+        android:id="@+id/startRecordSensors"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/start_record_sensors" />
+
+    <Button
+        android:id="@+id/startCarManualCtrl"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/labelStartCarManual" />
+
+    <Button
+        android:id="@+id/startController"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/txt_robo_controller_server" />
+
+    <Button
+        android:id="@+id/startTest"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/labelStartTest" />
+
+    <TextView
+        android:id="@+id/fpReportText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"/>
+
+</LinearLayout>

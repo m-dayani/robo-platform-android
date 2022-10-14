@@ -101,7 +101,7 @@
         </LinearLayout>
 
         <TextView
-            android:id="@+id/statView"
+            android:id="@+id/foundPeers"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:padding="30dp"

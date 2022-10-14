@@ -5,9 +5,9 @@
     <string name="settings_menu_action">Settings</string>
     <string name="help">Help</string>
     <string name="main_refresh">Refresh</string>
-    <string name="labelStartRecordAll">Launch Record All Test</string>
-    <string name="labelStartCarManual">Start Car Manual Ctrl</string>
-    <string name="labelStartTest">Start USB Test Activity</string>
+    <string name="labelStartRecordAll">Record Sensors (with USB)</string>
+    <string name="labelStartCarManual">Robo Controller Client</string>
+    <string name="labelStartTest">Test USB</string>
 
     <!-- TODO: Remove or change this placeholder text -->
     <string name="all_sensors">All Sensors</string>
@@ -22,7 +22,7 @@
     <string name="location">Location</string>
     <string name="check_permissions">Check Permissions</string>
     <string name="modify_permissions">Modify Permissions</string>
-    <string name="regected">regected</string>
+    <string name="rejected">rejected</string>
     <string name="enable_location">Enable Location</string>
     <string name="check_location_enabled">Check Location Enabled</string>
     <string name="enumBtn">Enum Devices</string>
@@ -47,6 +47,59 @@
     <string name="blth_server_name">Server Name</string>
     <string name="service_uuid">Service UUID</string>
     <string name="save_as_default_service">Save as Default Service</string>
-    <string name="start_record_sensors">Start Record Sensors</string>
+    <string name="start_record_sensors">Record Sensors</string>
     <string name="app_version">1.0</string>
+    <string name="btn_record_label">Record</string>
+    <string name="btn_save_info_label">Save Info</string>
+    <string name="unknown_sensor">Unknown Sensor</string>
+    <string name="sensor_title">Sensor Title</string>
+    <string name="sensor_name">Sensor Name</string>
+    <string name="sensor_details">Sensor Details</string>
+    <string name="sensor_not_available_image">Sensor Not Available Image</string>
+    <string name="sensor_not_available">Sensor Not Available</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="btn_start_req">Start</string>
+    <string name="no_description_provided">No description provided.</string>
+    <string name="tv_manage_all_files">Manage All Files</string>
+    <string name="sensors_stat">Sensors Stat</string>
+    <string name="btn_txt_stop">Stop</string>
+    <string name="btn_txt_start">Start</string>
+    <string name="picture">Picture</string>
+    <string name="w_usb_manager_null">USB manager is not available</string>
+    <string name="w_cannot_find_dev_header">Cannot find device</string>
+    <string name="msg_grant_usb_perm">Grant USB device permission</string>
+    <string name="usb_opened_success">USB device opened successfully</string>
+    <string name="test_successful">Test was successful</string>
+    <string name="txt_connect_client">Connect Client</string>
+    <string name="txt_hotspot_heading">Hotspot</string>
+    <string name="txt_remote_server_heading">Remote Server</string>
+    <string name="enable_wifi_or_hotspot">Enable Wifi or Hotspot</string>
+    <string name="connect_to_remote_server">Connect to Remote Server</string>
+    <string name="start_hotspot_server">Start Hotspot Server</string>
+    <string name="start_local_server">Start Local Server</string>
+    <string name="establish_wifi_conn_proc">1. Start Server.\n2. Run and connect client app.\n
+        3.Send \'test\' command from client app to pass this requirement.</string>
+    <string name="txt_robo_controller_server">Robo Controller Server</string>
+    <string name="txt_wifi_server_ap">Wifi Server (AP)</string>
+    <string name="txt_wifi_direct">Wifi Direct</string>
+    <string name="txt_bluetooth">Bluetooth</string>
+    <string name="txt_wait_info">Waiting for the client to connect</string>
+    <string name="txt_cancel">Cancel</string>
+    <string name="txtSendWC">Send</string>
+    <string name="txt_word_command">Word Command</string>
+    <string name="txt_key_command">Key Command</string>
+    <string name="txt_btn_d">D</string>
+    <string name="txt_btn_s">S</string>
+    <string name="txt_btn_a">A</string>
+    <string name="txt_btn_w">W</string>
+    <string name="txt_btn_e">E</string>
+    <string name="txt_btn_q">Q</string>
+    <string name="btn_check_usb">Check USB</string>
+    <string name="btn_check_wifi">Check Wifi</string>
+    <string name="btn_check_bluetooth">Check Bluetooth</string>
+    <string name="txt_find_remote_server">Find Remote Server</string>
+    <string name="txt_peer_name">Peer Name</string>
+    <string name="txt_wifi">Wifi</string>
+    <string name="txt_paired_devices">Paired Devices:</string>
 </resources>

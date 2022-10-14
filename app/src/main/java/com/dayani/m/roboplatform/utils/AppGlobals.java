@@ -1,8 +1,12 @@
 package com.dayani.m.roboplatform.utils;
 
+import android.content.Context;
+import android.content.pm.ApplicationInfo;
+
 public interface AppGlobals {
 
     String PACKAGE_BASE_NAME = "com.dayani.m.roboplatform";
+    String APPLICATION_NAME = "Robo-Platform";
 
     String KEY_TARGET_ACTIVITY = PACKAGE_BASE_NAME+".TARGET_ACTIVITY";
 
@@ -28,7 +32,16 @@ public interface AppGlobals {
         BLUETOOTH
     }
 
+    String DEF_FILE_NAME_CALIBRATION = "calib.txt";
 
     int REQUEST_ALL_PERMISSIONS_CODE = 9432;
     int REQUEST_PARTIAL_PERMISSIONS_CODE = 2345;
+
+
+
+    static String getApplicationName(Context context) {
+        ApplicationInfo applicationInfo = context.getApplicationInfo();
+        int stringId = applicationInfo.labelRes;
+        return stringId == 0 ? applicationInfo.nonLocalizedLabel.toString() : context.getString(stringId);
+    }
 }

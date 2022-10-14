@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -16,19 +15,19 @@
 
 
         <Button
-            android:id="@+id/enableWifi"
+            android:id="@+id/enableWifiOrHotspot"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/enable_wifi" />
+            android:text="@string/enable_wifi_or_hotspot" />
 
-        <TextView
-            android:id="@+id/ipTxtView"
+        <EditText
+            android:id="@+id/ipTxtEdit"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ems="10"
             android:hint="@string/ip_address"
-            android:padding="5dp"
-            android:textSize="18sp" />
+            android:inputType="text"
+            android:autofillHints="" />
 
         <EditText
             android:id="@+id/portTxtEdit"
@@ -36,29 +35,35 @@
             android:layout_height="wrap_content"
             android:ems="10"
             android:hint="@string/default_port"
-            android:inputType="number" />
+            android:inputType="number"
+            android:autofillHints="" />
 
-        <LinearLayout
-            android:id="@+id/wiNetActionsContainer"
+        <Button
+            android:id="@+id/connectToRemote"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical" >
+            android:text="@string/connect_to_remote_server" />
 
-            <Button
-                android:id="@+id/startServer"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/start_server" />
+        <!--Button
+            android:id="@+id/startHsServer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/start_local_server" /-->
 
-            <Button
-                android:id="@+id/saveDefaultPort"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/save_port_as_default" />
-        </LinearLayout>
+        <Button
+            android:id="@+id/saveDefaultSocket"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/save_socket_as_default" />
+
+        <Button
+            android:id="@+id/testWirelessConn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/run_test" />
 
         <TextView
-            android:id="@+id/statView"
+            android:id="@+id/foundPeers"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:padding="30dp"

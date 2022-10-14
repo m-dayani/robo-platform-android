@@ -1,16 +1,16 @@
 package com.dayani.m.roboplatform.managers;
 
-/**
+/*
  *      Google Play Service Location API
  *
  * Note1: To work with locations, we need to
  *      include location service dependency in the app
- *      and it might have collission problems with AppCompatActivity
+ *      and it might have collision problems with AppCompatActivity
  *      in android.support.v7 package.
  * Note2: call to runtime location check permission functions
  *      requires Min API level 23 or higher.
  * Note3: Consider using other request loc updates methods:
- *      service, intentService, broadcast reciever. Is there
+ *      service, intentService, broadcast receiver. Is there
  *      any performance difference?
  *
  * TODO: We can receive and process sensor values from
@@ -25,6 +25,7 @@ package com.dayani.m.roboplatform.managers;
  *      and that entry checks availability from the root.
  *
  * ** Availability:
+ *      0. Device supports location? (e.g. emulators don't support GNSS)
  *      1. Location permissions
  *      2. Location settings is on (for updates)
  * ** Resources:
@@ -38,202 +39,508 @@ package com.dayani.m.roboplatform.managers;
  *
  */
 
+import static android.os.Build.VERSION.SDK_INT;
+
 import android.Manifest;
 import android.app.Activity;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentSender;
+import android.content.IntentFilter;
+import android.content.pm.PackageManager;
+import android.location.GnssMeasurement;
+import android.location.GnssMeasurementsEvent;
+import android.location.GnssNavigationMessage;
+import android.location.GnssStatus;
 import android.location.Location;
+import android.location.LocationManager;
+import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.Looper;
 import android.util.Log;
-import android.widget.Toast;
+import android.util.Pair;
 
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.IntentSenderRequest;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
+import com.dayani.m.roboplatform.RecordingFragment;
+import com.dayani.m.roboplatform.utils.AppGlobals;
+import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
+import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.HandleEnableSettingsRequirement;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.ManagerRequirementBroadcastReceiver;
+import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgConfig;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgGnssMeasurement;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgGnssNavigation;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgLocation;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgLogging;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MyMessage;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageConfig;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageInfo;
+import com.dayani.m.thirdparty.google.gnsslogger.DetectedActivitiesIntentReceiver;
+import com.dayani.m.thirdparty.google.gnsslogger.MeasurementListener;
+import com.dayani.m.thirdparty.google.gnsslogger.MeasurementProvider;
+import com.dayani.m.thirdparty.google.gnsslogger.RealTimePositionVelocityCalculator;
+import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.ResolvableApiException;
+import com.google.android.gms.location.ActivityRecognition;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationSettingsRequest;
-import com.google.android.gms.location.LocationSettingsResponse;
 import com.google.android.gms.location.LocationSettingsStatusCodes;
+import com.google.android.gms.location.Priority;
 import com.google.android.gms.location.SettingsClient;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.android.gms.tasks.Task;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 
-public class MyLocationManager /*implements MyPermissionManager.PermissionsInterface*/ {
+public class MyLocationManager extends MyBaseManager implements MeasurementListener,
+        HandleEnableSettingsRequirement,
+        GoogleApiClient.OnConnectionFailedListener, GoogleApiClient.ConnectionCallbacks {
 
-    private static final String PACKAGE_NAME = "com.dayani.m.flightsimulator2019";
+    /* ===================================== Variables ========================================== */
 
-    private static final String TAG = "MyLocationManager";
+    private static final String PACKAGE_NAME = AppGlobals.PACKAGE_BASE_NAME;
 
-    public final class Constants {
+    private static final String TAG = MyLocationManager.class.getSimpleName();
 
-        private Constants() {}
-
-        static final String KEY_ACTIVITY_UPDATES_REQUESTED = PACKAGE_NAME +
-                ".ACTIVITY_UPDATES_REQUESTED";
-
-        static final String KEY_DETECTED_ACTIVITIES = PACKAGE_NAME + ".DETECTED_ACTIVITIES";
-
-        // Keys for storing activity state in the Bundle.
-        final static String KEY_LOCATION_PERMISSION_GRANTED = "location-permission-granted";
-        final static String KEY_REQUESTING_LOCATION_UPDATES = "requesting-location-updates";
-        final static String KEY_LOCATION = "location";
-        final static String KEY_LAST_UPDATED_TIME_STRING = "last-updated-time-string";
-
-        static final String KEY_LOCATION_PERMISSION = PACKAGE_NAME+
-                ".MyLocationManager_LOCATION.KEY_LOCATION_PERMISSION";
-
-        static final String KEY_LOCATION_SETTINGS = PACKAGE_NAME+
-                ".MyLocationManager_LOCATION.KEY_LOCATION_SETTINGS";
-
-        public static final String ACTION_LOCATION_SETTINGS_AVAILABILITY = PACKAGE_NAME+
-                ".MyLocationManager_LOCATION.ACTION_LOCATION_SETTINGS_AVAILABILITY";
-
-        /**
-         * Constant used in the location settings dialog.
-         */
-        static final int REQUEST_CHECK_SETTINGS = 0x83;
-
-        /**
-         * Code used in requesting runtime permissions.
-         */
-        static final int REQUEST_LOCATION_PERMISSION_CODE = 3402;
-
-        /**
-         * The desired interval for location updates. Inexact. Updates may be more or less frequent.
-         */
-        static final long UPDATE_INTERVAL_IN_MILLISECONDS = 4000;
-
-        /**
-         * The fastest rate for active location updates. Exact. Updates will never be more frequent
-         * than this value.
-         */
-        static final long FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS =
-                UPDATE_INTERVAL_IN_MILLISECONDS / 2;
+    private enum LocationSettingAction {
+        CHECK_ENABLED,
+        REQUEST_ENABLE,
+        REQUEST_UPDATES,
+        BROADCAST_ENABLED
     }
 
-    private static final String[] LOCATION_PERMISSIONS = {
-        Manifest.permission.ACCESS_FINE_LOCATION,
-        //Manifest.permission.ACCESS_BACKGROUND_LOCATION
-    };
+    public static final String ACTION_LOCATION_SETTINGS_AVAILABILITY = PACKAGE_NAME+
+            ".MyLocationManager_LOCATION.ACTION_LOCATION_SETTINGS_AVAILABILITY";
 
-    private static Context appContext;
+    /**
+     * Constant used in the location settings dialog.
+     */
+    static final int REQUEST_CHECK_SETTINGS = 0x83;
+
+    /*
+     * Code used in requesting runtime permissions.
+     */
+    //static final int REQUEST_LOCATION_PERMISSION_CODE = 3402;
+
+    /**
+     * The desired interval for location updates. Inexact. Updates may be more or less frequent.
+     */
+    static final long UPDATE_INTERVAL_IN_MILLISECONDS = 4000;
+
+    /**
+     * The fastest rate for active location updates. Exact. Updates will never be more frequent
+     * than this value.
+     */
+    static final long FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS =
+            UPDATE_INTERVAL_IN_MILLISECONDS / 2;
+
+    public static final int ANDROID_GNSS_INTER_SIG_BIAS_VERSION = Build.VERSION_CODES.R;
+    public static final int ANDROID_GNSS_TYPE_CODE_VERSION = Build.VERSION_CODES.Q;
+
+    private static final class SensorIds {
+
+        public static final int GPS = 0;
+        public static final int FUSED = 1;
+        public static final int GNSS_MEA = 2;
+        public static final int GNSS_NAV = 3;
+        public static final int GNSS_WLS = 4;
+    }
+
     private static LocalBroadcastManager mLocalBrManager;
+    private final BroadcastReceiver mLocationProviderChangedBR;
 
-    private boolean isAvailable = false;
-    private boolean mPermissionsGranted = false;
-    private boolean isSettingsOk = false;
-    private boolean mRequestingLocationUpdates = false;
+    private android.location.Location mLastLocation = null;
 
-    private String mLastUpdateTime = "";
-    private Location mLastLocation = null;
-    private Location mCurrentLocation = null;
-    private FusedLocationProviderClient mFusedLocationClient;
+    private final SettingsClient mSettingsClient;
+
     private LocationRequest mLocationRequest;
-    private LocationCallback mLocationCallback;
+
     private LocationSettingsRequest mLocationSettingsRequest;
-    private SettingsClient mSettingsClient;
 
-    private StringBuffer mLocString;
+    private final LocationManager mLocationManager;
 
-    private HandlerThread mBackgroundThread;
-    private Handler mLocationHandler;
+    private final FusedLocationProviderClient mFusedLocationClient;
 
-    public MyLocationManager(Context ctxt, StringBuffer sb) {
-        super();
-        appContext = ctxt;
-        mLocString = sb;
-        mLocalBrManager = LocalBroadcastManager.getInstance(appContext);
-        init();
-        isAvailable = checkAvailability();
-    }
+    private final LocationCallback mLocationCallback = initLocationCallback();
 
-    private void init() {
+    private GoogleApiClient mGoogleApiClient;
+    private final MeasurementProvider mMeasurementProvicer;
+    private RealTimePositionVelocityCalculator mRealTimePositionVelocityCalculator;
 
-        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(appContext);
-        mSettingsClient = LocationServices.getSettingsClient(appContext);
 
-        // the process of building the LocationCallback, LocationRequest, and
-        // LocationSettingsRequest objects.
+    private boolean mIsLocationEnabled = false;
+
+
+    /* ==================================== Construction ======================================== */
+
+    public MyLocationManager(Context context) {
+
+        super(context);
+
+        mSettingsClient = LocationServices.getSettingsClient(context);
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(context);
+        mLocalBrManager = LocalBroadcastManager.getInstance(context);
+        mLocationManager = (LocationManager) context.getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
+
+        mLocationProviderChangedBR = new ManagerRequirementBroadcastReceiver(this);
+
+//        buildGoogleApiClient(context);
+        mRealTimePositionVelocityCalculator = new RealTimePositionVelocityCalculator();
+        mMeasurementProvicer = new MeasurementProvider(context, mGoogleApiClient,
+                this, mRealTimePositionVelocityCalculator);
+
+        //init(context);
         createLocationRequest();
-        createLocationCallback();
         buildLocationSettingsRequest();
     }
 
+    /* ===================================== Core Tasks ========================================= */
+
+    /* -------------------------------------- Support ------------------------------------------- */
+
+    /**
+     * Device has to support at least GPS sensor (Raw GNSS is not mandatory)
+     * Although devices location can coarsely be estimated using WiFi or GSM,
+     * GPS must be available.
+     * @param context activity's context
+     * @return boolean, false: has no GPS
+     */
+    @Override
+    protected boolean resolveSupport(Context context) {
+
+        return hasGpsSensor(context);
+    }
+
+    /* ----------------------------- Requirements & Permissions --------------------------------- */
+
+    @Override
+    public List<Requirement> getRequirements() {
+
+        return Arrays.asList(
+                Requirement.PERMISSIONS,
+                Requirement.ENABLE_LOCATION
+        );
+    }
+
+    @Override
+    public boolean passedAllRequirements() {
+        return hasAllPermissions() && isSettingsEnabled();
+    }
+
+    @Override
+    protected void updateRequirementsState(Context context) {
+
+        List<Requirement> requirements = getRequirements();
+        if (requirements == null || requirements.isEmpty()) {
+            Log.d(TAG, "No requirements to update");
+            return;
+        }
+
+        // permissions
+        if (requirements.contains(Requirement.PERMISSIONS)) {
+            updatePermissionsState(context);
+        }
+
+        // location settings is enabled
+        if (requirements.contains(Requirement.ENABLE_LOCATION)) {
+            // this is an async request, so we can't retrieve its result immediately
+            changeLocationSettings(context, LocationSettingAction.CHECK_ENABLED, null);
+        }
+    }
+
+    @Override
+    protected void resolveRequirements(Context context) {
+
+        List<Requirement> requirements = getRequirements();
+        if (requirements == null || requirements.isEmpty()) {
+            Log.d(TAG, "No requirements to resolve");
+            return;
+        }
+
+        // permissions
+        if (requirements.contains(Requirement.PERMISSIONS)) {
+            if (!hasAllPermissions()) {
+                resolvePermissions();
+                return;
+            }
+        }
+
+        // location setting enabled
+        if (requirements.contains(Requirement.ENABLE_LOCATION)) {
+            if (!isSettingsEnabled()) {
+                enableSettingsRequirement(context);
+            }
+        }
+    }
+
+    @Override
+    public void onActivityResult(Context context, ActivityResult result) {
+
+        Intent resultData = result.getData();
+
+        if (resultData == null) {
+            Log.w(TAG, "Result intent is null");
+            return;
+        }
+
+        int activityResultTag = resultData.getIntExtra(KEY_INTENT_ACTIVITY_LAUNCHER, 0);
+
+        if (activityResultTag == REQUEST_CHECK_SETTINGS) {
+            if (result.getResultCode() == Activity.RESULT_OK) {
+
+                Log.i(TAG, "User agreed to make required location settings changes.");
+                updateSettingsEnabled();
+
+                // TODO: broadcast location settings enabled??
+                //mLocalBrManager.sendBroadcast(new Intent(Constants.ACTION_LOCATION_SETTINGS_AVAILABILITY));
+            }
+        }
+    }
+
+    @Override
+    public List<String> getPermissions() {
+        return Arrays.asList(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+                //Manifest.permission.ACCESS_BACKGROUND_LOCATION
+        );
+    }
+
+    @Override
+    public void onSettingsChanged(Context context, Intent intent) {
+
+        if (intent.getAction().matches("android.location.PROVIDERS_CHANGED"))  {
+
+            Log.i(TAG, "Location Providers changed");
+
+            boolean isGpsEnabled = mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+            boolean isNetworkEnabled = mLocationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+
+            updateSettingsEnabled();
+        }
+    }
+
+    @Override
+    public boolean isSettingsEnabled() { return mIsLocationEnabled; }
+
+    @Override
+    public void updateSettingsEnabled() {
+
+        //boolean isFusedEnabled = mLocationManager.isProviderEnabled(LocationManager.FUSED_PROVIDER);
+        mIsLocationEnabled = mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);// || isFusedEnabled;
+    }
+
+    @Override
+    public void enableSettingsRequirement(Context context) {
+        changeLocationSettings(context, LocationSettingAction.REQUEST_ENABLE, null);
+    }
+
+    /* -------------------------------- Lifecycle Management ------------------------------------ */
+
+    @Override
+    public void execute(Context context, LifeCycleState state) {
+
+        switch (state) {
+            case START_RECORDING: {
+
+                if (this.isNotAvailableAndChecked()) {
+                    Log.w(TAG, "Location Sensors are not available, abort");
+                    return;
+                }
+
+                super.execute(context, state);
+                openStorageChannels();
+                registerLocationServices(context);
+                break;
+            }
+            case STOP_RECORDING: {
+
+                if (this.isNotAvailableAndChecked() || !this.isProcessing()) {
+                    Log.d(TAG, "Location Sensors are not running");
+                    return;
+                }
+
+                unregisterLocationServices(context);
+                closeStorageChannels();
+                super.execute(context, state);
+                break;
+            }
+            default: {
+                super.execute(context, state);
+                break;
+            }
+        }
+    }
+
+    @Override
+    public void registerBrReceivers(Context context, LifeCycleState state) {
+
+        switch (state) {
+            case ACT_CREATED: {
+                if (mLocationProviderChangedBR != null) {
+                    IntentFilter locationFilter = new IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION);
+                    context.getApplicationContext().registerReceiver(mLocationProviderChangedBR, locationFilter);
+                    Log.d(TAG, "Registered onProviderChangedBrReceiver");
+                }
+                break;
+            }
+            case ACT_DESTROYED: {
+                if (mLocationProviderChangedBR != null) {
+                    try {
+                        context.getApplicationContext().unregisterReceiver(mLocationProviderChangedBR);
+                        Log.d(TAG, "Unregistered onProviderChangedBrReceiver");
+                    } catch (IllegalArgumentException e) {
+                        e.printStackTrace();
+                    }
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
+
+    private void registerLocationServices(Context context) {
+
+//        if (mGoogleApiClient != null && mGoogleApiClient.hasConnectedApi(LocationServices.API)) {
+//            mMeasurementProvicer.registerFusedLocation();
+//        }
+//        else {
+        changeLocationSettings(context, LocationSettingAction.REQUEST_UPDATES, null);
+//        }
+
+        mMeasurementProvicer.registerMeasurements();
+        mMeasurementProvicer.registerNavigation();
+    }
+
+    private void unregisterLocationServices(Context context) {
+
+        mMeasurementProvicer.unregisterNavigation();
+        mMeasurementProvicer.unregisterMeasurements();
+
+//        if (mGoogleApiClient != null && mGoogleApiClient.hasConnectedApi(LocationServices.API)) {
+//            mMeasurementProvicer.unRegisterFusedLocation();
+//        }
+//        else {
+        stopLocationUpdates(context);
+//        }
+
+    }
+
+    /* ----------------------------------- Message Passing -------------------------------------- */
+
+    @Override
+    protected String getResourceId(MyResourceIdentifier resId) {
+
+        switch (resId.getId()) {
+
+            case SensorIds.GPS:
+                return "Gnss_Gps";
+            case SensorIds.FUSED:
+                return "Gnss_Gps_Fused";
+            case SensorIds.GNSS_MEA:
+                return "Gnss_Mea";
+            case SensorIds.GNSS_NAV:
+                return "Gnss_Nav";
+            case SensorIds.GNSS_WLS:
+                return "Gnss_Wls";
+            default:
+                return "Unknown_Sensor";
+        }
+    }
+
+    @Override
+    protected List<Pair<String, MsgConfig>> getStorageConfigMessages(MySensorInfo sensor) {
+
+        List<Pair<String, MsgConfig>> lMsgConfigPairs = new ArrayList<>();
+
+        List<String> gnssFolders = Collections.singletonList("gnss");
+
+        MsgConfig.ConfigAction configAction = MsgConfig.ConfigAction.OPEN;
+        StorageInfo.StreamType ss = StorageInfo.StreamType.STREAM_STRING;
+
+        String header;
+        StorageInfo storageInfo;
+
+        int sensorId = sensor.getId();
+
+        // gnss_nav is part of gnss_raw (gnss_mea) and is not assigned independently
+        switch (sensorId) {
+
+            case SensorIds.GPS:
+                header = MsgLocation.getHeaderMessage();
+                storageInfo = new StorageInfo(gnssFolders, "gps.txt", ss);
+                break;
+            case SensorIds.FUSED:
+                header = MsgLocation.getHeaderMessage();
+                storageInfo = new StorageInfo(gnssFolders, "fused_gps.txt", ss);
+                break;
+            case SensorIds.GNSS_MEA:
+                header = MsgGnssMeasurement.getHeaderMessage();
+                storageInfo = new StorageInfo(gnssFolders, "gnss_raw_mea.txt", ss);
+                break;
+            case SensorIds.GNSS_WLS:
+                header = MsgLocation.getHeaderMessage();
+                storageInfo = new StorageInfo(gnssFolders, "gnss_raw_wls.txt", ss);
+                break;
+            default:
+                header = "# unknown sensor";
+                storageInfo = new StorageInfo(gnssFolders, "unknown_sensor.txt", ss);
+                break;
+        }
+
+        String sensorTag = getResourceId(new MyResourceIdentifier(sensorId, -1));
+
+        MsgConfig config = new StorageConfig(configAction, TAG, storageInfo);
+        config.setStringMessage(header);
+        lMsgConfigPairs.add(new Pair<>(sensorTag, config));
+
+        if (sensorId == SensorIds.GNSS_MEA) {
+
+            sensorTag = getResourceId(new MyResourceIdentifier(SensorIds.GNSS_NAV, -1));
+            header = MsgGnssNavigation.getHeaderMessage();
+            storageInfo = new StorageInfo(gnssFolders, "gnss_raw_nav.txt", ss);
+            config = new StorageConfig(configAction, TAG, storageInfo);
+            config.setStringMessage(header);
+            lMsgConfigPairs.add(new Pair<>(sensorTag, config));
+        }
+
+        return lMsgConfigPairs;
+    }
+
+    /* ======================================= Location ========================================= */
+
     private void createLocationRequest() {
-        mLocationRequest = new LocationRequest();
+
+        mLocationRequest = LocationRequest.create();
         // Sets the desired interval for active location updates. This interval is
         // inexact. You may not receive updates at all if no location sources are available, or
         // you may receive them slower than requested. You may also receive updates faster than
         // requested if other applications are requesting location at a faster interval.
-        mLocationRequest.setInterval(Constants.UPDATE_INTERVAL_IN_MILLISECONDS);
+        mLocationRequest.setInterval(UPDATE_INTERVAL_IN_MILLISECONDS);
         // Sets the fastest rate for active location updates. This interval is exact, and your
         // application will never receive updates faster than this value.
-        mLocationRequest.setFastestInterval(Constants.FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS);
-        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        mLocationRequest.setFastestInterval(FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS);
+        mLocationRequest.setPriority(Priority.PRIORITY_HIGH_ACCURACY);
     }
-
-    /**
-     * Creates a callback for receiving location events.
-     */
-    private void createLocationCallback() {
-
-        mLocationCallback = new LocationCallback() {
-            @Override
-            public void onLocationResult(LocationResult locationResult) {
-                super.onLocationResult(locationResult);
-
-                if (locationResult == null) {
-                    return;
-                }
-                mCurrentLocation = locationResult.getLastLocation();
-                String sVal = getSensorString(mCurrentLocation);
-                //just store the raw data without any change
-                mLocString.append(sVal);
-                Log.v(TAG, sVal);
-                //mLastUpdateTime = DateFormat.getTimeInstance().format(new Date());
-            }
-        };
-    }
-
-    /*
-     private void createLocationCallbackThreadSafe() {
-        mLocationCallback = new LocationCallback() {
-            @Override
-            public void onLocationResult(LocationResult locationResult) {
-                super.onLocationResult(locationResult);
-
-                if (locationResult == null) {
-                    return;
-                }
-                mCurrentLocation = locationResult.getLastLocation();
-                String sVal = getSensorString(mCurrentLocation);
-                synchronized (this) {
-                    //just store the raw data without any change
-                    mLocString.append(sVal);
-                }
-                Log.v(TAG, sVal);
-                //mLastUpdateTime = DateFormat.getTimeInstance().format(new Date());
-            }
-        };
-     }
-     */
 
     /**
      * Uses a {@link com.google.android.gms.location.LocationSettingsRequest.Builder} to build
@@ -241,6 +548,7 @@ public class MyLocationManager /*implements MyPermissionManager.PermissionsInter
      * if a device has the needed location settings.
      */
     private void buildLocationSettingsRequest() {
+
         if (mLocationRequest == null) {
             createLocationRequest();
         }
@@ -249,632 +557,405 @@ public class MyLocationManager /*implements MyPermissionManager.PermissionsInter
         mLocationSettingsRequest = builder.build();
     }
 
-    /**
-     * Starts a background thread and its {@link Handler}.
-     */
-    private void startBackgroundThread() {
-        mBackgroundThread = new HandlerThread(TAG);
-        mBackgroundThread.start();
-        mLocationHandler = new Handler(mBackgroundThread.getLooper());
+    private LocationCallback initLocationCallback() {
+
+        return new LocationCallback() {
+            @Override
+            public void onLocationResult(@NonNull LocationResult locationResult) {
+
+                //super.onLocationResult(locationResult);
+                for (android.location.Location location : locationResult.getLocations()) {
+                    onLocationChanged(location);
+                }
+            }
+        };
     }
 
-    /**
-     * Stops the background thread and its {@link Handler}.
-     */
-    private void stopBackgroundThread() {
-        mBackgroundThread.quitSafely();
+    /*private synchronized void buildGoogleApiClient(Context context) {
+        mGoogleApiClient =
+                new GoogleApiClient.Builder(context)
+                        .enableAutoManage((FragmentActivity) context, this)
+                        .addConnectionCallbacks(this)
+                        .addOnConnectionFailedListener(this)
+                        .addApi(ActivityRecognition.API)
+                        .addApi(LocationServices.API)
+                        .build();
+    }*/
+
+
+    private static boolean hasGpsSensor(Context context) {
+
+        PackageManager packageManager = context.getPackageManager();
+        return packageManager.hasSystemFeature(PackageManager.FEATURE_LOCATION_GPS);
+    }
+
+    private static boolean hasGnssRawSensor() {
+
+        // it seems that gnss is supported in Android API >= 24
+        return SDK_INT >= MeasurementProvider.ANDROID_GNSS_API_VERSION;
+    }
+
+    private MySensorInfo getGpsSensor(Context context) {
+
+        MySensorInfo sensorInfo = null;
+
+        if (hasGpsSensor(context)) {
+
+            Map<String, String> descInfo = new HashMap<>();
+            descInfo.put("Usage", "\n\t1. Grant location permissions.\n\t2. Enable location settings");
+
+            Map<String, String> calibInfo = new HashMap<>();
+            calibInfo.put("Resolution_m", "10");
+
+            sensorInfo = new MySensorInfo(SensorIds.FUSED, "GPS");
+            sensorInfo.setDescInfo(descInfo);
+            sensorInfo.setCalibInfo(calibInfo);
+
+            //sensorInfo.setChecked(isAvailable());
+        }
+
+        return sensorInfo;
+    }
+
+    private MySensorInfo getGnssRawSensor(Context context) {
+
+        MySensorInfo sensorInfo = null;
+
+        if (hasGpsSensor(context) && hasGnssRawSensor()) {
+
+            Map<String, String> descInfo = new HashMap<>();
+            descInfo.put("Usage", "\n\t1. Grant location permissions.\n\t2. Enable location settings");
+
+            Map<String, String> calibInfo = new HashMap<>();
+            calibInfo.put("Resolution_m", "10");
+
+            sensorInfo = new MySensorInfo(SensorIds.GNSS_MEA, "GNSS Raw Measurements");
+            sensorInfo.setDescInfo(descInfo);
+            sensorInfo.setCalibInfo(calibInfo);
+
+            //sensorInfo.setChecked(isAvailable());
+        }
+
+        return sensorInfo;
+    }
+
+    @Override
+    public List<MySensorGroup> getSensorGroups(Context context) {
+
+        if (mlSensorGroup != null) {
+            return mlSensorGroup;
+        }
+
+        List<MySensorGroup> sensorGroups = new ArrayList<>();
+        List<MySensorInfo> sensors = new ArrayList<>();
+
+        // add sensors:
+        MySensorInfo gps = getGpsSensor(context);
+        if (gps != null) {
+            sensors.add(gps);
+        }
+
+        MySensorInfo gnssRaw = getGnssRawSensor(context);
+        if (gnssRaw != null) {
+            sensors.add(gnssRaw);
+        }
+
+        // TODO: maybe add google's gnss wls sensor too
+
+        sensorGroups.add(new MySensorGroup(MySensorGroup.getNextGlobalId(),
+                MySensorGroup.SensorType.TYPE_GNSS, "GNSS", sensors));
+
+        return sensorGroups;
+    }
+
+    /* ------------------------------- Settings (for LocUpdates) -------------------------------- */
+
+    private void changeLocationSettings(Context context, LocationSettingAction action, final Looper locLooper) {
+
+        if (context == null || mSettingsClient == null) {
+
+            Log.w(TAG, "Either context or settings client is null");
+            return;
+        }
+
+        if (mLocationSettingsRequest == null) {
+            buildLocationSettingsRequest();
+        }
+
+        // Begin by checking if the device has the necessary location settings.
+        mSettingsClient.checkLocationSettings(mLocationSettingsRequest)
+                .addOnSuccessListener((AppCompatActivity) context,
+                        locationSettingsResponse -> {
+
+                            // All location settings are satisfied. The client can initialize
+                            // location requests here.
+                            Log.d(TAG, "All location settings are satisfied.");
+
+                            if (action.equals(LocationSettingAction.CHECK_ENABLED)) {
+
+                                updateSettingsEnabled();
+                            }
+                            else if (action.equals(LocationSettingAction.REQUEST_UPDATES)) {
+
+                                try {
+                                    getLastLocation(context);
+
+                                    if (locLooper == null) {
+                                        mFusedLocationClient.requestLocationUpdates(mLocationRequest,
+                                                mLocationCallback, Looper.getMainLooper());
+                                    }
+                                    else {
+                                        mFusedLocationClient.requestLocationUpdates(mLocationRequest,
+                                                mLocationCallback, locLooper);
+                                    }
+                                }
+                                catch (SecurityException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                            else if (action.equals(LocationSettingAction.BROADCAST_ENABLED)) {
+                                mLocalBrManager.
+                                        sendBroadcast(new Intent(ACTION_LOCATION_SETTINGS_AVAILABILITY));
+                            }
+                        }
+                )
+                .addOnFailureListener((AppCompatActivity) context,
+                        e -> {
+                            int statusCode = ((ApiException) e).getStatusCode();
+                            switch (statusCode) {
+
+                                case LocationSettingsStatusCodes.RESOLUTION_REQUIRED: {
+
+                                    // Location settings are not satisfied, but this can be fixed
+                                    // by showing the user a dialog.
+                                    Log.i(TAG, "Location settings are not satisfied");
+                                    if (action.equals(LocationSettingAction.REQUEST_ENABLE)) {
+
+                                        Log.i(TAG, "Attempting to send enable request");
+                                        requestChangeSettings(e);
+                                    }
+                                    break;
+                                }
+                                case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE: {
+
+                                    String errorMessage = "Location settings are inadequate and cannot be " +
+                                            "fixed here. Fix in Settings.";
+                                    Log.e(TAG, errorMessage);
+                                    break;
+                                }
+                            }
+                        })
+                .addOnCompleteListener((AppCompatActivity) context,
+                        task -> {
+                            Log.v(TAG, "Change location settings task completed");
+                        }
+                );
+    }
+
+    private void requestChangeSettings(Exception e) {
+
+        IntentSenderRequest intentSenderRequest = new IntentSenderRequest
+                .Builder(((ResolvableApiException) e).getResolution()).build();
+        mRequirementRequestListener.requestResolution(REQUEST_CHECK_SETTINGS, intentSenderRequest);
+    }
+
+
+    protected PendingIntent createActivityDetectionPendingIntent(Context context) {
+        Intent intent = new Intent(context, DetectedActivitiesIntentReceiver.class);
+        if (SDK_INT >= Build.VERSION_CODES.S) {
+            return PendingIntent.getBroadcast(context, 0, intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
+        } else {
+            return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        }
+    }
+
+    @Override
+    public void onConnected(@Nullable Bundle bundle) {
+        if (Log.isLoggable(TAG, Log.INFO)) {
+            Log.i(TAG, "Connected to GoogleApiClient");
+        }
         try {
-            mBackgroundThread.join();
-            mBackgroundThread = null;
-            mLocationHandler = null;
-        } catch (InterruptedException e) {
+            ActivityRecognition.ActivityRecognitionApi.requestActivityUpdates(mGoogleApiClient, 0,
+                    createActivityDetectionPendingIntent(mGoogleApiClient.getContext()));
+        }
+        catch (SecurityException e) {
             e.printStackTrace();
         }
     }
 
-    /**
-     * Updates fields based on data stored in the bundle.
-     *
-     * @param savedInstanceState The activity state saved in the Bundle.
-     */
-    protected void updateValuesFromBundle(Bundle savedInstanceState) {
-        if (savedInstanceState != null) {
-            // Update the value of mRequestingLocationUpdates from the Bundle, and make sure that
-            // the Start Updates and Stop Updates buttons are correctly enabled or disabled.
-            if (savedInstanceState.keySet().contains(Constants.KEY_REQUESTING_LOCATION_UPDATES)) {
-                mRequestingLocationUpdates =
-                        savedInstanceState.getBoolean(Constants.KEY_REQUESTING_LOCATION_UPDATES);
-            }
-            if (savedInstanceState.keySet().contains(Constants.KEY_LOCATION_PERMISSION_GRANTED)) {
-                isAvailable =
-                        savedInstanceState.getBoolean(Constants.KEY_LOCATION_PERMISSION_GRANTED);
-            }
-            // Update the value of mCurrentLocation from the Bundle and update the UI to show the
-            // correct latitude and longitude.
-            /*if (savedInstanceState.keySet().contains(Constants.KEY_LOCATION)) {
-                // Since KEY_LOCATION was found in the Bundle, we can be sure that mCurrentLocation
-                // is not null.
-                mCurrentLocation = savedInstanceState.getParcelable(Constants.KEY_LOCATION);
-            }
-            // Update the value of mLastUpdateTime from the Bundle and update the UI.
-            if (savedInstanceState.keySet().contains(Constants.KEY_LAST_UPDATED_TIME_STRING)) {
-                mLastUpdateTime =
-                        savedInstanceState.getString(Constants.KEY_LAST_UPDATED_TIME_STRING);
-            }*/
+    @Override
+    public void onConnectionSuspended(int i) {
+        if (Log.isLoggable(TAG, Log.INFO)) {
+            Log.i(TAG, "Connection suspended");
         }
     }
 
-    public void setBundleData(Bundle outState) {
-
-        outState.putBoolean(Constants.KEY_LOCATION_PERMISSION_GRANTED, isAvailable);
-        outState.putBoolean(Constants.KEY_REQUESTING_LOCATION_UPDATES, mRequestingLocationUpdates);
-        //outState.putParcelable(Constants.KEY_LOCATION, mCurrentLocation);
-        //outState.putString(Constants.KEY_LAST_UPDATED_TIME_STRING, mLastUpdateTime);
-    }
-
-    /*-------------------------------- Sertters and Getters --------------------------------------*/
-
-    private boolean getRequestingLocationUpdatesFlag() {
-        return mRequestingLocationUpdates;
-    }
-    private void setRequestingLocationUpdatesFlag(boolean stat) {
-        mRequestingLocationUpdates = stat;
-    }
-
-    private void setSettingsOkFlag(boolean state) {
-        isSettingsOk = state;
-    }
-    private boolean getSettingsOkFlag() {
-        return isSettingsOk;
-    }
-
-    private boolean getAvailableFlag() {
-        //Log.d(TAG, "available(): "+isAvailable);
-        return isAvailable;
-    }
-    private void setAvailableFlag(boolean state) {
-        isAvailable = state;
-    }
-
-    private void setPermissionsFlag(boolean state) {
-        mPermissionsGranted = state;
-    }
-
-    public static int getRequestPermissionCode() {
-        return Constants.REQUEST_LOCATION_PERMISSION_CODE;
-    }
-
-    public static String[] getPermissions() {
-        return LOCATION_PERMISSIONS;
-    }
-
-    public static String getPermissionKey() {
-        return Constants.KEY_LOCATION_PERMISSION;
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+        if (Log.isLoggable(TAG, Log.INFO)) {
+            Log.i(TAG, "Connection failed: ErrorCode = " + connectionResult.getErrorCode());
+        }
     }
 
 
-    /*======================================= Permissions ========================================*/
+    @Override
+    public void onProviderEnabled(String provider) {
 
-    private boolean checkPermissions() {
-        boolean permission = MyPermissionManager.hasAllPermissions(appContext,
-                LOCATION_PERMISSIONS, Constants.KEY_LOCATION_PERMISSION);
-        return permission;
     }
 
-    public boolean checkAvailability() {
-        boolean permission = checkPermissions();
-        setPermissionsFlag(permission);
-        //checks only loc settings asynchronously.
-        //and sets the settingsOk flag.
-        checkLocationSettings();
-        boolean available = permission && getSettingsOkFlag();
-        setAvailableFlag(available);
-        return available;
+    @Override
+    public void onProviderDisabled(String provider) {
+
     }
 
-    /*private void updateAvailability() {
-        isAvailable = checkAvailability();
-        Log.i(TAG, "Availability updated with: "+isAvailable);
-    }*/
+    @Override
+    public void onLocationChanged(Location location) {
 
-    /*======================================== Location ==========================================*/
+        doInBackground(() -> {
 
-    /*---------------------------------- Settings (for LocUpdates) -------------------------------*/
+            int targetId = getTargetId(new MyResourceIdentifier(SensorIds.FUSED, -1));
+            publishMessage(new MsgLocation(location, targetId));
+        });
+    }
 
-    /**
-     * Only check, no request.
-     * Since this is asynchronous, we need a way to update
-     * total availability, without calling this forever!
-     * Nothing cheesy is done here because this method is the
-     * main global handle (and we don't want it to be time consuming).
-     */
-    private void checkLocationSettings() {
+    @Override
+    public void onLocationStatusChanged(String provider, int status, Bundle extras) {
 
-        if (appContext == null || mSettingsClient == null) {
-            setSettingsOkFlag(false);
+    }
+
+    @Override
+    public void onGnssMeasurementsReceived(GnssMeasurementsEvent event) {
+
+        if (SDK_INT < MeasurementProvider.ANDROID_GNSS_API_VERSION) {
+            Log.d(TAG, "Android version does not support GNSS operations");
             return;
         }
-        if (mLocationSettingsRequest == null) {
-            buildLocationSettingsRequest();
-        }
-        // Begin by checking if the device has the necessary location settings.
-        mSettingsClient.checkLocationSettings(mLocationSettingsRequest)
-            .addOnSuccessListener((AppCompatActivity) appContext,
-                new OnSuccessListener<LocationSettingsResponse>() {
-                    @Override
-                    public void onSuccess(LocationSettingsResponse locationSettingsResponse) {
-                        // All location settings are satisfied. The client can initialize
-                        // location requests here.
-                        setSettingsOkFlag(true);
-                        //updateAvailability();
-                        Log.i(TAG, "All location settings are satisfied.");
-                    }
-                }
-            )
-            .addOnFailureListener((AppCompatActivity) appContext, new OnFailureListener() {
-                @Override
-                public void onFailure(@NonNull Exception e) {
-                    setSettingsOkFlag(false);
 
-                    int statusCode = ((ApiException) e).getStatusCode();
-                    switch (statusCode) {
-                        case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
-                            // Location settings are not satisfied, but this can be fixed
-                            // by showing the user a dialog.
-                            Log.i(TAG, "Location settings are not satisfied. Attempting to upgrade " +
-                                    "location settings ");
-                            //requestChangeSettings(e);
-                            break;
-                        case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
-                            String errorMessage = "Location settings are inadequate, and cannot be " +
-                                    "fixed here. Fix in Settings.";
-                            Log.e(TAG, errorMessage);
-                            toastMessageLong(appContext, errorMessage);
-                            break;
-                    }
-                }
-            })
-            .addOnCompleteListener((AppCompatActivity) appContext,
-                new OnCompleteListener<LocationSettingsResponse>() {
-                    @Override
-                    public void onComplete(@NonNull Task<LocationSettingsResponse> task) {
-                        boolean available = checkPermissions() && getSettingsOkFlag();
-                        setAvailableFlag(available);
-                    }
-                }
-            );
-    }
+        doInBackground(() -> {
 
-    /**
-     * Check & request change settings if necessary.
-     */
-    public void updateLocationSettings() {
+            int targetId = getTargetId(new MyResourceIdentifier(SensorIds.GNSS_MEA, -1));
 
-        if (mLocationSettingsRequest == null) {
-            buildLocationSettingsRequest();
-        }
-        // Begin by checking if the device has the necessary location settings.
-        Task<LocationSettingsResponse> task =
-                mSettingsClient.checkLocationSettings(mLocationSettingsRequest);
-        task.addOnSuccessListener((AppCompatActivity) appContext,
-            new OnSuccessListener<LocationSettingsResponse>() {
-                @Override
-                public void onSuccess(LocationSettingsResponse locationSettingsResponse) {
-                    // All location settings are satisfied. The client can initialize
-                    // location requests here.
-                    //getLastLocation();
-                    setSettingsOkFlag(true);
-                    mLocalBrManager.
-                        sendBroadcast(new Intent(Constants.ACTION_LOCATION_SETTINGS_AVAILABILITY));
-                    Log.i(TAG, "All location settings are satisfied.");
-                }
-            }
-        );
-        task.addOnFailureListener((AppCompatActivity) appContext, new OnFailureListener() {
-            @Override
-            public void onFailure(@NonNull Exception e) {
-                /*if (e instanceof ResolvableApiException) {
-                    requestChangeSettings(e);
-                }*/
-                setSettingsOkFlag(false);
-                int statusCode = ((ApiException) e).getStatusCode();
-                switch (statusCode) {
-                    case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
-                        // Location settings are not satisfied, but this can be fixed
-                        // by showing the user a dialog.
-                        Log.i(TAG, "Location settings are not satisfied. Attempting to upgrade " +
-                                "location settings ");
-                        requestChangeSettings(e);
-                        break;
-                    case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
-                        String errorMessage = "Location settings are inadequate, and cannot be " +
-                                "fixed here. Fix in Settings.";
-                        Log.e(TAG, errorMessage);
-                        toastMessageLong(appContext, errorMessage);
-                        break;
-                }
+            for (GnssMeasurement measurement : event.getMeasurements()) {
+                publishMessage(new MsgGnssMeasurement(measurement, targetId));
             }
         });
-        task.addOnCompleteListener((AppCompatActivity) appContext,
-            new OnCompleteListener<LocationSettingsResponse>() {
-                @Override
-                public void onComplete(@NonNull Task<LocationSettingsResponse> task) {
-                    MyStateManager.setBoolPref(appContext,
-                            Constants.KEY_LOCATION_SETTINGS, getSettingsOkFlag());
-                    //updateAvailability();
-                }
-            }
-        );
     }
 
-    private void requestChangeSettings(Exception e) {
-        try {
-            // Show the dialog by calling startResolutionForResult(), and check the
-            // result in onActivityResult().
-            ResolvableApiException rae = (ResolvableApiException) e;
-            rae.startResolutionForResult((AppCompatActivity) appContext,
-                    Constants.REQUEST_CHECK_SETTINGS);
-        } catch (IntentSender.SendIntentException sie) {
-            Log.i(TAG, "PendingIntent unable to execute request.");
-        }
+    @Override
+    public void onGnssMeasurementsStatusChanged(int status) {
+
     }
 
-    /**
-     *  This is not an override, it's a simple method that can handle
-     *  Perhaps need to consider new mLocPermissionGranted feature here.
-     *  location based part of onActivityResult in mainActivity.
-     */
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        switch (requestCode) {
-            // Check for the integer request code originally supplied to startResolutionForResult().
-            case Constants.REQUEST_CHECK_SETTINGS:
-                switch (resultCode) {
-                    case Activity.RESULT_OK:
-                        setSettingsOkFlag(true);
-                        mLocalBrManager.
-                            sendBroadcast(new Intent(Constants.ACTION_LOCATION_SETTINGS_AVAILABILITY));
-                        Log.i(TAG, "User agreed to make required location settings changes.");
-                        // Nothing to do. startLocationupdates() gets called in onResume again.
-                        break;
-                    case Activity.RESULT_CANCELED:
-                        setSettingsOkFlag(false);
-                        Log.i(TAG, "User chose not to make required location settings changes.");
-                        break;
-                    default:
-                        setSettingsOkFlag(false);
-                        Log.i(TAG, "Location settings result: default.");
-                }
-                MyStateManager.setBoolPref(appContext,
-                        Constants.KEY_LOCATION_SETTINGS, getSettingsOkFlag());
-                //updateAvailability();
-                break;
-        }
-    }
+    @Override
+    public void onGnssNavigationMessageReceived(GnssNavigationMessage event) {
 
-    /*---------------------------------------- Last Location -------------------------------------*/
-
-    /**
-     * ?????????????????? appcontext: ?
-     */
-    @SuppressWarnings("MissingPermission")
-    public void getLastLocation() {
-        if (!this.checkAvailability())
+        if (SDK_INT < MeasurementProvider.ANDROID_GNSS_API_VERSION) {
+            Log.d(TAG, "Android version does not support GNSS operations");
             return;
+        }
+
+        doInBackground(() -> {
+
+            int targetId = getTargetId(new MyResourceIdentifier(SensorIds.GNSS_NAV, -1));
+            publishMessage(new MsgGnssNavigation(event, targetId));
+        });
+    }
+
+    @Override
+    public void onGnssNavigationMessageStatusChanged(int status) {
+
+    }
+
+    @Override
+    public void onGnssStatusChanged(GnssStatus gnssStatus) {
+
+    }
+
+    @Override
+    public void onListenerRegistration(String listener, boolean result) {
+
+    }
+
+    @Override
+    public void onNmeaReceived(long l, String s) {
+
+    }
+
+    @Override
+    public void onTTFFReceived(long l) {
+
+    }
+
+
+    /* ------------------------------------ Last Location --------------------------------------- */
+
+    @SuppressWarnings("MissingPermission")
+    public void getLastLocation(Context context) {
+
+        if (isNotAvailableAndChecked())
+            return;
+
         try {
             mFusedLocationClient.getLastLocation()
-                .addOnSuccessListener((AppCompatActivity) appContext,
-                    new OnSuccessListener<Location>() {
-                        @Override
-                        public void onSuccess(Location location) {
+                .addOnSuccessListener((AppCompatActivity) context,
+                        location -> {
                             // Got last known location. In some rare situations this can be null.
                             if (location != null) {
                                 // Logic to handle location object
                                 mLastLocation = location;
-                            } else {
-                                Log.i(TAG, "getLastLocation: null location.");
-                                toastMessageLong(appContext, "Location is null");
+                                // Log last location
+                                MyMessage msg = new MsgLogging(
+                                        "Last location: " + MsgLocation.toString(mLastLocation) + "\n",
+                                        RecordingFragment.class.getSimpleName());
+                                Log.v(TAG, msg.toString());
+                                publishMessage(msg);
                             }
-                        }
-                    })
-                .addOnFailureListener((AppCompatActivity) appContext,
-                    new OnFailureListener() {
-                        @Override
-                        public void onFailure(@NonNull Exception e) {
-                            toastMessageLong(appContext,"Failure reading location");
-                        }
-                    })
-                .addOnCompleteListener((AppCompatActivity) appContext,
-                    new OnCompleteListener<Location>() {
-                        @Override
-                        public void onComplete(@NonNull Task<Location> task) {
+                            else {
+                                Log.d(TAG, "getLastLocation: null last location.");
+                            }
+                        })
+                .addOnFailureListener((AppCompatActivity) context,
+                        Throwable::printStackTrace)
+                .addOnCompleteListener((AppCompatActivity) context,
+                        task -> {
                             if (task.isSuccessful() && task.getResult() != null) {
                                 mLastLocation = task.getResult();
                             }
                             else {
                                 Log.w(TAG, "getLastLocation:exception", task.getException());
-                                //showSnackbar(getString(R.string.no_location_detected));
                             }
-                        }
-                    });
+                        });
         }
         catch (SecurityException e) {
-            toastMessageLong(appContext, e.getMessage());
-            return;
+            e.printStackTrace();
         }
     }
 
-    /*------------------------------------------ Updates -----------------------------------------*/
-
-    /**
-     * should we worry about context?
-     * Requests location updates from the FusedLocationApi. Note: we don't call this unless location
-     * runtime permission has been granted.
-     */
-    @SuppressWarnings("MissingPermission")
-    public void startLocationUpdatesWithSettingsCheck() {
-        if (!this.checkAvailability()) {
-            return;
-        }
-        if (mLocationSettingsRequest == null) {
-            buildLocationSettingsRequest();
-        }
-        // Begin by checking if the device has the necessary location settings.
-        mSettingsClient.checkLocationSettings(mLocationSettingsRequest)
-                .addOnSuccessListener((AppCompatActivity) appContext,
-                        new OnSuccessListener<LocationSettingsResponse>() {
-                            @Override
-                            public void onSuccess(LocationSettingsResponse locationSettingsResponse) {
-                                Log.i(TAG, "All location settings are satisfied.");
-                                try {
-                                    //noinspection MissingPermission
-                                    //getLastLocation();
-                                    mFusedLocationClient.requestLocationUpdates(mLocationRequest,
-                                            mLocationCallback, Looper.getMainLooper());
-                                    setRequestingLocationUpdatesFlag(true);
-                                }
-                                catch (SecurityException e) {
-
-                                }
-                                //setRequestingLocationUpdates(true);
-                            }
-                        })
-                .addOnFailureListener((AppCompatActivity) appContext, new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        int statusCode = ((ApiException) e).getStatusCode();
-                        switch (statusCode) {
-                            case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
-                                Log.i(TAG, "Location settings are not satisfied. Attempting to upgrade " +
-                                        "location settings ");
-                                try {
-                                    // Show the dialog by calling startResolutionForResult(), and check the
-                                    // result in onActivityResult().
-                                    ResolvableApiException rae = (ResolvableApiException) e;
-                                    rae.startResolutionForResult((AppCompatActivity) appContext,
-                                            Constants.REQUEST_CHECK_SETTINGS);
-                                } catch (IntentSender.SendIntentException sie) {
-                                    Log.i(TAG, "PendingIntent unable to execute request.");
-                                }
-                                break;
-                            case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
-                                String errorMessage = "Location settings are inadequate, and cannot be " +
-                                        "fixed here. Fix in Settings.";
-                                Log.e(TAG, errorMessage);
-                                toastMessageLong(appContext, errorMessage);
-                                break;
-                        }
-                        setRequestingLocationUpdatesFlag(false);
-                    }
-                });
-    }
-
-    public void startLocationUpdatesWithSettingsCheck(final Looper locLooper) {
-        if (!this.checkAvailability()) {
-            return;
-        }
-        if (mLocationSettingsRequest == null) {
-            buildLocationSettingsRequest();
-        }
-        //createLocationCallbackThreadSafe();
-        // Begin by checking if the device has the necessary location settings.
-        mSettingsClient.checkLocationSettings(mLocationSettingsRequest)
-                .addOnSuccessListener((AppCompatActivity) appContext,
-                        new OnSuccessListener<LocationSettingsResponse>() {
-                            @Override
-                            public void onSuccess(LocationSettingsResponse locationSettingsResponse) {
-                                Log.i(TAG, "All location settings are satisfied.");
-                                try {
-                                    //noinspection MissingPermission
-                                    //getLastLocation();
-                                    mFusedLocationClient.requestLocationUpdates(mLocationRequest,
-                                            mLocationCallback, locLooper);
-                                    setRequestingLocationUpdatesFlag(true);
-                                }
-                                catch (SecurityException e) {
-
-                                }
-                                //setRequestingLocationUpdates(true);
-                            }
-                        })
-                .addOnFailureListener((AppCompatActivity) appContext, new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        int statusCode = ((ApiException) e).getStatusCode();
-                        switch (statusCode) {
-                            case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
-                                Log.i(TAG, "Location settings are not satisfied. Attempting to upgrade " +
-                                        "location settings ");
-                                try {
-                                    // Show the dialog by calling startResolutionForResult(), and check the
-                                    // result in onActivityResult().
-                                    ResolvableApiException rae = (ResolvableApiException) e;
-                                    rae.startResolutionForResult((AppCompatActivity) appContext,
-                                            Constants.REQUEST_CHECK_SETTINGS);
-                                } catch (IntentSender.SendIntentException sie) {
-                                    Log.i(TAG, "PendingIntent unable to execute request.");
-                                }
-                                break;
-                            case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
-                                String errorMessage = "Location settings are inadequate, and cannot be " +
-                                        "fixed here. Fix in Settings.";
-                                Log.e(TAG, errorMessage);
-                                toastMessageLong(appContext, errorMessage);
-                                break;
-                        }
-                        setRequestingLocationUpdatesFlag(false);
-                    }
-                });
-    }
-
-    public void startLocationUpdates(final Looper locLooper) {
-        if (!this.checkAvailability()) {
-            return;
-        }
-        if (mLocationSettingsRequest == null) {
-            buildLocationSettingsRequest();
-        }
-        //createLocationCallbackThreadSafe();
-        // Begin by checking if the device has the necessary location settings.
-        mSettingsClient.checkLocationSettings(mLocationSettingsRequest)
-            .addOnSuccessListener((AppCompatActivity) appContext,
-                new OnSuccessListener<LocationSettingsResponse>() {
-                    @Override
-                    public void onSuccess(LocationSettingsResponse locationSettingsResponse) {
-                        Log.i(TAG, "All location settings are satisfied.");
-                        try {
-                            //noinspection MissingPermission
-                            getLastLocation();
-                            mFusedLocationClient.requestLocationUpdates(mLocationRequest,
-                                    mLocationCallback, locLooper);
-                            setRequestingLocationUpdatesFlag(true);
-                        }
-                        catch (SecurityException e) {
-
-                        }
-                    }
-                })
-            .addOnFailureListener((AppCompatActivity) appContext, new OnFailureListener() {
-                @Override
-                public void onFailure(@NonNull Exception e) {
-                    setRequestingLocationUpdatesFlag(false);
-                    int statusCode = ((ApiException) e).getStatusCode();
-                    switch (statusCode) {
-                        case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
-                            Log.i(TAG, "Location settings are not satisfied. Attempting to upgrade " +
-                                    "location settings ");
-                            break;
-                        case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
-                            String errorMessage = "Location settings are inadequate, and cannot be " +
-                                    "fixed here. Fix in Settings.";
-                            Log.e(TAG, errorMessage);
-                            break;
-                    }
-                }
-            });
-    }
+    /* --------------------------------------- Updates ------------------------------------------ */
 
     /**
      * Removes location updates from the FusedLocationApi.
      */
-    public void stopLocationUpdates() {
+    public void stopLocationUpdates(Context context) {
 
-        if (!getRequestingLocationUpdatesFlag()) {
-            Log.d(TAG, "stopLocationUpdates: updates never requested, no-op.");
+        if (mFusedLocationClient == null || mLocationCallback == null) {
+            Log.d(TAG, "Location processing has not started");
             return;
         }
+
         // It is a good practice to remove location requests when the activity is in a paused or
         // stopped state. Doing so helps battery performance and is especially
         // recommended in applications that request frequent location updates.
         mFusedLocationClient.removeLocationUpdates(mLocationCallback)
-            .addOnCompleteListener((AppCompatActivity) appContext,
-                    new OnCompleteListener<Void>() {
-                        @Override
-                        public void onComplete(@NonNull Task<Void> task) {
-                            //Will this work in this context??????
-                            Log.i(TAG, "stopLocationUpdates");
-                            setRequestingLocationUpdatesFlag(false);
-                            //setButtonsEnabledState();
-                        }
-                    }
-            );
+                .addOnCompleteListener((AppCompatActivity) context,
+                        task -> Log.i(TAG, "stopLocationUpdates")
+                );
     }
 
+    /* ======================================== Helpers ========================================= */
 
-    /*========================================= Helpers ==========================================*/
+    /* ======================================= Data Types ======================================= */
 
-    protected void toastMessageLong(Context ctxt, String msg) {
-        Toast.makeText(ctxt, msg, Toast.LENGTH_LONG).show();
-    }
 
-    /**
-     *
-     * @param loc
-     * @return String("data-time-format: longitude, latitude")
-     */
-    public String getSensorString(Location loc) {
-        return "Location, " +
-                new SimpleDateFormat("HH:mm:ss.SSSSSS").format(new Date()) +
-                ", " + loc.getLongitude() + ", " + loc.getLatitude() + '\n';
-    }
-
-    public String getLocationUpdate() {
-
-        if (mCurrentLocation == null) {
-            Log.w(TAG, "no location available.");
-            return "No Location available!";
-        }
-        return "Last Updated at: " + mLastUpdateTime + ",\n" +
-                "Latitude: " + mCurrentLocation.getLatitude() + ",\n" +
-                "Longitude: " + mCurrentLocation.getLongitude();
-    }
-
-    public String getLastLocString() {
-
-        if (mLastLocation == null) {
-            Log.w(TAG, "no last location available.");
-            return "No last location available!";
-        }
-        return "Accuracy: " + mLastLocation.getAccuracy() + ",\n" +
-                "Latitude: " + mLastLocation.getLatitude() + ",\n" +
-                "Longitude: " + mLastLocation.getLongitude();
-    }
-
-    /*
-        API level 29 or higher
-     */
-    /*public void checkLocBackgroundPermission() {
-
-        boolean permissionAccessCoarseLocationApproved =
-                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                        == PackageManager.PERMISSION_GRANTED;
-
-        if (permissionAccessCoarseLocationApproved) {
-            boolean backgroundLocationPermissionApproved =
-                    ActivityCompat.checkSelfPermission(this,
-                            Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-                            == PackageManager.PERMISSION_GRANTED;
-
-            if (backgroundLocationPermissionApproved) {
-                // App can access location both in the foreground and in the background.
-                // Start your service that doesn't have a foreground service type
-                // defined.
-            } else {
-                // App can only access location in the foreground. Display a dialog
-                // warning the user that your app must have all-the-time access to
-                // location in order to function properly. Then, request background
-                // location.
-                ActivityCompat.requestPermissions(this, new String[] {
-                                Manifest.permission.ACCESS_BACKGROUND_LOCATION},
-                        MY_PERMISSIONS_REQUEST_BACKGROUND_LOCATION);
-            }
-        } else {
-            // App doesn't have access to the device's location at all. Make full request
-            // for permission.
-            ActivityCompat.requestPermissions(this, new String[] {
-                            Manifest.permission.ACCESS_COARSE_LOCATION,
-                            Manifest.permission.ACCESS_BACKGROUND_LOCATION
-                    },
-                    MY_PERMISSIONS_REQUEST_BACKGROUND_LOCATION);
-        }
-    }*/
 }

@@ -25,7 +25,7 @@
                 android:layout_height="30dp"
                 android:layout_weight="1"
                 android:src="@drawable/ic_action_cancel"
-                android:contentDescription="@string/regected" />
+                android:contentDescription="@string/rejected" />
 
             <TextView
                 android:id="@+id/storagePermission"
@@ -49,7 +49,7 @@
                 android:layout_height="30dp"
                 android:layout_weight="1"
                 android:src="@drawable/ic_action_cancel"
-                android:contentDescription="@string/regected" />
+                android:contentDescription="@string/rejected" />
 
             <TextView
                 android:id="@+id/cameraPermission"
@@ -73,7 +73,7 @@
                 android:layout_height="30dp"
                 android:layout_weight="1"
                 android:src="@drawable/ic_action_cancel"
-                android:contentDescription="@string/regected" />
+                android:contentDescription="@string/rejected" />
 
             <TextView
                 android:id="@+id/microphonePermission"
@@ -97,7 +97,7 @@
                 android:layout_height="30dp"
                 android:layout_weight="1"
                 android:src="@drawable/ic_action_cancel"
-                android:contentDescription="@string/regected" />
+                android:contentDescription="@string/rejected" />
 
             <TextView
                 android:id="@+id/locationPermission"
@@ -127,6 +127,12 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/modify_permissions" />
+
+        <!--Button
+            android:id="@+id/btnManageAllPerm"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/tv_manage_all_files" /-->
 
         <TextView
             android:id="@+id/reportTxt"
