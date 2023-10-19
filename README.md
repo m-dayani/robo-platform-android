@@ -1,4 +1,4 @@
-# ROBO Platform Android App
+# ROBO Platform | Android App
 
 This project was initially developed for robot control as a component of an experimental project. 
 Later, it was extended to record sensor datasets.
