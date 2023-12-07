@@ -30,6 +30,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         findViewById(R.id.startCarManualCtrl).setOnClickListener(this);
         findViewById(R.id.startRecordSensors).setOnClickListener(this);
         findViewById(R.id.startController).setOnClickListener(this);
+        findViewById(R.id.nativeTest).setOnClickListener(this);
     }
 
     @Override
@@ -67,6 +68,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             Log.d(TAG, "startTest");
             intent = new Intent(this, TestActivity.class);
+        }
+        else if (id == R.id.nativeTest) {
+
+            Log.d(TAG, "nativeTest");
+            intent = new Intent(this, NativeTestActivity.class);
         }
 
         // Launch the desired activity

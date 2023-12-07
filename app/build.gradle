@@ -9,6 +9,11 @@ android {
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        externalNativeBuild {
+            cmake {
+                cppFlags ''
+            }
+        }
     }
     buildTypes {
         release {
@@ -34,6 +39,12 @@ android {
         exclude 'META-INF/proguard/androidx-coroutines.pro'
         exclude 'META-INF/proguard/androidx-annotations.pro'
         exclude("META-INF/*.kotlin_module")
+    }
+    externalNativeBuild {
+        cmake {
+            path file('src/main/cpp/CMakeLists.txt')
+            version '3.18.1'
+        }
     }
 }
 
