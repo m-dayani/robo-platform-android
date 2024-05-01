@@ -1,9 +1,11 @@
 package com.dayani.m.roboplatform;
 
+import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
@@ -27,10 +29,12 @@ import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
  * create an instance of this fragment.
  */
 public class ControlPanelFragment extends Fragment implements View.OnClickListener,
-        MyChannels.ChannelTransactions {
+        MyChannels.ChannelTransactions, View.OnTouchListener {
 
 
     private static final String KEY_MANAGER_NAME = AppGlobals.PACKAGE_BASE_NAME+".key-manager-name";
+
+    private String mLastBtnDir = "0";
 
     private MyBaseManager mManager;
 
@@ -82,12 +86,12 @@ public class ControlPanelFragment extends Fragment implements View.OnClickListen
         // Inflate the layout for this fragment
         View view = inflater.inflate(R.layout.fragment_control_panel, container, false);
 
-        view.findViewById(R.id.btnCtrlQ).setOnClickListener(this);
-        view.findViewById(R.id.btnCtrlW).setOnClickListener(this);
-        view.findViewById(R.id.btnCtrlE).setOnClickListener(this);
-        view.findViewById(R.id.btnCtrlA).setOnClickListener(this);
-        view.findViewById(R.id.btnCtrlS).setOnClickListener(this);
-        view.findViewById(R.id.btnCtrlD).setOnClickListener(this);
+        view.findViewById(R.id.btnCtrlQ).setOnTouchListener(this);
+        view.findViewById(R.id.btnCtrlW).setOnTouchListener(this);
+        view.findViewById(R.id.btnCtrlE).setOnTouchListener(this);
+        view.findViewById(R.id.btnCtrlA).setOnTouchListener(this);
+        view.findViewById(R.id.btnCtrlS).setOnTouchListener(this);
+        view.findViewById(R.id.btnCtrlD).setOnTouchListener(this);
 
         view.findViewById(R.id.btnSendWC).setOnClickListener(this);
 
@@ -129,26 +133,14 @@ public class ControlPanelFragment extends Fragment implements View.OnClickListen
     public void onClick(View view) {
 
         String cmd;
-        WirelessCommand cmdType = WirelessCommand.CMD_DIR;
+        WirelessCommand cmdType;
 
-        int id = view.getId();
-        if (id == R.id.btnCtrlQ) {
-            cmd = "Q";
-        } else if (id == R.id.btnCtrlE) {
-            cmd = "E";
-        } else if (id == R.id.btnCtrlW) {
-            cmd = "W";
-        } else if (id == R.id.btnCtrlS) {
-            cmd = "S";
-        } else if (id == R.id.btnCtrlA) {
-            cmd = "A";
-        } else if (id == R.id.btnCtrlD) {
-            cmd = "D";
-        } else if (id == R.id.btnSendWC) {
+        if (view.getId() == R.id.btnSendWC) {
             cmd = wordInput.getText().toString();
             chatBox.append("Server << "+cmd);
             cmdType = WirelessCommand.CMD_WORD;
-        } else {
+        }
+        else {
             cmd = "unknown";
             cmdType = WirelessCommand.CHAT;
         }
@@ -157,6 +149,46 @@ public class ControlPanelFragment extends Fragment implements View.OnClickListen
         this.publishMessage(msg);
     }
 
+    @SuppressLint("ClickableViewAccessibility")
+    @Override
+    public boolean onTouch(View view, MotionEvent event) {
+
+        String cmd = mLastBtnDir;
+        WirelessCommand cmdType = WirelessCommand.CMD_DIR;
+
+        if(event.getAction() == MotionEvent.ACTION_DOWN) {
+
+            int id = view.getId();
+            if (id == R.id.btnCtrlQ) {
+                cmd = "Q";
+            }
+            else if (id == R.id.btnCtrlE) {
+                cmd = "E";
+            }
+            else if (id == R.id.btnCtrlW) {
+                cmd = "W";
+            }
+            else if (id == R.id.btnCtrlS) {
+                cmd = "S";
+            }
+            else if (id == R.id.btnCtrlA) {
+                cmd = "A";
+            }
+            else if (id == R.id.btnCtrlD) {
+                cmd = "D";
+            }
+            mLastBtnDir = cmd;
+        }
+        else if (event.getAction() == MotionEvent.ACTION_UP) {
+            cmd = "0";
+            mLastBtnDir = cmd;
+        }
+
+        MsgWireless msg = new MsgWireless(cmdType, cmd);
+        this.publishMessage(msg);
+
+        return true;
+    }
 
     @Override
     public void registerChannel(MyChannels.ChannelTransactions channel) {

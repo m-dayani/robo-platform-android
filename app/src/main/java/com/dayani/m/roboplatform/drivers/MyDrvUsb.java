@@ -171,7 +171,7 @@ public class MyDrvUsb {
             return null;
         }
 
-        return Arrays.copyOfRange(rawInput, 2, 2+dataLength);
+        return Arrays.copyOfRange(rawInput, 2, 2 + dataLength);
     }
 
     public static String decodeUsbCommandStr(byte[] rawInput) {
@@ -263,6 +263,7 @@ public class MyDrvUsb {
             //case "down":
                 output[2] |= 0x20;
                 break;
+            case "0":
             default:
                 //output[2] &= 0x00;
                 break;
