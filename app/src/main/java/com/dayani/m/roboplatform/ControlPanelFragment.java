@@ -153,6 +153,8 @@ public class ControlPanelFragment extends Fragment implements View.OnClickListen
     @Override
     public boolean onTouch(View view, MotionEvent event) {
 
+        // TODO: you can send commands only when it's necessary (like desktop interface)
+        // In this case, send repetitive keys only once (holding a key)
         String cmd = mLastBtnDir;
         WirelessCommand cmdType = WirelessCommand.CMD_DIR;
 
