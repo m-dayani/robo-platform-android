@@ -8,7 +8,6 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.Toast;
 
 
 /**
@@ -31,6 +30,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         findViewById(R.id.startRecordSensors).setOnClickListener(this);
         findViewById(R.id.startController).setOnClickListener(this);
         findViewById(R.id.nativeTest).setOnClickListener(this);
+        findViewById(R.id.startFlightManualCtrl).setOnClickListener(this);
     }
 
     @Override
@@ -58,6 +58,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             Log.d(TAG, "startCarManualCtrl");
             intent = new Intent(this, CarManualControlActivity.class);
+        }
+        else if (id == R.id.startFlightManualCtrl) {
+
+            Log.d(TAG, "startFlightManualCtrl");
+            intent = new Intent(this, FlightControlActivity.class);
         }
         else if (id == R.id.startController) {
 

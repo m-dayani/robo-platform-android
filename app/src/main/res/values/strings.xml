@@ -6,8 +6,9 @@
     <string name="help">Help</string>
     <string name="main_refresh">Refresh</string>
     <string name="labelStartRecordAll">Record Sensors (with USB)</string>
-    <string name="labelStartCarManual">Robo Controller Client</string>
-    <string name="labelStartTest">Test USB</string>
+    <string name="labelStartCarManual">Car Controller Client</string>
+    <string name="labelStartFlightCtrl">Flight Controller Client</string>
+    <string name="labelStartTest">USB Test</string>
 
     <!-- TODO: Remove or change this placeholder text -->
     <string name="all_sensors">All Sensors</string>

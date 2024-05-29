@@ -19,7 +19,6 @@ import androidx.lifecycle.ViewModelProvider;
 import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.managers.MyBaseManager.LifeCycleState;
 import com.dayani.m.roboplatform.managers.MyBluetoothManager;
-import com.dayani.m.roboplatform.managers.MySensorManager;
 import com.dayani.m.roboplatform.managers.MyStateManager;
 import com.dayani.m.roboplatform.managers.MyUSBManager;
 import com.dayani.m.roboplatform.managers.MyWifiManager;
@@ -176,18 +175,18 @@ public class CarManualControlActivity extends AppCompatActivity
         private static final String KEY_STARTED_STATE = AppGlobals.PACKAGE_BASE_NAME
                 +'.'+TAG+".KEY_STARTED_STATE";
 
-        private Button mBtnStart;
-        private Button mBtnWifi;
-        private Button mBtnBt;
-        private Button mBtnUsb;
+        protected Button mBtnStart;
+        protected Button mBtnWifi;
+        protected Button mBtnBt;
+        protected Button mBtnUsb;
 
-        private boolean mIsStarted = false;
+        protected boolean mIsStarted = false;
 
-        private MyUSBManager mUsb;
-        private MyWifiManager mWifiManager;
-        private MyBluetoothManager mBtManager;
+        protected MyUSBManager mUsb;
+        protected MyWifiManager mWifiManager;
+        protected MyBluetoothManager mBtManager;
 
-        MyBackgroundExecutor.JobListener mBackgroundHandler;
+        protected MyBackgroundExecutor.JobListener mBackgroundHandler;
 
 
         public ManualControlFragment() {

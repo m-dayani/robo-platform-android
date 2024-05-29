@@ -39,6 +39,7 @@ import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
 import android.os.Build;
+import android.os.Handler;
 import android.os.SystemClock;
 import android.util.Log;
 import android.util.Pair;
@@ -59,8 +60,13 @@ import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MyMessage;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MyUsbInfo;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageConfig;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageInfo;
+import com.felhr.usbserial.CDCSerialDevice;
+import com.felhr.usbserial.UsbSerialDevice;
+import com.felhr.usbserial.UsbSerialInterface;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -91,8 +97,8 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
 
     private static final String ACTION_USB_PERMISSION =
             AppGlobals.PACKAGE_BASE_NAME+".USB_PERMISSION";
-    public static final String ACTION_USB_AVAILABILITY =
-            AppGlobals.PACKAGE_BASE_NAME+".ACTION_USB_AVAILABILITY";
+//    public static final String ACTION_USB_AVAILABILITY =
+//            AppGlobals.PACKAGE_BASE_NAME+".ACTION_USB_AVAILABILITY";
 
     private static final int SENSOR_ID = 0;
 
@@ -116,8 +122,11 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
     // detect device detach events
     private BroadcastReceiver mUsbDetachedListener = null;
 
-
     private MyUsbInfo mUsbInfo = null;
+
+    // Support Arduino Serial Connection
+    private boolean isSerial;
+    private final TinySerialManager mSerialManager;
 
     /* ====================================== Construction ====================================== */
 
@@ -138,6 +147,9 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
 
         mVendorId = getDefaultVendorId(context);
         mDeviceId = getDefaultDeviceId(context);
+
+        isSerial = false;
+        mSerialManager = new TinySerialManager();
     }
 
     /* ===================================== Core Tasks ========================================= */
@@ -213,6 +225,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
                 }
             }
 
+            // todo: this seems wrong
             // since this is a simple update operation, don't retain the communication
             close();
         }
@@ -512,7 +525,6 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
 //        System.arraycopy(buffer, 0, mOutputBuffer, 0, minLength);
     }
 
-
     @Override
     public List<MySensorGroup> getSensorGroups(Context mContext) {
 
@@ -578,6 +590,9 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
             mConnection.releaseInterface(mInterface);
             mConnection.close();
             Log.d(TAG, "USB device closed successfully.");
+        }
+        if (mSerialManager != null) {
+            mSerialManager.close();
         }
     }
 
@@ -656,6 +671,13 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
         // This must be done before sending or receiving data on
         // any UsbEndpoints belonging to the interface.
         mConnection.claimInterface(mInterface, true);
+
+        // Arduino devices usually have null product name
+        // todo: find a better way for this check
+        isSerial = mDevice.getProductName() == null;
+        if (isSerial) {
+            mSerialManager.connect();
+        }
 
         return true;
     }
@@ -745,12 +767,18 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
     public void handleTestSynchronous(MyMessage msg) {
 
         // we don't use the msg here
-
-        // send a two way command to query the device's internal code
-        MsgUsb usbInMsg = sendDataCommand(UsbCommand.CMD_RUN_TEST, DEFAULT_TEST_IN_MESSAGE);
-        //private final byte[] mOutputBuffer = new byte[256];
-        String mRecMsg = MyDrvUsb.decodeUsbCommandStr(usbInMsg.getRawBuffer());
-        Log.d(TAG, "testDevice, test result: "+ mRecMsg);
+        String mRecMsg = "";
+        if (isSerial) {
+            // Arduino Device
+            mRecMsg = mSerialManager.runTest();
+        }
+        else {
+            // V-USB device
+            // send a two-way command to query the device's internal code
+            MsgUsb usbInMsg = sendDataCommand(UsbCommand.CMD_RUN_TEST, DEFAULT_TEST_IN_MESSAGE);
+            mRecMsg = MyDrvUsb.decodeUsbCommandStr(usbInMsg.getRawBuffer());
+            Log.d(TAG, "testDevice, test result: " + mRecMsg);
+        }
 
         // if response has expected values, return true
         mbPassedConnTest = mRecMsg.equals(DEFAULT_TEST_OUT_MESSAGE);
@@ -1027,6 +1055,219 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
                     close();
                     // update the state
                     updateRequirementsState(context);
+                }
+            }
+        }
+    }
+
+    private class TinySerialManager {
+
+        public static final int MESSAGE_FROM_SERIAL_PORT = 0;
+        public static final int CTS_CHANGE = 1;
+        public static final int DSR_CHANGE = 2;
+        private static final int BAUD_RATE = 9600; // BaudRate. Change this value if you need
+
+        // Support Arduino Serial Connection
+        private String mSerialData;
+        private final byte[] mSerialBuffer = new byte[64];
+        private int mSerialBufferIdx = 0;
+        private int mSerialDataSz = 0;
+        private Handler mHandler;
+        private UsbSerialDevice serialPort;
+        private boolean serialPortConnected;
+
+        private void handleSerialMessage(byte[] arg0) {
+            int buffLen = arg0.length;
+            if (buffLen > 0) {
+                if (mSerialBufferIdx == 0) {
+                    mSerialDataSz = arg0[0];
+                    mSerialBuffer[mSerialBufferIdx++] = arg0[0];
+                    buffLen--;
+                    Log.d("UsbCb.onReceivedData", "data size is " + Integer.toString(mSerialDataSz));
+                    byte[] newArg0 = new byte[buffLen];
+                    System.arraycopy(arg0, 1, newArg0, 0, buffLen);
+                    handleSerialMessage(newArg0);
+                    return;
+                }
+                if (mSerialBufferIdx == 1) {
+                    // get command
+                    mSerialBuffer[mSerialBufferIdx++] = arg0[0];
+                    buffLen--;
+                    Log.d("UsbCb.onReceivedData", "Buffer Idx is " + Integer.toString(mSerialBufferIdx));
+                    byte[] newArg0 = new byte[buffLen];
+                    System.arraycopy(arg0, 1, newArg0, 0, buffLen);
+                    handleSerialMessage(newArg0);
+                    return;
+                }
+                if (mSerialBufferIdx >= 2) {
+                    for (int i = 0; i < buffLen && mSerialBufferIdx < mSerialDataSz + 2; i++, mSerialBufferIdx++) {
+                        mSerialBuffer[mSerialBufferIdx] = arg0[i];
+//                    if (mSerialBufferIdx >= mSerialDataSz + 2) {
+//                        mSerialBufferIdx = 0;
+//                        mSerialDataSz = 0;
+//                        byte[] newArg0 = new byte[mSerialBuffer[0]];
+//                        System.arraycopy(mSerialBuffer, 2, newArg0, 0, mSerialDataSz);
+//                        mSerialData = new String(newArg0, StandardCharsets.UTF_8);
+//                        Log.d("UsbCb.onReceivedData", "reconst data: " + Arrays.toString(newArg0));
+//                        break;
+//                    }
+                    }
+                }
+                if (mSerialBufferIdx >= mSerialDataSz + 2) {
+
+                    byte[] newArg0 = new byte[mSerialDataSz];
+                    System.arraycopy(mSerialBuffer, 2, newArg0, 0, mSerialDataSz);
+                    mSerialData = new String(newArg0, StandardCharsets.UTF_8);
+                    Log.d("UsbCb.onReceivedData", "reconst data: " + Arrays.toString(newArg0));
+                    Log.d("UsbCb.onReceivedData", "out message: " + mSerialData);
+
+                    mSerialBufferIdx = 0;
+                    mSerialDataSz = 0;
+                }
+            }
+            else {
+                Log.d("UsbCb.onReceivedData", "arg0 is empty");
+            }
+        }
+
+        /*
+         *  Data received from serial port will be received here. Just populate onReceivedData with your code
+         *  In this particular example. byte stream is converted to String and send to UI thread to
+         *  be treated there.
+         */
+        private final UsbSerialInterface.UsbReadCallback mCallback = new UsbSerialInterface.UsbReadCallback() {
+            @Override
+            public void onReceivedData(byte[] arg0) {
+                Log.d("UsbCb.onReceivedData", "data received: " + Arrays.toString(arg0));
+                if (arg0 == null) {
+                    Log.d("UsbCb.onReceivedData", "arg0 is null");
+                    return;
+                }
+                handleSerialMessage(arg0);
+                if (mHandler != null && mSerialData != null) {
+                    Log.d("UsbCb.onReceivedData", "sending data to handler");
+                    mHandler.obtainMessage(MESSAGE_FROM_SERIAL_PORT, mSerialData).sendToTarget();
+                }
+            }
+        };
+
+        /*
+         * State changes in the CTS line will be received here
+         */
+        private final UsbSerialInterface.UsbCTSCallback ctsCallback = new UsbSerialInterface.UsbCTSCallback() {
+            @Override
+            public void onCTSChanged(boolean state) {
+                if(mHandler != null)
+                    mHandler.obtainMessage(CTS_CHANGE).sendToTarget();
+            }
+        };
+
+        /*
+         * State changes in the DSR line will be received here
+         */
+        private final UsbSerialInterface.UsbDSRCallback dsrCallback = new UsbSerialInterface.UsbDSRCallback() {
+            @Override
+            public void onDSRChanged(boolean state) {
+                if(mHandler != null)
+                    mHandler.obtainMessage(DSR_CHANGE).sendToTarget();
+            }
+        };
+
+        public TinySerialManager() {
+
+            serialPortConnected = false;
+            serialPort = null;
+        }
+
+        public void connect() {
+            new ConnectionThread().start();
+        }
+
+        public void close() {
+            if (serialPort != null) {
+                serialPort.close();
+                Log.d(TAG, "Serial port closed successfully.");
+            }
+        }
+
+        public String runTest() {
+            String mRecMsg = "";
+            Log.d(TAG, "testDevice, message is empty");
+            if (serialPort != null) {
+                serialPort.write(MyDrvUsb.encodeUsbCommand(DEFAULT_TEST_IN_MESSAGE));
+                if (mSerialData!=null && !mSerialData.isEmpty()) {
+                    mRecMsg = mSerialData;
+                    isSerial = true;
+                    Log.d(TAG, "testDevice, received data: " + mSerialData);
+                }
+                else {
+                    Log.d(TAG, "testDevice, serial data is empty");
+                }
+            }
+            else {
+                Log.d(TAG, "testDevice, serial port is null");
+            }
+            return mRecMsg;
+        }
+
+        public void setHandler(Handler mHandler) {
+            this.mHandler = mHandler;
+        }
+
+        private class ConnectionThread extends Thread {
+            @Override
+            public void run() {
+                Log.d(TAG, "creating serial connection");
+                serialPort = UsbSerialDevice.createUsbSerialDevice(mDevice, mConnection);
+                if (serialPort != null) {
+                    Log.d(TAG, "created serial port");
+                    if (serialPort.open()) {
+                        Log.d(TAG, "opened serial port");
+                        serialPortConnected = true;
+                        serialPort.setBaudRate(BAUD_RATE);
+                        serialPort.setDataBits(UsbSerialInterface.DATA_BITS_8);
+                        serialPort.setStopBits(UsbSerialInterface.STOP_BITS_1);
+                        serialPort.setParity(UsbSerialInterface.PARITY_NONE);
+                        /*
+                         * Current flow control Options:
+                         * UsbSerialInterface.FLOW_CONTROL_OFF
+                         * UsbSerialInterface.FLOW_CONTROL_RTS_CTS only for CP2102 and FT232
+                         * UsbSerialInterface.FLOW_CONTROL_DSR_DTR only for CP2102 and FT232
+                         */
+                        serialPort.setFlowControl(UsbSerialInterface.FLOW_CONTROL_OFF);
+                        serialPort.read(mCallback);
+                        serialPort.getCTS(ctsCallback);
+                        serialPort.getDSR(dsrCallback);
+
+                        //
+                        // Some Arduinos would need some sleep because firmware wait some time to know whether a new sketch is going
+                        // to be uploaded or not
+                        //Thread.sleep(2000); // sleep some. YMMV with different chips.
+
+                        // Everything went as expected. Send an intent to MainActivity
+                        //Intent intent = new Intent(ACTION_USB_READY);
+                        //context.sendBroadcast(intent);
+                    }
+                    else {
+                        // Serial port could not be opened, maybe an I/O error or if CDC driver was chosen, it does not really fit
+                        // Send an Intent to Main Activity
+                        if (serialPort instanceof CDCSerialDevice) {
+                            //Intent intent = new Intent(ACTION_CDC_DRIVER_NOT_WORKING);
+                            //context.sendBroadcast(intent);
+                            Log.d(TAG, "UsbSerial:ConnectionThread, ACTION_CDC_DRIVER_NOT_WORKING");
+                        }
+                        else {
+                            //Intent intent = new Intent(ACTION_USB_DEVICE_NOT_WORKING);
+                            //context.sendBroadcast(intent);
+                            Log.d(TAG, "UsbSerial:ConnectionThread, ACTION_USB_DEVICE_NOT_WORKING");
+                        }
+                    }
+                }
+                else {
+                    // No driver for given device, even generic CDC driver could not be loaded
+                    //Intent intent = new Intent(ACTION_USB_NOT_SUPPORTED);
+                    //context.sendBroadcast(intent);
+                    Log.d(TAG, "UsbSerial:ConnectionThread, ACTION_USB_NOT_SUPPORTED");
                 }
             }
         }
