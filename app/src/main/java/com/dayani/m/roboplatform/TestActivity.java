@@ -271,7 +271,7 @@ public class TestActivity extends AppCompatActivity implements ActivityRequireme
         public void onAvailabilityStateChanged(MyBaseManager manager) {
 
             if (manager instanceof MyUSBManager) {
-                onUsbConnection(((MyUSBManager) manager).isAvailable());
+                onUsbConnection(manager.isAvailable());
             }
         }
     }

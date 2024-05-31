@@ -83,7 +83,7 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
 
             mUsb.setRequirementResponseListener(null);
             // maybe user has already opened the device
-            mUsb.close();
+            //mUsb.close();
         }
 
         super.onDestroy();

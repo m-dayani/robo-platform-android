@@ -229,6 +229,25 @@ public abstract class MyBaseManager implements ChannelTransactions,
             }
         }
     }
+    public void updateCheckedByType(MySensorGroup.SensorType grpType, int senType, boolean state) {
+
+        for (MySensorGroup sensorGroup : mlSensorGroup) {
+            if (sensorGroup.getType() == grpType) {
+                for (MySensorInfo sensorInfo : sensorGroup.getSensors()) {
+                    if (sensorInfo.getId() == senType) {
+                        sensorInfo.setChecked(state);
+                    }
+                }
+            }
+        }
+    }
+    public void uncheckAllSensors() {
+        for (MySensorGroup sensorGroup : mlSensorGroup) {
+            for (MySensorInfo sensorInfo : sensorGroup.getSensors()) {
+                sensorInfo.setChecked(false);
+            }
+        }
+    }
 
     // Availability
 

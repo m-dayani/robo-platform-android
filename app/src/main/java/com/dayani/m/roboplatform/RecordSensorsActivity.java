@@ -117,7 +117,7 @@ public class RecordSensorsActivity extends AppCompatActivity
         mManager.registerChannel(storageManager);
 
         if (withUSB) {
-            Log.d(TAG, "USB manager is enabled");
+            Log.d(TAG, "USB Sensor is enabled");
             mManager = SensorsViewModel.getOrCreateManager(
                     this, vm, MyUSBManager.class.getSimpleName());
             mManager.registerChannel(storageManager);

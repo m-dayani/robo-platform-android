@@ -64,6 +64,7 @@ public class MySensorManager extends MyBaseManager {
 
     private static final List<Integer> mCalibratedTypes = initCalibratedTypes();
     private static final List<Integer> mUncalibratedTypes = initUncalibratedTypes();
+    private static final List<Integer> mMotionSensorTypes = initMotionSensorTypes();
     private static final List<Integer> mAllSensorTypes = initAllSensorTypes();
 
 
@@ -133,6 +134,27 @@ public class MySensorManager extends MyBaseManager {
 
     /* ----------------------------------- Setters/Getters -------------------------------------- */
 
+    @Override
+    public void updateCheckedByType(SensorType grpType, int senType, boolean state) {
+        for (MySensorGroup sensorGroup : mlSensorGroup) {
+            if (sensorGroup.getType() == grpType) {
+                for (MySensorInfo sensorInfo : sensorGroup.getSensors()) {
+                    if (sensorInfo instanceof MotionSensor) {
+                        MotionSensor motionSensor = (MotionSensor) sensorInfo;
+                        if (motionSensor.getSensor().getType() == senType) {
+                            motionSensor.setChecked(state);
+                        }
+                    }
+                    else {
+                        if (sensorInfo.getId() == senType) {
+                            sensorInfo.setChecked(state);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /* ------------------------------------ Init. Sensors --------------------------------------- */
 
     private static List<Integer> initCalibratedTypes() {
@@ -159,12 +181,23 @@ public class MySensorManager extends MyBaseManager {
         return lTypes;
     }
 
+    private static List<Integer> initMotionSensorTypes() {
+
+        return Arrays.asList(
+                Sensor.TYPE_GRAVITY,
+                Sensor.TYPE_ROTATION_VECTOR,
+                Sensor.TYPE_LINEAR_ACCELERATION,
+                Sensor.TYPE_STEP_COUNTER
+        );
+    }
+
     private static List<Integer> initAllSensorTypes() {
 
         List<Integer> lTypes = new ArrayList<>();
 
         lTypes.addAll(mCalibratedTypes);
         lTypes.addAll(mUncalibratedTypes);
+        lTypes.addAll(mMotionSensorTypes);
 
         return lTypes;
     }
@@ -274,6 +307,18 @@ public class MySensorManager extends MyBaseManager {
         return mMag;
     }
 
+    private static List<MySensorInfo> getMotionSensors(SensorManager sensorManager) {
+
+        ArrayList<MySensorInfo> mMotion = new ArrayList<>();
+
+        getSensorsInfo(sensorManager, Sensor.TYPE_GRAVITY, mMotion);
+        getSensorsInfo(sensorManager, Sensor.TYPE_ROTATION_VECTOR, mMotion);
+        getSensorsInfo(sensorManager, Sensor.TYPE_LINEAR_ACCELERATION, mMotion);
+        getSensorsInfo(sensorManager, Sensor.TYPE_STEP_COUNTER, mMotion);
+
+        return mMotion;
+    }
+
     /**
      * Since this is called at first (base constructor) don't use any internal variables here
      * @param mContext context activity
@@ -293,6 +338,7 @@ public class MySensorManager extends MyBaseManager {
 
         List<MySensorInfo> mImu = getImuSensors(mSensorManager);
         List<MySensorInfo> mMag = getMagnetometerSensors(mSensorManager);
+        List<MySensorInfo> mMotion = getMotionSensors(mSensorManager);
 
         MySensorGroup imuGrp = new MySensorGroup(MySensorGroup.getNextGlobalId(),
                 SensorType.TYPE_IMU, "IMU", mImu);
@@ -302,6 +348,12 @@ public class MySensorManager extends MyBaseManager {
         MySensorGroup magGrp = new MySensorGroup(MySensorGroup.getNextGlobalId(),
                 SensorType.TYPE_MAGNET, "Magnetometer", mMag);
         sensorGroups.add(magGrp);
+
+        // These are hidden sensors used for other functionality
+        MySensorGroup motionGrp = new MySensorGroup(MySensorGroup.getNextGlobalId(),
+                SensorType.TYPE_MOTION, "Motion", mMotion);
+        motionGrp.setHidden(true);
+        sensorGroups.add(motionGrp);
 
         return sensorGroups;
     }
@@ -354,6 +406,7 @@ public class MySensorManager extends MyBaseManager {
             return;
         }
 
+        int cnt = 0;
         for (MySensorGroup sensorGroup : mlSensorGroup) {
 
             for (MySensorInfo sensor : sensorGroup.getSensors()) {
@@ -363,9 +416,11 @@ public class MySensorManager extends MyBaseManager {
                     MotionSensor motionSensor = (MotionSensor) sensor;
                     mSensorManager.registerListener(mSensorCallback, motionSensor.getSensor(),
                                                     MAX_SENSOR_READ_INTERVAL);
+                    cnt++;
                 }
             }
         }
+        Log.d(TAG, "Registered " + cnt + " sensors");
     }
 
     private void unregisterSensors() {
@@ -376,6 +431,7 @@ public class MySensorManager extends MyBaseManager {
         }
 
         mSensorManager.unregisterListener(mSensorCallback);
+        Log.d(TAG, "Unregistered sensors successfully");
     }
 
     /* ----------------------------------- Message Passing -------------------------------------- */

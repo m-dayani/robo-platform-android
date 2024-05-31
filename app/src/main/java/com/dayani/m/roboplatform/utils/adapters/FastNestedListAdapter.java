@@ -69,6 +69,10 @@ public class FastNestedListAdapter {
 
         for (MySensorGroup sensorGroup : mSensorGroups) {
 
+            if (sensorGroup.isHidden()) {
+                continue;
+            }
+
             View sgView = getSensorsGroupView(context, sensorGroup, parent);
 
             sgView.setLayoutParams(lParams);

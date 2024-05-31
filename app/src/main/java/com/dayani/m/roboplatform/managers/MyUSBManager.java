@@ -13,6 +13,13 @@ package com.dayani.m.roboplatform.managers;
  *      TODO: Options:
  *          - Accumulate ADC values in a large buffer and decode USB bulk transfers
  *              (cons: decoding time + timestamp of individual readings??)
+ *
+ * Note5: Both USB Manager and Driver must be blind to the meaning of commands and data
+ *      Currently, this manager plays three different roles:
+ *          1. A V-USB Driver
+ *          2. A USB Serial Driver
+ *          3. A Sensor Device (ADC) -> A separate sub-class now
+ *
  * ** Availability:
  *      1. Target device is connected (can be found)
  *      2. Target device is permitted (USB device permission)
@@ -39,7 +46,6 @@ import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
 import android.os.Build;
-import android.os.Handler;
 import android.os.SystemClock;
 import android.util.Log;
 import android.util.Pair;
@@ -52,12 +58,10 @@ import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgConfig;
-import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgStorage;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgUsb;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgUsb.MyControlTransferInfo;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgUsb.UsbCommand;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MyMessage;
-import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MyUsbInfo;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageConfig;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageInfo;
 import com.felhr.usbserial.CDCSerialDevice;
@@ -100,7 +104,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
 //    public static final String ACTION_USB_AVAILABILITY =
 //            AppGlobals.PACKAGE_BASE_NAME+".ACTION_USB_AVAILABILITY";
 
-    private static final int SENSOR_ID = 0;
+    protected static final int SENSOR_ID = 0;
 
     private int mVendorId;
     private int mDeviceId;
@@ -115,17 +119,18 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
 
     private final byte[] mInputBuffer = new byte[256];
 
-    private boolean mbIsPermitted = false;
+    //private boolean mbIsPermitted = false;
     private boolean mbUsbDeviceAvailable = false;
     private boolean mbPassedConnTest = false;
+
+    // USB Sensor (ADC)
+    private final MyUSBSensor mUsbSensor;
 
     // detect device detach events
     private BroadcastReceiver mUsbDetachedListener = null;
 
-    private MyUsbInfo mUsbInfo = null;
-
     // Support Arduino Serial Connection
-    private boolean isSerial;
+    private boolean mbIsSerial;
     private final TinySerialManager mSerialManager;
 
     /* ====================================== Construction ====================================== */
@@ -148,7 +153,9 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
         mVendorId = getDefaultVendorId(context);
         mDeviceId = getDefaultDeviceId(context);
 
-        isSerial = false;
+        mUsbSensor = new MyUSBSensor();
+
+        mbIsSerial = false;
         mSerialManager = new TinySerialManager();
     }
 
@@ -191,6 +198,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
 
     public void updateUsbAvailabilityState() {
 
+        // This method must not manage resources (open/close)
         if (mUsbManager == null) {
             return;
         }
@@ -208,27 +216,30 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
         if (!mUsbManager.hasPermission(mDevice)) {
             return;
         }
-
         setIsDevicePermitted(true);
 
-        // 3. try open default device
-        if (tryOpenDeviceAndUpdateInfo()) {
+        // 3. is device connected and Android is host
+        if (mConnection == null) {
+            return;
+        }
 
-            // 4. is this a V-USB device?
-            handleTestSynchronous(null);
-            if (passedConnectivityTest()) {
+        //if (tryOpenDeviceAndUpdateInfo()) {
 
-                setUsbAvailability(true);
+        // 4. is this a V-USB device? (test is passed)
+        handleTestSynchronous(null);
+        if (passedConnectivityTest()) {
 
-                if (mRequirementResponseListener != null) {
-                    mRequirementResponseListener.onAvailabilityStateChanged(this);
-                }
+            setUsbAvailability(true);
+
+            if (mRequirementResponseListener != null) {
+                mRequirementResponseListener.onAvailabilityStateChanged(this);
             }
+        }
 
             // todo: this seems wrong
             // since this is a simple update operation, don't retain the communication
-            close();
-        }
+            //close();
+        //}
     }
 
     @Override
@@ -288,26 +299,26 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
         switch (state) {
             case START_RECORDING: {
 
-                if (this.isNotAvailableAndChecked()) {
+                if (this.isNotAvailableAndChecked() || mUsbSensor == null) {
                     Log.w(TAG, "USB is not available, abort");
                     return;
                 }
 
                 super.execute(context, state);
                 openStorageChannels();
-                startAdcSensorLoop();
+                mUsbSensor.startAdcSensorLoop();
                 break;
             }
             case STOP_RECORDING: {
 
-                if (this.isNotAvailableAndChecked() || !this.isProcessing()) {
+                if (this.isNotAvailableAndChecked() || !this.isProcessing() || mUsbSensor == null) {
                     Log.d(TAG, "Camera Sensors are not running");
                     return;
                 }
 
                 // call first to stop the process (isProcessing)
                 super.execute(context, state);
-                stopAdcSensorLoop();
+                mUsbSensor.stopAdcSensorLoop();
                 closeStorageChannels();
                 break;
             }
@@ -315,18 +326,23 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
 
                 super.execute(context, state);
                 // open usb connection
+                // todo: this has no PAUSED state par
                 tryOpenDeviceAndUpdateInfo();
                 break;
             }
-            case PAUSED:
             case ACT_DESTROYED: {
-
                 // close doesn't hurt if USB hasn't already been opened
                 close();
                 super.execute(context, state);
                 break;
             }
-            case ACT_CREATED:
+            case ACT_CREATED: {
+                tryOpenDeviceAndUpdateInfo();
+                updateRequirementsState(context);
+                super.execute(context, state);
+                break;
+            }
+            case PAUSED:
             default: {
                 super.execute(context, state);
                 break;
@@ -378,38 +394,6 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
             }
             default:
                 break;
-        }
-    }
-
-    public void startPeriodicSensorPoll() {
-
-        //tryOpenDefaultDevice();
-        //startTime = System.currentTimeMillis();
-        //getBgHandler().postDelayed(sensorReceiveTask, 0);
-    }
-
-    public void stopPeriodicSensorPoll() {
-
-        //doInBackground(sensorReceiveTask);
-        close();
-    }
-
-    private void startAdcSensorLoop() {
-
-        // start adc device
-        MsgUsb msgUsb = sendDataCommand(UsbCommand.CMD_ADC_START, null);
-        byte[] resByte = MyDrvUsb.decodeUsbCommand(msgUsb.getRawBuffer());
-        if (resByte != null && resByte.length > 0 && resByte[0] == 1) {
-            doInBackground(new SensorReceiveTask());
-        }
-    }
-
-    private void stopAdcSensorLoop() {
-
-        MsgUsb msgUsb = sendDataCommand(UsbCommand.CMD_ADC_STOP, null);
-        byte[] resByte = MyDrvUsb.decodeUsbCommand(msgUsb.getRawBuffer());
-        if (resByte == null || resByte.length <= 0 || resByte[0] != 1) {
-            Log.w(TAG, "stopAdcSensorLoop: USB device couldn't stop the ADC");
         }
     }
 
@@ -470,12 +454,14 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
         }
         else if (msg instanceof MyMessages.MsgWireless) {
 
-            MsgUsb usbMsg = MyDrvUsb.wirelessToUsb((MyMessages.MsgWireless) msg);
+            Log.w(TAG, "Wireless messages should be interpreted by the controller middleware");
 
-            if (usbMsg != null) {
-                int res = sendControlMsg(usbMsg);
-                Log.v(TAG, "Sent " + res + " bytes, cmd: " + usbMsg.getCmd());
-            }
+//            MsgUsb usbMsg = MyDrvUsb.wirelessToUsb((MyMessages.MsgWireless) msg);
+//
+//            if (usbMsg != null) {
+//                int res = sendControlMsg(usbMsg);
+//                Log.v(TAG, "Sent " + res + " bytes, cmd: " + usbMsg.getCmd());
+//            }
         }
     }
 
@@ -506,7 +492,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
         saveDefaultDeviceId(context, mDeviceId);
     }
 
-    public byte[] getRawSensor() {
+    /*public byte[] getRawSensor() {
         return mInputBuffer;
     }
 
@@ -523,7 +509,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
 
 //        int minLength = Math.min(buffer.length, mOutputBuffer.length);
 //        System.arraycopy(buffer, 0, mOutputBuffer, 0, minLength);
-    }
+    }*/
 
     @Override
     public List<MySensorGroup> getSensorGroups(Context mContext) {
@@ -546,7 +532,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
         return sensorGroups;
     }
 
-    private MySensorInfo getUsbSensor() {
+    protected MySensorInfo getUsbSensor() {
 
         if (mlSensorGroup == null) {
             return null;
@@ -589,10 +575,14 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
         if (mConnection != null) {
             mConnection.releaseInterface(mInterface);
             mConnection.close();
+            mInterface = null;
+            mConnection = null;
+            mDevice = null;
             Log.d(TAG, "USB device closed successfully.");
         }
         if (mSerialManager != null) {
             mSerialManager.close();
+            Log.d(TAG, "USB Serial device closed successfully.");
         }
     }
 
@@ -674,8 +664,8 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
 
         // Arduino devices usually have null product name
         // todo: find a better way for this check
-        isSerial = mDevice.getProductName() == null;
-        if (isSerial) {
+        mbIsSerial = mDevice.getProductName() == null;
+        if (mbIsSerial) {
             mSerialManager.connect();
         }
 
@@ -735,7 +725,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
     }
 
     // two-way command: makes a request and gets a response
-    private MsgUsb sendDataCommand(UsbCommand cmd, String cmdData) {
+    protected MsgUsb sendDataCommand(UsbCommand cmd, String cmdData) {
 
         // send the command
         MsgUsb usbOutMsg = MyDrvUsb.getCommandMessage(cmd, cmdData);
@@ -752,24 +742,15 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
         return usbInMsg;
     }
 
-    private MsgUsb receiveSensor() {
-
-        // reducing a two-way message to just an input message won't help the performance very much
-        // note the class header
-        MsgUsb usbInMsg = sendDataCommand(UsbCommand.CMD_ADC_READ, null);
-        int[] adcReadings = MyDrvUsb.decodeAdcSensorMsg(usbInMsg.getRawBuffer());
-        usbInMsg.setAdcData(adcReadings);
-
-        return usbInMsg;
-    }
-
     @Override
     public void handleTestSynchronous(MyMessage msg) {
 
         // we don't use the msg here
-        String mRecMsg = "";
-        if (isSerial) {
+        String mRecMsg;
+        if (mbIsSerial) {
             // Arduino Device
+            if (!mSerialManager.isConnected())
+                Log.w(TAG, "Serial manager is not connected");
             mRecMsg = mSerialManager.runTest();
         }
         else {
@@ -794,96 +775,13 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
         return mbPassedConnTest;
     }
 
-    private void populateDescriptionInfo() {
-
-        if (mDevice == null) {
-            return;
-        }
-
-        MySensorInfo sensorInfo = getUsbSensor();
-        if (sensorInfo == null) {
-            return;
-        }
-
-        Map<String, String> descInfo = new HashMap<>();
-        descInfo.put("Vendor_Id", String.format(Locale.US, "%d", mDevice.getVendorId()));
-        descInfo.put("Device_Id", String.format(Locale.US, "%d", mDevice.getDeviceId()));
-        descInfo.put("Device_Class", String.format(Locale.US, "%d", mDevice.getDeviceClass()));
-        descInfo.put("Device_Subclass", String.format(Locale.US, "%d", mDevice.getDeviceSubclass()));
-        descInfo.put("Device_Protocol", String.format(Locale.US, "%d", mDevice.getDeviceProtocol()));
-        descInfo.put("Device_Name", mDevice.getDeviceName());
-        descInfo.put("Product", mDevice.getProductName());
-        descInfo.put("Manufacturer", mDevice.getManufacturerName());
-        descInfo.put("Serial_Number", mDevice.getSerialNumber());
-
-        if (Build.VERSION.SDK_INT >= ANDROID_USB_ATTR_VERSION) {
-            descInfo.put("Version", mDevice.getVersion());
-        }
-
-        sensorInfo.setDescInfo(descInfo);
-    }
-
-    private void populateCalibrationInfo() {
-
-        if (hasNoConnection() || mlSensorGroup == null || mlSensorGroup.isEmpty()) {
-            return;
-        }
-
-        MySensorInfo sensorInfo = getUsbSensor();
-        if (sensorInfo == null) {
-            return;
-        }
-
-        Map<String, String> calibInfo = new HashMap<>();
-        calibInfo.put("App_Id", String.format(Locale.US, "%d", SENSOR_ID));
-        calibInfo.put("Vendor_Id", String.format(Locale.US, "%d", mVendorId));
-        calibInfo.put("Device_Id", String.format(Locale.US, "%d", mDeviceId));
-
-        // get response
-        MsgUsb usbInMsg = sendDataCommand(UsbCommand.CMD_GET_SENSOR_INFO, null);
-        MyDrvUsb.decodeUsbSensorConfigInfo(usbInMsg);
-
-        mUsbInfo = usbInMsg.getUsbInfo();
-
-        if (mUsbInfo != null) {
-            calibInfo.put("ADC_Num_Channels", String.format(Locale.US, "%d", mUsbInfo.numAdcChannels));
-            calibInfo.put("ADC_Sample_Rate_Hz", String.format(Locale.US, "%f", mUsbInfo.adcSampleRate));
-            calibInfo.put("ADC_Resolution_Bits", String.format(Locale.US, "%d", mUsbInfo.adcResolution));
-        }
-
-        sensorInfo.setCalibInfo(calibInfo);
-    }
-
-    private void populateSensorInfo() {
-        populateDescriptionInfo();
-        populateCalibrationInfo();
-    }
-
     public void initiateAdcSingleRead() {
 
-        if (!this.isAvailable()) {
+        if (!this.isAvailable() || mUsbSensor == null) {
             Log.w(TAG, "USB is not available, abort");
             return;
         }
-
-        // start adc device
-        MsgUsb msgUsb = sendDataCommand(UsbCommand.CMD_ADC_START, null);
-        byte[] resByte = MyDrvUsb.decodeUsbCommand(msgUsb.getRawBuffer());
-        if (resByte == null || resByte.length <= 0 || resByte[0] != 1) {
-            Log.d(TAG, "Unable to start ADC device");
-            return;
-        }
-
-        // publish the message
-        MsgUsb usbMsg = receiveSensor();
-        publishMessage(usbMsg);
-
-        // close the adc device
-        msgUsb = sendDataCommand(UsbCommand.CMD_ADC_STOP, null);
-        resByte = MyDrvUsb.decodeUsbCommand(msgUsb.getRawBuffer());
-        if (resByte == null || resByte.length <= 0 || resByte[0] != 1) {
-            Log.w(TAG, "stopAdcSensorLoop: USB device couldn't stop the ADC");
-        }
+        mUsbSensor.initiateAdcSingleRead();
     }
 
     /* ================================ Helper Classes & methods ================================ */
@@ -929,7 +827,6 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
             return null;
         }
 
-        String res = "";
         // getRawDescriptors can be used to access descriptors
         // not supported directly via the higher level APIs,
         // like getting the manufacturer and product names.
@@ -947,53 +844,72 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
         sendControlMsg(productMsg);
         String product = MyDrvUsb.decodeUsbDescriptorInfo(productMsg);
 
-        res =   ("Permission: " + mUsbManager.hasPermission(mDevice) + "\n") +
+        return ("Permission: " + mUsbManager.hasPermission(mDevice) + "\n") +
                 ("Interface opened successfully.\n") +
                 ("Endpoints:" + mInterface.getEndpointCount() + "\n") +
                 ("Manufacturer:" + manufacturer + "\n") +
                 ("Product:" + product + "\n") +
                 ("Serial#:" + mConnection.getSerial() + "\n");
+    }
 
-        return res;
+    private void populateDescriptionInfo() {
+
+        if (mDevice == null) {
+            return;
+        }
+
+        MySensorInfo sensorInfo = getUsbSensor();
+        if (sensorInfo == null) {
+            return;
+        }
+
+        Map<String, String> descInfo = new HashMap<>();
+        descInfo.put("Vendor_Id", String.format(Locale.US, "%d", mDevice.getVendorId()));
+        descInfo.put("Device_Id", String.format(Locale.US, "%d", mDevice.getDeviceId()));
+        descInfo.put("Device_Class", String.format(Locale.US, "%d", mDevice.getDeviceClass()));
+        descInfo.put("Device_Subclass", String.format(Locale.US, "%d", mDevice.getDeviceSubclass()));
+        descInfo.put("Device_Protocol", String.format(Locale.US, "%d", mDevice.getDeviceProtocol()));
+        descInfo.put("Device_Name", mDevice.getDeviceName());
+        descInfo.put("Product", mDevice.getProductName());
+        descInfo.put("Manufacturer", mDevice.getManufacturerName());
+        descInfo.put("Serial_Number", mDevice.getSerialNumber());
+
+        if (Build.VERSION.SDK_INT >= ANDROID_USB_ATTR_VERSION) {
+            descInfo.put("Version", mDevice.getVersion());
+        }
+
+        sensorInfo.setDescInfo(descInfo);
+    }
+
+    protected void populateCalibrationInfo() {
+
+        if (hasNoConnection() || mlSensorGroup == null || mlSensorGroup.isEmpty()) {
+            return;
+        }
+
+        MySensorInfo sensorInfo = getUsbSensor();
+        if (sensorInfo == null) {
+            return;
+        }
+
+        Map<String, String> calibInfo = new HashMap<>();
+        calibInfo.put("App_Id", String.format(Locale.US, "%d", SENSOR_ID));
+        calibInfo.put("Vendor_Id", String.format(Locale.US, "%d", mVendorId));
+        calibInfo.put("Device_Id", String.format(Locale.US, "%d", mDeviceId));
+
+        sensorInfo.setCalibInfo(calibInfo);
+
+        if (mUsbSensor != null) {
+            mUsbSensor.populateCalibrationInfo();
+        }
+    }
+
+    private void populateSensorInfo() {
+        populateDescriptionInfo();
+        populateCalibrationInfo();
     }
 
     /* ====================================== Data Types ======================================== */
-
-    private class SensorReceiveTask implements Runnable {
-
-        @Override
-        public void run() {
-
-            double samplePeriod_ns = 15000000; // 15 ms
-            if (mUsbInfo != null) {
-                samplePeriod_ns = 1e9 / mUsbInfo.adcSampleRate;
-            }
-            Log.v(TAG, "ADC readings period is: "+samplePeriod_ns);
-
-            while (isProcessing()) {
-
-                //long startTime = SystemClock.elapsedRealtimeNanos();
-
-                MsgUsb usbMsg = receiveSensor();
-
-                String sensorStr = usbMsg.getAdcSensorString();
-                int targetId = getTargetId(new MyResourceIdentifier(SENSOR_ID, -1));
-
-                MsgStorage storageMsg = new MsgStorage(sensorStr, null, targetId);
-
-                publishMessage(storageMsg);
-
-                //Log.v(TAG, "got msg: "+sensorStr);
-
-                //long endTime = SystemClock.elapsedRealtimeNanos();
-                //long timeDiff = endTime - startTime;
-                //Log.v(TAG, "Took "+timeDiff+" ns to complete one iteration");
-
-                // sleep until next adc reading is available? ->
-                // not necessary, already too slow!
-            }
-        }
-    }
 
     /**
      * Because we don't want to expose the device
@@ -1015,7 +931,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
             if (ACTION_USB_PERMISSION.equals(action)) {
 
                 UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-                boolean permState = false;
+                //boolean permState = false;
 
                 synchronized (this) {
                     if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
@@ -1024,7 +940,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
                             // all you should do here is to update permission state
                             setIsDevicePermitted(true);
                             Log.d(TAG, "permission granted for device " + device);
-                            permState = true;
+                            //permState = true;
                         }
                     }
                     else {
@@ -1047,7 +963,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
             String action = intent.getAction();
 
             if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
-                UsbDevice device = (UsbDevice)intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+                UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
                 if (device != null) {
                     // todo: stop any ongoing action (sensor recording)
 
@@ -1062,9 +978,9 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
 
     private class TinySerialManager {
 
-        public static final int MESSAGE_FROM_SERIAL_PORT = 0;
-        public static final int CTS_CHANGE = 1;
-        public static final int DSR_CHANGE = 2;
+        //public static final int MESSAGE_FROM_SERIAL_PORT = 0;
+        //public static final int CTS_CHANGE = 1;
+        //public static final int DSR_CHANGE = 2;
         private static final int BAUD_RATE = 9600; // BaudRate. Change this value if you need
 
         // Support Arduino Serial Connection
@@ -1072,7 +988,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
         private final byte[] mSerialBuffer = new byte[64];
         private int mSerialBufferIdx = 0;
         private int mSerialDataSz = 0;
-        private Handler mHandler;
+        //private Handler mHandler;
         private UsbSerialDevice serialPort;
         private boolean serialPortConnected;
 
@@ -1083,7 +999,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
                     mSerialDataSz = arg0[0];
                     mSerialBuffer[mSerialBufferIdx++] = arg0[0];
                     buffLen--;
-                    Log.d("UsbCb.onReceivedData", "data size is " + Integer.toString(mSerialDataSz));
+                    Log.d("UsbCb.onReceivedData", "data size is " + mSerialDataSz);
                     byte[] newArg0 = new byte[buffLen];
                     System.arraycopy(arg0, 1, newArg0, 0, buffLen);
                     handleSerialMessage(newArg0);
@@ -1093,7 +1009,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
                     // get command
                     mSerialBuffer[mSerialBufferIdx++] = arg0[0];
                     buffLen--;
-                    Log.d("UsbCb.onReceivedData", "Buffer Idx is " + Integer.toString(mSerialBufferIdx));
+                    Log.d("UsbCb.onReceivedData", "Buffer Idx is " + mSerialBufferIdx);
                     byte[] newArg0 = new byte[buffLen];
                     System.arraycopy(arg0, 1, newArg0, 0, buffLen);
                     handleSerialMessage(newArg0);
@@ -1123,6 +1039,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
 
                     mSerialBufferIdx = 0;
                     mSerialDataSz = 0;
+                    // todo: update parent availability state in this (in case of test command)
                 }
             }
             else {
@@ -1135,42 +1052,33 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
          *  In this particular example. byte stream is converted to String and send to UI thread to
          *  be treated there.
          */
-        private final UsbSerialInterface.UsbReadCallback mCallback = new UsbSerialInterface.UsbReadCallback() {
-            @Override
-            public void onReceivedData(byte[] arg0) {
-                Log.d("UsbCb.onReceivedData", "data received: " + Arrays.toString(arg0));
-                if (arg0 == null) {
-                    Log.d("UsbCb.onReceivedData", "arg0 is null");
-                    return;
-                }
-                handleSerialMessage(arg0);
-                if (mHandler != null && mSerialData != null) {
-                    Log.d("UsbCb.onReceivedData", "sending data to handler");
-                    mHandler.obtainMessage(MESSAGE_FROM_SERIAL_PORT, mSerialData).sendToTarget();
-                }
+        private final UsbSerialInterface.UsbReadCallback mCallback = arg0 -> {
+            Log.d("UsbCb.onReceivedData", "data received: " + Arrays.toString(arg0));
+            if (arg0 == null) {
+                Log.d("UsbCb.onReceivedData", "arg0 is null");
+                return;
             }
+            handleSerialMessage(arg0);
+//                if (mHandler != null && mSerialData != null) {
+//                    Log.d("UsbCb.onReceivedData", "sending data to handler");
+//                    mHandler.obtainMessage(MESSAGE_FROM_SERIAL_PORT, mSerialData).sendToTarget();
+//                }
         };
 
         /*
          * State changes in the CTS line will be received here
          */
-        private final UsbSerialInterface.UsbCTSCallback ctsCallback = new UsbSerialInterface.UsbCTSCallback() {
-            @Override
-            public void onCTSChanged(boolean state) {
-                if(mHandler != null)
-                    mHandler.obtainMessage(CTS_CHANGE).sendToTarget();
-            }
+        private final UsbSerialInterface.UsbCTSCallback ctsCallback = state -> {
+//                if(mHandler != null)
+//                    mHandler.obtainMessage(CTS_CHANGE).sendToTarget();
         };
 
         /*
          * State changes in the DSR line will be received here
          */
-        private final UsbSerialInterface.UsbDSRCallback dsrCallback = new UsbSerialInterface.UsbDSRCallback() {
-            @Override
-            public void onDSRChanged(boolean state) {
-                if(mHandler != null)
-                    mHandler.obtainMessage(DSR_CHANGE).sendToTarget();
-            }
+        private final UsbSerialInterface.UsbDSRCallback dsrCallback = state -> {
+//                if(mHandler != null)
+//                    mHandler.obtainMessage(DSR_CHANGE).sendToTarget();
         };
 
         public TinySerialManager() {
@@ -1197,7 +1105,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
                 serialPort.write(MyDrvUsb.encodeUsbCommand(DEFAULT_TEST_IN_MESSAGE));
                 if (mSerialData!=null && !mSerialData.isEmpty()) {
                     mRecMsg = mSerialData;
-                    isSerial = true;
+                    mbIsSerial = true;
                     Log.d(TAG, "testDevice, received data: " + mSerialData);
                 }
                 else {
@@ -1210,9 +1118,11 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
             return mRecMsg;
         }
 
-        public void setHandler(Handler mHandler) {
+        public boolean isConnected() { return serialPortConnected; }
+
+        /*public void setHandler(Handler mHandler) {
             this.mHandler = mHandler;
-        }
+        }*/
 
         private class ConnectionThread extends Thread {
             @Override
@@ -1268,6 +1178,146 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
                     //Intent intent = new Intent(ACTION_USB_NOT_SUPPORTED);
                     //context.sendBroadcast(intent);
                     Log.d(TAG, "UsbSerial:ConnectionThread, ACTION_USB_NOT_SUPPORTED");
+                }
+            }
+        }
+    }
+
+    private class MyUSBSensor {
+
+        private final String TAG = MyUSBSensor.class.getSimpleName();
+
+        private MyMessages.MyUsbInfo mUsbInfo = null;
+
+        public MyUSBSensor() {
+        }
+
+        /*public void startPeriodicSensorPoll() {
+
+            //tryOpenDefaultDevice();
+            //startTime = System.currentTimeMillis();
+            //getBgHandler().postDelayed(sensorReceiveTask, 0);
+        }
+
+        public void stopPeriodicSensorPoll() {
+
+            //doInBackground(sensorReceiveTask);
+            close();
+        }*/
+
+        private void startAdcSensorLoop() {
+
+            // start adc device
+            MyMessages.MsgUsb msgUsb = sendDataCommand(MyMessages.MsgUsb.UsbCommand.CMD_ADC_START, null);
+            byte[] resByte = MyDrvUsb.decodeUsbCommand(msgUsb.getRawBuffer());
+            if (resByte != null && resByte.length > 0 && resByte[0] == 1) {
+                doInBackground(new SensorReceiveTask());
+            }
+        }
+
+        private void stopAdcSensorLoop() {
+
+            MyMessages.MsgUsb msgUsb = sendDataCommand(MyMessages.MsgUsb.UsbCommand.CMD_ADC_STOP, null);
+            byte[] resByte = MyDrvUsb.decodeUsbCommand(msgUsb.getRawBuffer());
+            if (resByte == null || resByte.length <= 0 || resByte[0] != 1) {
+                Log.w(TAG, "stopAdcSensorLoop: USB device couldn't stop the ADC");
+            }
+        }
+
+        private MyMessages.MsgUsb receiveSensor() {
+
+            // reducing a two-way message to just an input message won't help the performance very much
+            // note the class header
+            MyMessages.MsgUsb usbInMsg = sendDataCommand(MyMessages.MsgUsb.UsbCommand.CMD_ADC_READ, null);
+            int[] adcReadings = MyDrvUsb.decodeAdcSensorMsg(usbInMsg.getRawBuffer());
+            usbInMsg.setAdcData(adcReadings);
+
+            return usbInMsg;
+        }
+
+        public void initiateAdcSingleRead() {
+
+            // start adc device
+            MyMessages.MsgUsb msgUsb = sendDataCommand(MyMessages.MsgUsb.UsbCommand.CMD_ADC_START, null);
+            byte[] resByte = MyDrvUsb.decodeUsbCommand(msgUsb.getRawBuffer());
+            if (resByte == null || resByte.length <= 0 || resByte[0] != 1) {
+                Log.d(TAG, "Unable to start ADC device");
+                return;
+            }
+
+            // publish the message
+            MyMessages.MsgUsb usbMsg = receiveSensor();
+            publishMessage(usbMsg);
+
+            // close the adc device
+            msgUsb = sendDataCommand(MyMessages.MsgUsb.UsbCommand.CMD_ADC_STOP, null);
+            resByte = MyDrvUsb.decodeUsbCommand(msgUsb.getRawBuffer());
+            if (resByte == null || resByte.length <= 0 || resByte[0] != 1) {
+                Log.w(TAG, "stopAdcSensorLoop: USB device couldn't stop the ADC");
+            }
+        }
+
+        protected void populateCalibrationInfo() {
+            //super.populateCalibrationInfo();
+
+            if (hasNoConnection() || mlSensorGroup == null || mlSensorGroup.isEmpty()) {
+                return;
+            }
+
+            MySensorInfo sensorInfo = getUsbSensor();
+            if (sensorInfo == null) {
+                return;
+            }
+
+            Map<String, String> calibInfo = new HashMap<>();
+
+            // get response
+            MyMessages.MsgUsb usbInMsg = sendDataCommand(MyMessages.MsgUsb.UsbCommand.CMD_GET_SENSOR_INFO, null);
+            MyDrvUsb.decodeUsbSensorConfigInfo(usbInMsg);
+
+            mUsbInfo = usbInMsg.getUsbInfo();
+
+            if (mUsbInfo != null) {
+                calibInfo.put("ADC_Num_Channels", String.format(Locale.US, "%d", mUsbInfo.numAdcChannels));
+                calibInfo.put("ADC_Sample_Rate_Hz", String.format(Locale.US, "%f", mUsbInfo.adcSampleRate));
+                calibInfo.put("ADC_Resolution_Bits", String.format(Locale.US, "%d", mUsbInfo.adcResolution));
+            }
+
+            sensorInfo.setCalibInfo(calibInfo);
+        }
+
+        private class SensorReceiveTask implements Runnable {
+
+            @Override
+            public void run() {
+
+                double samplePeriod_ns = 15000000; // 15 ms
+                if (mUsbInfo != null) {
+                    samplePeriod_ns = 1e9 / mUsbInfo.adcSampleRate;
+                }
+                Log.v(TAG, "ADC readings period is: "+samplePeriod_ns);
+
+                while (isProcessing()) {
+
+                    //long startTime = SystemClock.elapsedRealtimeNanos();
+
+                    MyMessages.MsgUsb usbMsg = receiveSensor();
+
+                    String sensorStr = usbMsg.getAdcSensorString();
+                    int targetId = getTargetId(new MyResourceIdentifier(SENSOR_ID, -1));
+
+                    MyMessages.MsgStorage storageMsg = new MyMessages.MsgStorage(sensorStr, null, targetId);
+
+                    publishMessage(storageMsg);
+
+                    //Log.v(TAG, "got msg: "+sensorStr);
+
+                    //long endTime = SystemClock.elapsedRealtimeNanos();
+                    //long timeDiff = endTime - startTime;
+                    //Log.v(TAG, "Took "+timeDiff+" ns to complete one iteration");
+
+                    // sleep until next adc reading is available? ->
+                    // not necessary, already too slow!
                 }
             }
         }

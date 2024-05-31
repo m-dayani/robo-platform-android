@@ -14,9 +14,10 @@ public class MySensorGroup {
 
         TYPE_UNKNOWN,
         TYPE_IMU,
+        TYPE_MAGNET,
+        TYPE_MOTION,
         TYPE_GNSS,
         TYPE_CAMERA,
-        TYPE_MAGNET,
         TYPE_EXTERNAL,
         TYPE_STORAGE,
         TYPE_WIRELESS_NETWORK
@@ -30,6 +31,8 @@ public class MySensorGroup {
     private String mTitle;
 
     private final Map<Integer, MySensorInfo> mSensors;
+
+    private boolean mbIsHidden = false;
 
     /* ------------------------------------------------------------------------------------------ */
 
@@ -92,6 +95,9 @@ public class MySensorGroup {
 
         return sensorInfo;
     }
+
+    public void setHidden(boolean state) { mbIsHidden = state; }
+    public boolean isHidden() { return mbIsHidden; }
 
     /* ------------------------------------------------------------------------------------------ */
 

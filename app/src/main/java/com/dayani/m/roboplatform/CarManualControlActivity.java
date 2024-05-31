@@ -3,6 +3,7 @@ package com.dayani.m.roboplatform;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -16,6 +17,7 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.dayani.m.roboplatform.drivers.MyDrvUsb;
 import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.managers.MyBaseManager.LifeCycleState;
 import com.dayani.m.roboplatform.managers.MyBluetoothManager;
@@ -26,8 +28,11 @@ import com.dayani.m.roboplatform.utils.AppGlobals;
 import com.dayani.m.roboplatform.utils.helpers.MyScreenOperations;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.interfaces.MyBackgroundExecutor;
+import com.dayani.m.roboplatform.utils.interfaces.MyChannels;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages;
 import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
 
+import java.util.Locale;
 import java.util.concurrent.Executor;
 
 
@@ -168,7 +173,8 @@ public class CarManualControlActivity extends AppCompatActivity
     /*============================ Static ActivityRequirements interface =========================*/
 
     public static class ManualControlFragment extends Fragment
-            implements View.OnClickListener {
+            implements View.OnClickListener, MyDrvUsb.UsbCmdInterpreter,
+            MyChannels.ChannelTransactions {
 
         private static final String TAG = ManualControlFragment.class.getSimpleName();
 
@@ -225,11 +231,9 @@ public class CarManualControlActivity extends AppCompatActivity
                     context, mVM_Sensors, MyBluetoothManager.class.getSimpleName());
 
             // establish connections
-            mUsb.registerChannel(mWifiManager);
-            mWifiManager.registerChannel(mUsb);
-
-            mUsb.registerChannel(mBtManager);
-            mBtManager.registerChannel(mUsb);
+            mWifiManager.registerChannel(this);
+            mBtManager.registerChannel(this);
+            mUsb.registerChannel(this);
 
             if (context instanceof MyBackgroundExecutor.JobListener) {
                 mBackgroundHandler = (MyBackgroundExecutor.JobListener) context;
@@ -317,7 +321,7 @@ public class CarManualControlActivity extends AppCompatActivity
             }
         }
 
-        private void start() {
+        protected void start() {
 
             FragmentActivity context = requireActivity();
 
@@ -333,7 +337,7 @@ public class CarManualControlActivity extends AppCompatActivity
             updateProcessUI(mIsStarted);
         }
 
-        private void stop() {
+        protected void stop() {
 
             FragmentActivity context = requireActivity();
 
@@ -385,6 +389,75 @@ public class CarManualControlActivity extends AppCompatActivity
             mBtnBt.setEnabled(!hasWirelessConn);
 
             mBtnStart.setEnabled(bUsb && hasWirelessConn);
+        }
+
+        @Override
+        public byte[] interpret(String msg) {
+            // This toy car has a single ON/OFF directional control
+            // and a digital tri-state enable pin (ON/OFF/No Change)
+
+            // set pins of an 8 pin port
+            byte[] output = new byte[1];
+
+            // 6-DoF command
+            switch (msg) {
+                case "w":
+                case "up":
+                    // forward
+                    output[0] |= 0x04;
+                    break;
+                case "q":
+                    // disable
+                    output[0] |= 0x02;
+                    break;
+                case "e":
+                    // enable
+                    output[0] |= 0x01;
+                    break;
+                case "0":
+                default:
+                    break;
+            }
+            return output;
+        }
+
+        @Override
+        public void registerChannel(MyChannels.ChannelTransactions channel) {
+
+        }
+
+        @Override
+        public void unregisterChannel(MyChannels.ChannelTransactions channel) {
+
+        }
+
+        @Override
+        public void publishMessage(MyMessages.MyMessage msg) {
+
+        }
+
+        @Override
+        public void onMessageReceived(MyMessages.MyMessage msg) {
+
+            if (msg instanceof MyMessages.MsgUsb) {
+                Log.d(TAG, "USB message received: " + msg);
+            }
+            else if (msg instanceof MyMessages.MsgWireless) {
+                //Log.v(TAG, "Wireless message received: " + msg);
+                if (mUsb != null) {
+                    MyMessages.MsgWireless wMsg = (MyMessages.MsgWireless) msg;
+                    MyMessages.MsgWireless.WirelessCommand wCmd = wMsg.getCmd();
+
+                    if (wCmd.equals(MyMessages.MsgWireless.WirelessCommand.CMD_CHAR) ||
+                            wCmd.equals(MyMessages.MsgWireless.WirelessCommand.CMD_DIR)) {
+
+                        mUsb.onMessageReceived(MyDrvUsb.getCommandMessage(this, wMsg.toString()));
+                    }
+                }
+            }
+            else {
+                Log.d(TAG, "Unknown message received: " + msg);
+            }
         }
     }
 }
