@@ -131,7 +131,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
 
     // Support Arduino Serial Connection
     private boolean mbIsSerial;
-    private final TinySerialManager mSerialManager;
+    private TinySerialManager mSerialManager;
 
     /* ====================================== Construction ====================================== */
 
@@ -327,7 +327,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
                 super.execute(context, state);
                 // open usb connection
                 // todo: this has no PAUSED state par
-                tryOpenDeviceAndUpdateInfo();
+                //tryOpenDeviceAndUpdateInfo();
                 break;
             }
             case ACT_DESTROYED: {
@@ -337,8 +337,8 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
                 break;
             }
             case ACT_CREATED: {
-                tryOpenDeviceAndUpdateInfo();
-                updateRequirementsState(context);
+                //tryOpenDeviceAndUpdateInfo();
+                //updateRequirementsState(context);
                 super.execute(context, state);
                 break;
             }
@@ -449,7 +449,15 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
         if (msg instanceof MsgUsb) {
 
             MsgUsb usbMsg = (MsgUsb) msg;
-            int res = sendControlMsg(usbMsg);
+            int res = -1;
+            if (mbIsSerial) {
+                if (mSerialManager != null) {
+                    mSerialManager.write("w");
+                }
+            }
+            else {
+                res = sendControlMsg(usbMsg);
+            }
             Log.v(TAG, "Sent "+res+" bytes, cmd: "+usbMsg.getCmd());
         }
         else if (msg instanceof MyMessages.MsgWireless) {
@@ -582,6 +590,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
         }
         if (mSerialManager != null) {
             mSerialManager.close();
+            mSerialManager = null;
             Log.d(TAG, "USB Serial device closed successfully.");
         }
     }
@@ -636,6 +645,11 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
         if (!mUsbManager.hasPermission(mDevice)) {
             Log.w(TAG, "Target device is not permitted");
             return false;
+        }
+
+        if (mConnection != null) {
+            Log.i(TAG, "Device is already open");
+            return true;
         }
 
         //Open Interface to the device
@@ -702,6 +716,9 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
 
         // resolve transfer buffer and its length
         byte[] buff = usbMsg.getRawBuffer();
+        if (buff == null) {
+            return -1;
+        }
 
         try {
             int res = mConnection.controlTransfer(
@@ -712,6 +729,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
                     buff, buff.length,
                     ctrlTransInfo.mCtrlTransTimeout
             );
+            debug_cnt++;
 
             usbMsg.setTimestamp(SystemClock.elapsedRealtimeNanos());
             usbMsg.setRawBuffer(buff);
@@ -724,20 +742,25 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
         }
     }
 
+    int debug_cnt = 0;
+
     // two-way command: makes a request and gets a response
     protected MsgUsb sendDataCommand(UsbCommand cmd, String cmdData) {
 
+        debug_cnt = 0;
         // send the command
         MsgUsb usbOutMsg = MyDrvUsb.getCommandMessage(cmd, cmdData);
 
-        sendControlMsg(usbOutMsg);
+        int res = sendControlMsg(usbOutMsg);
         //Log.d(TAG, "sendDataCommand, sent: "+res+" bytes");
 
         // get response
         MsgUsb usbInMsg = MyDrvUsb.getInputMessage(UsbCommand.CMD_GET_CMD_RES, mInputBuffer);
 
-        sendControlMsg(usbInMsg);
-        //Log.d(TAG, "sendDataCommand, got: "+res+" bytes");
+        if (res >= 0) {
+            sendControlMsg(usbInMsg);
+            //Log.d(TAG, "sendDataCommand, got: "+res+" bytes");
+        }
 
         return usbInMsg;
     }
@@ -782,6 +805,30 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
             return;
         }
         mUsbSensor.initiateAdcSingleRead();
+    }
+
+    public String sendMsgSync(String msg) {
+
+        String mSerialData = "";
+        if (mbIsSerial && mSerialManager != null) {
+            int res = mSerialManager.writeSync(msg);
+            if (res >= 0) {
+                res = mSerialManager.readSync();
+                if (res >= 0) {
+                    mSerialData = new String(mSerialManager.mSerialBuffer, StandardCharsets.UTF_8);
+                }
+            }
+        }
+        return mSerialData;
+    }
+
+    public String sendMsgAsync(String msg) {
+
+        if (mbIsSerial && mSerialManager != null) {
+            mSerialManager.write(msg);
+            return mSerialManager.mSerialData;
+        }
+        return null;
     }
 
     /* ================================ Helper Classes & methods ================================ */
@@ -1118,6 +1165,26 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
             return mRecMsg;
         }
 
+        public void write(String msg) {
+            if (serialPort != null) {
+                serialPort.write(MyDrvUsb.encodeUsbCommand(msg));
+            }
+        }
+
+        public int writeSync(String msg) {
+            if (serialPort != null) {
+                return serialPort.syncWrite(MyDrvUsb.encodeUsbCommand(msg), 1000);
+            }
+            return -1;
+        }
+
+        public int readSync() {
+            if (serialPort != null) {
+                return serialPort.syncRead(mSerialBuffer, 1000);
+            }
+            return -1;
+        }
+
         public boolean isConnected() { return serialPortConnected; }
 
         /*public void setHandler(Handler mHandler) {
@@ -1183,11 +1250,13 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
         }
     }
 
+    private MyMessages.MyUsbInfo mUsbInfo = null;
+
     private class MyUSBSensor {
 
         private final String TAG = MyUSBSensor.class.getSimpleName();
 
-        private MyMessages.MyUsbInfo mUsbInfo = null;
+        //private MyMessages.MyUsbInfo mUsbInfo = null;
 
         public MyUSBSensor() {
         }
@@ -1272,7 +1341,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
             Map<String, String> calibInfo = new HashMap<>();
 
             // get response
-            MyMessages.MsgUsb usbInMsg = sendDataCommand(MyMessages.MsgUsb.UsbCommand.CMD_GET_SENSOR_INFO, null);
+            MyMessages.MsgUsb usbInMsg = sendDataCommand(MyMessages.MsgUsb.UsbCommand.CMD_GET_SENSOR_INFO, "");
             MyDrvUsb.decodeUsbSensorConfigInfo(usbInMsg);
 
             mUsbInfo = usbInMsg.getUsbInfo();

@@ -104,4 +104,5 @@
     <string name="txt_wifi">Wifi</string>
     <string name="txt_paired_devices">Paired Devices:</string>
     <string name="native_test">Native Test</string>
+    <string name="enter_message">Enter Message</string>
 </resources>

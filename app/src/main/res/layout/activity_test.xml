@@ -8,7 +8,7 @@
         android:id="@+id/enumDevs"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Enummerate Devices" />
+        android:text="Enumerate Devices" />
 
     <Button
         android:id="@+id/openDefaultDev"
@@ -23,7 +23,7 @@
         android:text="Send State" />
 
     <Button
-        android:id="@+id/recieveSensor"
+        android:id="@+id/receiveSensor"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Get Sensor" />
@@ -33,6 +33,12 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Run Test" />
+
+    <Button
+        android:id="@+id/serialTrans"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Serial Trans" />
 
     <TextView
         android:id="@+id/fpReportText"

@@ -180,8 +180,9 @@ public class TestActivity extends AppCompatActivity implements ActivityRequireme
             view.findViewById(R.id.enumDevs).setOnClickListener(this);
             view.findViewById(R.id.openDefaultDev).setOnClickListener(this);
             view.findViewById(R.id.sendState).setOnClickListener(this);
-            view.findViewById(R.id.recieveSensor).setOnClickListener(this);
+            view.findViewById(R.id.receiveSensor).setOnClickListener(this);
             view.findViewById(R.id.runTest).setOnClickListener(this);
+            view.findViewById(R.id.serialTrans).setOnClickListener(this);
 
             rptTxt = view.findViewById(R.id.fpReportText);
         }
@@ -218,7 +219,7 @@ public class TestActivity extends AppCompatActivity implements ActivityRequireme
                 // get the result in the callback
                 mUsb.publishMessage(usbMsg);
             }
-            else if (id == R.id.recieveSensor) {
+            else if (id == R.id.receiveSensor) {
 
                 // send a sensor receive message
                 // get the results in the callback
@@ -227,6 +228,12 @@ public class TestActivity extends AppCompatActivity implements ActivityRequireme
             else if (id == R.id.runTest) {
 
                 mUsb.handleTestSynchronous(null);
+            }
+            else if (id == R.id.serialTrans) {
+
+                Fragment targetFragment = new SerialTransFragment();
+                MainActivity.startNewFragment(requireActivity().getSupportFragmentManager(),
+                        R.id.fragment_container_view, targetFragment, "serial-trans");
             }
         }
 

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".SerialTransFragment">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:dividerPadding="5dp"
+        android:orientation="vertical"
+        android:padding="10dp"
+        tools:ignore="UselessParent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/serialMsg"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ems="10"
+                android:hint="@string/enter_message"
+                android:inputType="text"
+                android:autofillHints="Enter Message" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/sendControlMsg"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Send Control" />
+
+
+        <Button
+            android:id="@+id/sendAsync"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Send Async" />
+
+        <Button
+            android:id="@+id/sendSync"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Send Sync" />
+
+
+        <TextView
+            android:id="@+id/reportTxt"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="30dp"
+            android:textAlignment="center" />
+
+    </LinearLayout>
+
+</FrameLayout>
