@@ -52,7 +52,7 @@ Following the Android best practices, the user can permit the features when they
 
 ## Usage
 
-Unfortunately, at the moment, I can't share this app in Google Play. You have two options to install and use this project on your phone.
+Unfortunately, at the moment, I can't share this app on Google Play. You have two options to install and use this project on your phone.
 
 ### Install the generated APK file
 

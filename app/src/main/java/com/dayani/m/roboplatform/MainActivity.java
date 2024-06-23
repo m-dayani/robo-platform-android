@@ -31,6 +31,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         findViewById(R.id.startController).setOnClickListener(this);
         findViewById(R.id.nativeTest).setOnClickListener(this);
         findViewById(R.id.startFlightManualCtrl).setOnClickListener(this);
+        findViewById(R.id.cpTest).setOnClickListener(this);
     }
 
     @Override
@@ -71,13 +72,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
         else if (id == R.id.startTest) {
 
-            Log.d(TAG, "startTest");
+            Log.d(TAG, "usbTest");
             intent = new Intent(this, TestActivity.class);
         }
         else if (id == R.id.nativeTest) {
 
             Log.d(TAG, "nativeTest");
             intent = new Intent(this, NativeTestActivity.class);
+        }
+        else if (id == R.id.cpTest) {
+
+            Log.d(TAG, "cpTest");
+            intent = new Intent(this, ControllerServerActivity.class);
+            intent.putExtra(ControllerServerActivity.EXTRA_KEY_WITH_WL, true);
         }
 
         // Launch the desired activity

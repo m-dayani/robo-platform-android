@@ -29,6 +29,8 @@ public class ControllerServerActivity extends AppCompatActivity
 
     private static final String TAG = ControllerServerActivity.class.getSimpleName();
 
+    public static final String EXTRA_KEY_WITH_WL = TAG + ".extraKeyWithWireless";
+
     private SensorsViewModel mVM_Sensors;
 
     private MyBackgroundExecutor mBackgroundExecutor;
@@ -39,6 +41,9 @@ public class ControllerServerActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_fragment_container);
 
+        Intent intent = getIntent();
+        boolean mbWithWl = intent.getBooleanExtra(EXTRA_KEY_WITH_WL, true);
+
         // instantiate sensors view model
         mVM_Sensors = new ViewModelProvider(this).get(SensorsViewModel.class);
 
@@ -48,9 +53,10 @@ public class ControllerServerActivity extends AppCompatActivity
         mBackgroundExecutor.initWorkerThread(TAG);
 
         if (savedInstanceState == null) {
-
+            Bundle bundle = new Bundle();
+            bundle.putBoolean("withWl", mbWithWl); //todo: test this modification
             getSupportFragmentManager().beginTransaction().setReorderingAllowed(true)
-                    .add(R.id.fragment_container_view, ConnectionListFragment.class, null, "car-front-panel")
+                    .add(R.id.fragment_container_view, ConnectionListFragment.class, bundle, "car-front-panel")
                     .commit();
         }
     }
@@ -153,6 +159,7 @@ public class ControllerServerActivity extends AppCompatActivity
 
         //private static final String TAG = ConnectionListFragment.class.getSimpleName();
 
+        private boolean mbWithWl = true;
         private MyWifiManager mWifiManager;
         private MyBluetoothManager mBtManager;
 
@@ -161,8 +168,14 @@ public class ControllerServerActivity extends AppCompatActivity
 
         public ConnectionListFragment() {}
 
-        public static ConnectionListFragment newInstance() {
-            return new ConnectionListFragment();
+        public static ConnectionListFragment newInstance(boolean withWl) {
+            ConnectionListFragment myFragment = new ConnectionListFragment();
+
+            Bundle args = new Bundle();
+            args.putBoolean("withWl", withWl);
+            myFragment.setArguments(args);
+
+            return myFragment;
         }
 
         @Override
@@ -173,9 +186,18 @@ public class ControllerServerActivity extends AppCompatActivity
 
             SensorsViewModel mVM_Sensors = new ViewModelProvider(context).get(SensorsViewModel.class);
 
-            mWifiManager = (MyWifiManager) SensorsViewModel.getOrCreateManager(
-                    context, mVM_Sensors, MyWifiManager.class.getSimpleName());
-            mWifiManager.setServerMode(true);
+            if (getArguments() != null) {
+                mbWithWl = getArguments().getBoolean("withWl", true);
+            }
+
+            if (mbWithWl) {
+                mWifiManager = (MyWifiManager) SensorsViewModel.getOrCreateManager(
+                        context, mVM_Sensors, MyWifiManager.class.getSimpleName());
+                mWifiManager.setServerMode(true);
+            }
+            else {
+                mWifiManager = null;
+            }
 
             mBtManager = (MyBluetoothManager) SensorsViewModel.getOrCreateManager(
                     context, mVM_Sensors, MyBluetoothManager.class.getSimpleName());

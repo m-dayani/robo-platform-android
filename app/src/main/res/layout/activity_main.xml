@@ -49,6 +49,12 @@
         android:layout_height="wrap_content"
         android:text="@string/native_test" />
 
+    <Button
+        android:id="@+id/cpTest"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/cp_test" />
+
     <TextView
         android:id="@+id/fpReportText"
         android:layout_width="match_parent"
