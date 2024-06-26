@@ -55,20 +55,31 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 Log.d(TAG, "startRecordSensors");
             }
         }
-        else if (id == R.id.startCarManualCtrl) {
+        else if (id == R.id.startCarManualCtrl || id == R.id.startFlightManualCtrl ||
+                id == R.id.startController || id == R.id.cpTest) {
 
-            Log.d(TAG, "startCarManualCtrl");
-            intent = new Intent(this, CarManualControlActivity.class);
-        }
-        else if (id == R.id.startFlightManualCtrl) {
+            intent = new Intent(this, RoboControllerActivity.class);
 
-            Log.d(TAG, "startFlightManualCtrl");
-            intent = new Intent(this, FlightControlActivity.class);
-        }
-        else if (id == R.id.startController) {
-
-            Log.d(TAG, "start controller server");
-            intent = new Intent(this, ControllerServerActivity.class);
+            if (id == R.id.startCarManualCtrl) {
+                Log.d(TAG, "startCarManualCtrl");
+                intent.putExtra(RoboControllerActivity.EXTRA_KEY_CONTROLLER_TYPE,
+                        RoboControllerActivity.ControllerType.CLIENT_CAR);
+            }
+            else if (id == R.id.startFlightManualCtrl) {
+                Log.d(TAG, "startFlightManualCtrl");
+                intent.putExtra(RoboControllerActivity.EXTRA_KEY_CONTROLLER_TYPE,
+                        RoboControllerActivity.ControllerType.CLIENT_FC);
+            }
+            else if (id == R.id.startController) {
+                Log.d(TAG, "start controller server");
+                intent.putExtra(RoboControllerActivity.EXTRA_KEY_CONTROLLER_TYPE,
+                        RoboControllerActivity.ControllerType.SERVER_WL);
+            }
+            else {
+                Log.d(TAG, "cpTest");
+                intent.putExtra(RoboControllerActivity.EXTRA_KEY_CONTROLLER_TYPE,
+                        RoboControllerActivity.ControllerType.SERVER_CP);
+            }
         }
         else if (id == R.id.startTest) {
 
@@ -79,12 +90,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             Log.d(TAG, "nativeTest");
             intent = new Intent(this, NativeTestActivity.class);
-        }
-        else if (id == R.id.cpTest) {
-
-            Log.d(TAG, "cpTest");
-            intent = new Intent(this, ControllerServerActivity.class);
-            intent.putExtra(ControllerServerActivity.EXTRA_KEY_WITH_WL, true);
         }
 
         // Launch the desired activity

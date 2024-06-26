@@ -3,6 +3,8 @@ package com.dayani.m.roboplatform.drivers;
 import android.hardware.usb.UsbConstants;
 
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgUsb;
+//import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgWireless;
+//import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgWireless.WirelessCommand;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgUsb.MyControlTransferInfo;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgUsb.UsbCommand;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MyUsbInfo;
@@ -43,10 +45,10 @@ public class MyDrvUsb {
 
     public static MsgUsb getCommandMessage(UsbCommand cmdFlag, String cmdData) {
 
-        MsgUsb usbMsg = getCommandMessage(cmdData);
-        usbMsg.setCmd(cmdFlag);
+        MsgUsb usgMsg = getCommandMessage(cmdData);
+        usgMsg.setCmd(cmdFlag);
 
-        return usbMsg;
+        return usgMsg;
     }
 
     public static MsgUsb getCommandMessage(UsbCmdInterpreter it, String command) {
@@ -155,10 +157,23 @@ public class MyDrvUsb {
 
     public static byte[] encodeUsbCommand(String cmd) {
 
+        int cmdBytesLen = 2;
+        byte[] cmdBytes = new byte[cmdBytesLen];
         if (cmd != null && !cmd.isEmpty()) {
-            return encodeUsbCommand(cmd.getBytes(StandardCharsets.UTF_8));
+            cmdBytes = cmd.getBytes(StandardCharsets.US_ASCII);
+            cmdBytesLen = cmdBytes.length;
         }
-        return null;
+        //byte[] cmdTruncatedBytes = truncateByteArray(cmdBytes);
+        byte[] output = new byte[cmdBytesLen+2];
+
+        output[0] = (byte) cmdBytesLen;
+        output[1] = 0;
+
+        if (cmdBytesLen > 2) {
+            System.arraycopy(cmdBytes, 0, output, 2, output.length - 2);
+        }
+
+        return output;
     }
 
     public static byte[] encodeUsbCommand(byte[] cmd) {
@@ -195,7 +210,7 @@ public class MyDrvUsb {
             return null;
         }
 
-        return Arrays.copyOfRange(rawInput, 2, 2 + dataLength);
+        return Arrays.copyOfRange(rawInput, 2, 2+dataLength);
     }
 
     public static String decodeUsbCommandStr(byte[] rawInput) {
@@ -250,28 +265,53 @@ public class MyDrvUsb {
         // todo
         int rdo = inputBuffer.length;
 
-        return new String(inputBuffer, 2, rdo - 2, StandardCharsets.UTF_16LE);
+        String descField = new String(inputBuffer, 2, rdo - 2, StandardCharsets.UTF_16LE);
+
+        return descField;
     }
 
     public interface UsbCmdInterpreter {
         byte[] interpret(String msg);
     }
 
-    /**
-     * For raw custom byte array, use a custom method like this.
-     * @param high the high byte of integer number
-     * @param low the low byte of integer number
-     * @return the converted int
-     */
-    public static int toInteger(byte high, byte low) {
-        return high*256+low;
-    }
+    public static byte[] getWlCmdEncodedByteMap(String command) {
 
-    public static int getAdcInt(byte high, byte low) {
+        // set pins of an 8 pin port
+        byte[] output = new byte[3];
+        output[0] = 1;
 
-        int highInt = (high & 0xFF);
-        int lowInt = (low & 0xFF);
-        return highInt * 256 + lowInt;
+        // 6-DoF command
+        switch (command.toLowerCase(Locale.ROOT)) {
+            case "w":
+            case "up": // forward
+                output[2] |= 0x01;
+                break;
+            case "s":
+            case "down": // backward
+                output[2] |= 0x02;
+                break;
+            case "d":
+            case "right":
+                output[2] |= 0x04;
+                break;
+            case "a":
+            case "left":
+                output[2] |= 0x08;
+                break;
+            case "q":
+                //case "up":
+                output[2] |= 0x10;
+                break;
+            case "e":
+                //case "down":
+                output[2] |= 0x20;
+                break;
+            default:
+                //output[2] &= 0x00;
+                break;
+        }
+
+        return output;
     }
 
 
@@ -318,6 +358,16 @@ public class MyDrvUsb {
         return outBuff;
     }
 
+    /**
+     * For raw custom byte array, use a custom method like this.
+     * @param high the high byte of integer number
+     * @param low the low byte of integer number
+     * @return the converted int
+     */
+    public static int toInteger(byte high, byte low) {
+        return high*256+low;
+    }
+
     public String getASCIIMessage(byte[] buff) {
         return new String(buff, 0, buff.length, StandardCharsets.US_ASCII);
     }
@@ -349,5 +399,12 @@ public class MyDrvUsb {
         return "USB_" +
                 new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSS", Locale.US).format(new Date()) +
                 ", " + msg;
+    }
+
+    public static int getAdcInt(byte high, byte low) {
+
+        int highInt = (high & 0xFF);
+        int lowInt = (low & 0xFF);
+        return highInt * 256 + lowInt;
     }
 }

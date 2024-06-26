@@ -87,7 +87,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
     private static final int ANDROID_USB_ATTR_VERSION = Build.VERSION_CODES.M;
 
     // NOTE: These codes must be the same between this class and USB device to pass the test
-	// send to usb device & compare with in_msg stored in device
+    // send to usb device & compare with in_msg stored in device
     private static final String DEFAULT_TEST_IN_MESSAGE = "in-code-9372";
     private static final String DEFAULT_TEST_OUT_MESSAGE = "out-code-6334";
 
@@ -236,9 +236,9 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
             }
         }
 
-            // todo: this seems wrong
-            // since this is a simple update operation, don't retain the communication
-            //close();
+        // todo: this seems wrong
+        // since this is a simple update operation, don't retain the communication
+        //close();
         //}
     }
 
@@ -706,21 +706,25 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
     public int sendControlMsg(MsgUsb usbMsg) {
 
         if (hasNoConnection() || usbMsg == null) {
+            Log.d(TAG, "sendControlMsg: No connection or null USB message detected");
             return -1;
         }
 
         MyControlTransferInfo ctrlTransInfo = usbMsg.getCtrlTransInfo();
         if (ctrlTransInfo == null) {
+            Log.d(TAG, "sendControlMsg: ctrlTransInfo is null");
             return -1;
         }
 
         // resolve transfer buffer and its length
         byte[] buff = usbMsg.getRawBuffer();
-        if (buff == null) {
-            return -1;
-        }
+//        if (buff == null) {
+//            Log.d(TAG, "sendControlMsg: input buffer is null");
+//            return -1;
+//        }
 
         try {
+            Log.d(TAG, "sendControlMsg, buff size: " + buff.length);
             int res = mConnection.controlTransfer(
                     ctrlTransInfo.mCtrlTransDir | ctrlTransInfo.mCtrlTransType,
                     usbMsg.getCmdFlag(),
@@ -757,10 +761,13 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
         // get response
         MsgUsb usbInMsg = MyDrvUsb.getInputMessage(UsbCommand.CMD_GET_CMD_RES, mInputBuffer);
 
-        if (res >= 0) {
-            sendControlMsg(usbInMsg);
-            //Log.d(TAG, "sendDataCommand, got: "+res+" bytes");
-        }
+//        if (res >= 0) {
+        sendControlMsg(usbInMsg);
+        //Log.d(TAG, "sendDataCommand, got: "+res+" bytes");
+//        }
+//        else {
+//            Log.d(TAG, "sendDataCommand, couldn't send message");
+//        }
 
         return usbInMsg;
     }

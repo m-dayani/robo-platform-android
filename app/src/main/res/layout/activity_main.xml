@@ -38,6 +38,12 @@
         android:text="@string/txt_robo_controller_server" />
 
     <Button
+        android:id="@+id/cpTest"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/cp_test" />
+
+    <Button
         android:id="@+id/startTest"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -48,12 +54,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/native_test" />
-
-    <Button
-        android:id="@+id/cpTest"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/cp_test" />
 
     <TextView
         android:id="@+id/fpReportText"
