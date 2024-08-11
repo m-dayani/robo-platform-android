@@ -151,6 +151,7 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
             Log.d(TAG, "Running test");
             //mUsb.handleTestSynchronous(null);
             mUsb.updateUsbAvailabilityState();
+            //reportTxt.setText("Run test twice for Arduino");
         }
         else {
             Log.e(TAG, "Undefined Action");

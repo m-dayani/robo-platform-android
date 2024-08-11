@@ -46,6 +46,7 @@ android {
         testImplementation 'junit:junit:4.12'
 
     }
+    namespace 'com.felhr.usbserial'
 
     createJar.dependsOn(deleteJar, build)
 }

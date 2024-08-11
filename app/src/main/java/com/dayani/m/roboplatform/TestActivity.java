@@ -227,7 +227,7 @@ public class TestActivity extends AppCompatActivity implements ActivityRequireme
             }
             else if (id == R.id.runTest) {
 
-                mUsb.handleTestSynchronous(null);
+                mUsb.handleTest(null);
             }
             else if (id == R.id.serialTrans) {
 

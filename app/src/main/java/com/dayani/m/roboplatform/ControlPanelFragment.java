@@ -15,6 +15,8 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.dayani.m.roboplatform.managers.MyBaseManager;
+import com.dayani.m.roboplatform.managers.MyBluetoothManager;
+import com.dayani.m.roboplatform.managers.MyUSBManager;
 import com.dayani.m.roboplatform.managers.MyWifiManager;
 import com.dayani.m.roboplatform.utils.AppGlobals;
 import com.dayani.m.roboplatform.utils.interfaces.MyChannels;
@@ -76,6 +78,12 @@ public class ControlPanelFragment extends Fragment implements View.OnClickListen
         if (mManager instanceof MyWifiManager) {
             ((MyWifiManager) mManager).close();
         }
+        else if (mManager instanceof MyBluetoothManager) {
+            ((MyBluetoothManager) mManager).close();
+        }
+        else if (mManager instanceof MyUSBManager) {
+            ((MyUSBManager) mManager).close();
+        }
         super.onDestroy();
     }
 
@@ -108,17 +116,21 @@ public class ControlPanelFragment extends Fragment implements View.OnClickListen
 
                 WirelessCommand cmdType = WirelessCommand.CMD_CHAR;
 
-                for (int k = 0; k < charSequence.length(); k++) {
-
-                    String cmd = Character.toString(charSequence.charAt(k));
-                    publishMessage(new MsgWireless(cmdType, cmd));
+                if (charSequence != null && charSequence.length() > 0) {
+                    for (int k = 0; k < charSequence.length(); k++) {
+                        String cmd = Character.toString(charSequence.charAt(0));
+                        publishMessage(new MsgWireless(cmdType, cmd));
+                    }
                 }
             }
 
             @Override
             public void afterTextChanged(Editable editable) {
 
-                keyInput.setText("");
+                // you will see a frozen screen without this check!
+                if (keyInput != null && keyInput.getText().length() > 0) {
+                    keyInput.setText("");
+                }
             }
         });
 
@@ -205,7 +217,7 @@ public class ControlPanelFragment extends Fragment implements View.OnClickListen
     @Override
     public void publishMessage(MyMessages.MyMessage msg) {
 
-        mManager.onMessageReceived(msg);
+        mManager.onMessageReceivedBg(msg);
     }
 
     @Override

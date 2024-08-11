@@ -321,10 +321,10 @@ public interface MyMessages {
 
         /**
          * @param loc new location event
-         * @return String("timestamp, longitude, latitude, altitude, velocity, bearing")
+         * @return String("timestamp, latitude, longitude, altitude, velocity, bearing")
          */
         public static String toString(Location loc) {
-            return loc.getElapsedRealtimeNanos() + ", " + loc.getLongitude() + ", " + loc.getLatitude() +
+            return loc.getElapsedRealtimeNanos() + ", " + loc.getLatitude() + ", " + loc.getLongitude() +
                     ", " + loc.getAltitude() + ", " + loc.getSpeed() + ", " + loc.getBearing() + '\n';
         }
 

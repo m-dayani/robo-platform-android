@@ -113,7 +113,7 @@ public class SerialTransFragment extends Fragment implements View.OnClickListene
         }
 
         String msg = mInputMsg.getText().toString();
-
+        // NOTE: Only Async Works Properly
         int id = view.getId();
         if (id == R.id.sendControlMsg) {
             Log.d(TAG, "Send Control Message");
@@ -124,11 +124,13 @@ public class SerialTransFragment extends Fragment implements View.OnClickListene
             Log.d(TAG, "Send Message Asynchronously");
             String res = mUsb.sendMsgAsync(msg);
             Log.d(TAG, "USB manager: " + res);
+            rptTxt.setText(res);
         }
         else if (id == R.id.sendSync) {
             Log.d(TAG, "Send Message Synchronously");
             String res = mUsb.sendMsgSync(msg);
             Log.d(TAG, "USB manager: " + res);
+            rptTxt.setText(res);
         }
     }
 
@@ -167,6 +169,9 @@ public class SerialTransFragment extends Fragment implements View.OnClickListene
 
             // report message
             rptTxt.setText(res);
+        }
+        else {
+            rptTxt.setText(msg.toString());
         }
     }
 }

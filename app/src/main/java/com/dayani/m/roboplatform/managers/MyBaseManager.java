@@ -382,6 +382,10 @@ public abstract class MyBaseManager implements ChannelTransactions,
         }
     }
 
+    public void onMessageReceivedBg(MyMessage msg) {
+        this.doInBackground(() -> onMessageReceived(msg));
+    }
+
     protected MySensorInfo getSensorInfo(int grpId, int sensorId) {
 
         MySensorGroup sensorGroup = MySensorGroup.findSensorGroupById(mlSensorGroup, grpId);

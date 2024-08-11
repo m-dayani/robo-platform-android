@@ -46,6 +46,8 @@ android {
             version '3.22.1'
         }
     }
+    namespace 'com.dayani.m.roboplatform'
+    ndkVersion '25.2.9519653'
 }
 
 dependencies {

@@ -316,6 +316,10 @@ public class MySensorManager extends MyBaseManager {
         getSensorsInfo(sensorManager, Sensor.TYPE_LINEAR_ACCELERATION, mMotion);
         getSensorsInfo(sensorManager, Sensor.TYPE_STEP_COUNTER, mMotion);
 
+        for (MySensorInfo motionSensor : mMotion) {
+            motionSensor.setChecked(false);
+        }
+
         return mMotion;
     }
 

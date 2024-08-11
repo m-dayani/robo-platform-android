@@ -3,8 +3,8 @@ package com.dayani.m.roboplatform.drivers;
 import android.hardware.usb.UsbConstants;
 
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgUsb;
-//import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgWireless;
-//import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgWireless.WirelessCommand;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgWireless;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgWireless.WirelessCommand;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgUsb.MyControlTransferInfo;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgUsb.UsbCommand;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MyUsbInfo;
@@ -101,7 +101,7 @@ public class MyDrvUsb {
         return usbMsg;
     }
 
-    /*public static MsgUsb wirelessToUsb(MsgWireless msg) {
+    public static MsgUsb wirelessToUsb(MsgWireless msg) {
 
         if (msg == null) {
             return null;
@@ -125,7 +125,7 @@ public class MyDrvUsb {
         }
 
         return null;
-    }*/
+    }
 
 
     public static int[] decodeAdcSensorMsg(byte[] rawBuff) {
@@ -214,7 +214,11 @@ public class MyDrvUsb {
     }
 
     public static String decodeUsbCommandStr(byte[] rawInput) {
-        return new String(decodeUsbCommand(rawInput));
+        byte[] decodedMsg = decodeUsbCommand(rawInput);
+        if (decodedMsg != null && decodedMsg.length > 0) {
+            return new String(decodedMsg, StandardCharsets.US_ASCII);
+        }
+        return "";
     }
 
     public static void decodeUsbSensorConfigInfo(MsgUsb usbMsg) {
@@ -305,6 +309,12 @@ public class MyDrvUsb {
             case "e":
                 //case "down":
                 output[2] |= 0x20;
+                break;
+            case "r":
+                output[2] |= 0x40;
+                break;
+            case "f":
+                output[2] |= 0x80;
                 break;
             default:
                 //output[2] &= 0x00;
