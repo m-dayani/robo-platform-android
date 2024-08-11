@@ -16,3 +16,8 @@
 backup/
 app/.cxx/
 
+.idea/deploymentTargetDropDown.xml
+.idea/deploymentTargetSelector.xml
+.idea/migrations.xml
+
+
