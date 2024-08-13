@@ -40,6 +40,18 @@
         android:layout_height="wrap_content"
         android:text="Serial Trans" />
 
+    <Button
+        android:id="@+id/testUsbLatency"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Test Latency" />
+
+    <Button
+        android:id="@+id/testUsbThroughput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Test TP" />
+
     <TextView
         android:id="@+id/fpReportText"
         android:layout_width="match_parent"

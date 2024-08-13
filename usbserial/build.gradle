@@ -6,7 +6,7 @@ android {
 
     group = 'com.felhr.usbserial'
     version = project.VERSION_NAME
-    compileSdk 31
+    compileSdk 35
 
 
     compileOptions {
@@ -47,6 +47,8 @@ android {
 
     }
     namespace 'com.felhr.usbserial'
+    buildToolsVersion '35.0.0'
+    ndkVersion '27.0.12077973'
 
     createJar.dependsOn(deleteJar, build)
 }

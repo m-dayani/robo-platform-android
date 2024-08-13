@@ -514,6 +514,9 @@ public interface MyMessages {
             CMD_ADC_STOP,
             // can even define 2 cmds for test request and response
             CMD_RUN_TEST,
+            CMD_TEST_LTC,
+            CMD_TEST_TP,
+            CMD_STR_MSG
         };
 
         // true: command, false: data

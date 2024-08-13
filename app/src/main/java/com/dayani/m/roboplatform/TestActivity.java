@@ -2,6 +2,7 @@ package com.dayani.m.roboplatform;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -23,21 +24,27 @@ import com.dayani.m.roboplatform.managers.MyBaseManager.LifeCycleState;
 import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
 import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
+import com.dayani.m.roboplatform.utils.interfaces.MyBackgroundExecutor;
 import com.dayani.m.roboplatform.utils.interfaces.MyChannels;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgUsb;
 import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
 
 import java.util.List;
+import java.util.concurrent.Executor;
 
 
-public class TestActivity extends AppCompatActivity implements ActivityRequirements.RequirementResolution {
+public class TestActivity extends AppCompatActivity implements
+        ActivityRequirements.RequirementResolution,
+        MyBackgroundExecutor.JobListener {
 
-    //private static final String TAG = TestActivity.class.getSimpleName();
+    private static final String TAG = TestActivity.class.getSimpleName();
 
     SensorsViewModel mVM_Sensors;
 
     MyBaseManager mUsb;
+
+    private MyBackgroundExecutor mBackgroundExecutor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,6 +59,9 @@ public class TestActivity extends AppCompatActivity implements ActivityRequireme
                 this, mVM_Sensors, MyUSBManager.class.getSimpleName());
         mUsb.execute(this, LifeCycleState.ACT_CREATED);
 
+        mBackgroundExecutor = new MyBackgroundExecutor();
+        mBackgroundExecutor.initWorkerThread(TAG);
+
         if (savedInstanceState == null) {
 
             getSupportFragmentManager().beginTransaction().setReorderingAllowed(true)
@@ -64,6 +74,7 @@ public class TestActivity extends AppCompatActivity implements ActivityRequireme
     protected void onDestroy() {
 
         mUsb.execute(this, LifeCycleState.ACT_DESTROYED);
+        mBackgroundExecutor.cleanWorkerThread();
         super.onDestroy();
     }
 
@@ -87,6 +98,51 @@ public class TestActivity extends AppCompatActivity implements ActivityRequireme
 
         MainActivity.startNewFragment(getSupportFragmentManager(),
                 R.id.fragment_container_view, targetFragment, "test");
+    }
+
+    /* ------------------------------------ Multi-threading ------------------------------------- */
+
+    @Override
+    public Executor getBackgroundExecutor() {
+
+        if (mBackgroundExecutor != null) {
+            return mBackgroundExecutor.getBackgroundExecutor();
+        }
+        return null;
+    }
+
+    @Override
+    public Handler getBackgroundHandler() {
+
+        if (mBackgroundExecutor != null) {
+            return mBackgroundExecutor.getBackgroundHandler();
+        }
+        return null;
+    }
+
+    @Override
+    public Handler getUiHandler() {
+
+        if (mBackgroundExecutor != null) {
+            return mBackgroundExecutor.getUiHandler();
+        }
+        return null;
+    }
+
+    @Override
+    public void execute(Runnable r) {
+
+        if (mBackgroundExecutor != null) {
+            mBackgroundExecutor.execute(r);
+        }
+    }
+
+    @Override
+    public void handle(Runnable r) {
+
+        if (mBackgroundExecutor != null) {
+            mBackgroundExecutor.handle(r);
+        }
     }
 
 
@@ -183,6 +239,8 @@ public class TestActivity extends AppCompatActivity implements ActivityRequireme
             view.findViewById(R.id.receiveSensor).setOnClickListener(this);
             view.findViewById(R.id.runTest).setOnClickListener(this);
             view.findViewById(R.id.serialTrans).setOnClickListener(this);
+            view.findViewById(R.id.testUsbLatency).setOnClickListener(this);
+            view.findViewById(R.id.testUsbThroughput).setOnClickListener(this);
 
             rptTxt = view.findViewById(R.id.fpReportText);
         }
@@ -234,6 +292,14 @@ public class TestActivity extends AppCompatActivity implements ActivityRequireme
                 Fragment targetFragment = new SerialTransFragment();
                 MainActivity.startNewFragment(requireActivity().getSupportFragmentManager(),
                         R.id.fragment_container_view, targetFragment, "serial-trans");
+            }
+            else if (id == R.id.testUsbLatency) {
+
+                mUsb.runLatencyTest();
+            }
+            else if (id == R.id.testUsbThroughput) {
+
+                mUsb.runThroughputTest();
             }
         }
 

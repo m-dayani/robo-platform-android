@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    compileSdk 32
+    compileSdk 35
 
     defaultConfig {
         minSdk 21
-        targetSdk 32
+        targetSdk 35
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
@@ -24,6 +24,8 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
     namespace 'com.google.location.lbs.gnss.gps.pseudorange'
+    ndkVersion '27.0.12077973'
+    buildToolsVersion '35.0.0'
 }
 
 dependencies {
@@ -32,7 +34,7 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.4.2'
     implementation 'junit:junit:4.12'
     implementation files('libs/commons-math3-3.6.1.jar')
-    implementation 'com.google.android.gms:play-services-location:11.0.2'
+    implementation 'com.google.android.gms:play-services-location:21.3.0'
     implementation files('libs/commons-codec-1.10.jar')
     implementation files('libs/asn1-supl2.jar')
     implementation files('libs/asn1-base.jar')

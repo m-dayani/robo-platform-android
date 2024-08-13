@@ -1,11 +1,11 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 31
+    compileSdk 35
     defaultConfig {
         applicationId "com.dayani.m.roboplatform"
         minSdkVersion 21
-        targetSdkVersion 31
+        targetSdkVersion 35
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -40,14 +40,15 @@ android {
         exclude 'META-INF/proguard/androidx-annotations.pro'
         exclude("META-INF/*.kotlin_module")
     }
-    externalNativeBuild {
-        cmake {
-            path file('src/main/cpp/CMakeLists.txt')
-            version '3.22.1'
-        }
-    }
+//    externalNativeBuild {
+//        cmake {
+//            path file('src/main/cpp/CMakeLists.txt')
+//            version '3.22.1'
+//        }
+//    }
     namespace 'com.dayani.m.roboplatform'
-    ndkVersion '25.2.9519653'
+    ndkVersion '27.0.12077973'
+    buildToolsVersion '35.0.0'
 }
 
 dependencies {
