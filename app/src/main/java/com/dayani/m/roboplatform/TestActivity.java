@@ -326,6 +326,11 @@ public class TestActivity extends AppCompatActivity implements
         @Override
         public void onMessageReceived(MyMessages.MyMessage msg) {
 
+            if (msg == null) {
+                Log.d(TAG, "UsbTestFrag::onMessageReceived, null message received");
+                return;
+            }
+
             if (msg instanceof MsgUsb) {
 
                 MsgUsb usbMsg = (MsgUsb) msg;
@@ -337,6 +342,10 @@ public class TestActivity extends AppCompatActivity implements
 
                 // report message
                 rptTxt.setText(res);
+            }
+            else {
+                // logging messages
+                rptTxt.setText(msg.toString());
             }
         }
 

@@ -490,6 +490,8 @@ public class MyBluetoothManager extends MyBaseManager implements HandleEnableSet
     public boolean isServerMode() { return mbIsServerMode; }
     public void setServerMode(boolean state) { mbIsServerMode = state; }
 
+    //public PrintWriter getOutputWriter() { return output; }
+
     /* --------------------------------- Enable & Query Devices --------------------------------- */
 
 //    public void disableBluetooth(Context context) {

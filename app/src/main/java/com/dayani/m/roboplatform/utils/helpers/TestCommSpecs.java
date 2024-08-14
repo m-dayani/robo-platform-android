@@ -3,6 +3,10 @@ package com.dayani.m.roboplatform.utils.helpers;
 import android.os.SystemClock;
 import android.util.Log;
 
+import com.dayani.m.roboplatform.managers.MyBaseManager;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages;
+
+import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -18,7 +22,10 @@ public abstract class TestCommSpecs implements Runnable {
 
     protected TestMode mTestMode;
 
-    protected final int buffLen = 64;
+    protected final int BSZ_BASE = 64;
+
+    // should change this both here and in micro board
+    protected int buffLen = 64;
     protected byte[] mSendBuffer = new byte[buffLen];
 
     protected Map<Integer, Long> mTsMap = new HashMap<>();
@@ -32,13 +39,21 @@ public abstract class TestCommSpecs implements Runnable {
     private boolean mbResReceived = false;
 //    private boolean mbTestFinished = false;
 
-    private final int maxLatency = 50;
-    private final int maxCycles = 2;
-    private final int maxThroughput = 100;
+    private final int maxLatency = 100;
+    private final int maxCycles = 10;
+    private final int maxThroughput = 1000;
+
+    //private final WeakReference<MyBaseManager> mManager;
 
     public TestCommSpecs(TestMode mode) {
         mTestMode = mode;
+        //mManager = new WeakReference<>(commManager);
         Log.d(TAG, "New comm test started in mode: " + mode.toString());
+    }
+
+    public TestCommSpecs(TestMode mode, int buffLen_) {
+        this(mode);
+        buffLen = buffLen_;
     }
 
     @Override
@@ -86,21 +101,12 @@ public abstract class TestCommSpecs implements Runnable {
         tsDiffThroughput = t1 - t0;
 
         double tp = mnBytes / (tsDiffThroughput * 1e-9);
-        Log.d(TAG, "TP test done, all received, TP is: " + tp + " (Bps)");
-    }
-
-    private void fillSendBufferForThroughput() {
-
-        mSendBuffer[0] = 62;
-        //mSendBuffer[1] = 3; // code
-        for (int i = 2; i < buffLen; i++) {
-            if (i % 2 == 0) {
-                mSendBuffer[i] = (byte) 0x55;
-            }
-            else {
-                mSendBuffer[i] = (byte) 0xAA;
-            }
-        }
+        String msg = "TP test done, all received, TP is: " + tp + " (Bps)";
+        Log.d(TAG, msg);
+//        if (mManager != null) {
+//            mManager.get().publishMessage(new MyMessages.MsgLogging(msg, "logging"));
+//        }
+        reportResults(msg);
     }
 
     public void updateState(int state) {
@@ -117,21 +123,14 @@ public abstract class TestCommSpecs implements Runnable {
             }
             if (cntLatency >= maxLatency * maxCycles) {
                 double latency = (mAvgLatency / cntLatency) * 1e-6;
-                Log.d(TAG, "Latency test done, all received, avg latency (ms): " + latency);
+                String msg = "Latency test done, all received, avg latency (ms): " + latency;
+                Log.d(TAG, msg);
+                reportResults(msg);
             }
         }
         else if (mTestMode == TestMode.THROUGHPUT) {
             mnBytes += state;
             cntThroughput++;
-//            if (cntThroughput >= maxThroughput) {
-//                // wait for tsDiff calculation
-//                waitForRes(10, 100);
-//                double tp = 0;
-//                if (tsDiffThroughput != 0){
-//                    tp = mnBytes / (tsDiffThroughput * 1e-9);
-//                }
-//                Log.d(TAG, "TP test done, all received, TP is: " + tp + " (Bps)");
-//            }
         }
         setReceived(true);
     }
@@ -166,4 +165,6 @@ public abstract class TestCommSpecs implements Runnable {
     }
 
     public abstract void send(byte[] buffer);
+    public abstract void reportResults(String msg);
+    protected abstract void fillSendBufferForThroughput();
 }

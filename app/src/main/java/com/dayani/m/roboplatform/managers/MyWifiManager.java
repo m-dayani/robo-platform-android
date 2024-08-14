@@ -15,6 +15,8 @@ package com.dayani.m.roboplatform.managers;
  *      wifi and hotspot at the same time
  *
  * todo: more robust lifecycle and resource management
+ *
+ * Note 2024: This version supports bidirectional connection (both Client/Server at the same time)
  */
 
 
@@ -41,6 +43,7 @@ import com.dayani.m.roboplatform.requirements.WiNetReqFragment;
 import com.dayani.m.roboplatform.utils.AppGlobals;
 import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
 import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
+import com.dayani.m.roboplatform.utils.helpers.TestCommSpecs;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.HandleEnableSettingsRequirement;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
@@ -51,6 +54,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
@@ -60,6 +64,7 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -521,9 +526,11 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
             try {
                 Log.i(TAG, "Stopping server");
                 mServerSocket.close();
-            } catch (IOException e) {
+            }
+            catch (IOException e) {
                 e.printStackTrace();
-            } finally {
+            }
+            finally {
                 mServerSocket = null;
             }
         }
@@ -673,7 +680,8 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
             }
             return !ip.endsWith(".");
 
-        } catch (NumberFormatException nfe) {
+        }
+        catch (NumberFormatException nfe) {
             return false;
         }
     }
@@ -805,11 +813,13 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
 
         private boolean isRunning = true;
         private final BufferedReader mInput;
-        private final MyBaseManager mManager;
+        private final WeakReference<MyBaseManager> mManager;
+
+        private MyWifiCommTest mWlCommTest;
 
         public InputTask(MyBaseManager manager, BufferedReader input) {
 
-            mManager = manager;
+            mManager = new WeakReference<>(manager);
             mInput = input;
         }
 
@@ -817,6 +827,7 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
         public void run() {
 
             Log.i(TAG, "Input service started successfully.");
+            MyBaseManager manager = mManager.get();
 
             while (isRunning) {
 
@@ -831,16 +842,25 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
                     if (command != null) {
 
                         MsgWireless msg = MyDrvWireless.decodeMessage(command);
+                        String msgStr = msg.toString();
 
                         if (MsgWireless.WirelessCommand.TEST.equals(msg.getCmd())) {
-                            if (mManager instanceof ActivityRequirements.ConnectivityTest) {
-                                ((ActivityRequirements.ConnectivityTest) mManager).handleTestAsynchronous(msg);
+                            if (manager instanceof ActivityRequirements.ConnectivityTest) {
+                                ((ActivityRequirements.ConnectivityTest) manager).handleTestAsynchronous(msg);
                             }
                         }
-                        else if (mManager != null) {
-                            mManager.publishMessage(msg);
+                        else if (MyWifiCommTest.isCommTestRequest(msg)) {
+                            if (msgStr.contains("start")) {
+                                startCommTest(msg);
+                            }
+                            else {
+                                mWlCommTest.processWlInput(msg);
+                            }
                         }
-                        Log.v(TAG, "Remote: "+msg);
+                        else if (manager != null) {
+                            manager.publishMessage(msg);
+                        }
+                        //Log.v(TAG, "Remote: "+msg);
                     }
                     else {
                         //startServer();
@@ -850,6 +870,24 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
                 catch (IOException e) {
                     e.printStackTrace();
                 }
+            }
+        }
+
+        private void startCommTest(MsgWireless msg) {
+
+            String msgStr = msg.toString();
+            MyBaseManager manager = mManager.get();
+
+            if (msgStr.contains("test:ltc")) {
+                //Log.d(TAG, "Remote: start latency test");
+                mWlCommTest = new MyWifiCommTest(manager, TestCommSpecs.TestMode.LATENCY);
+            }
+            else if (msgStr.contains("test:tp")) {
+                //Log.d(TAG, "Remote: start throughput test");
+                mWlCommTest = new MyWifiCommTest(manager, TestCommSpecs.TestMode.THROUGHPUT);
+            }
+            if (manager != null) {
+                manager.doInBackground(mWlCommTest);
             }
         }
 
@@ -876,10 +914,10 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
                 return;
             }
 
-            Log.i(TAG, "Output service started successfully.");
+            //Log.i(TAG, "Output service started successfully.");
             mOutput.write(message);
             mOutput.flush();
-            Log.i(TAG, "message: "+message+" sent successfully.");
+            //Log.i(TAG, "message: "+message+" sent successfully.");
         }
     }
 
@@ -1032,6 +1070,114 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
             WifiManager wifiManager = (WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
             WifiInfo wifiInfo = wifiManager.getConnectionInfo();
             return wifiInfo.getSSID();
+        }
+    }
+
+    private static class MyWifiCommTest extends TestCommSpecs {
+
+        private WeakReference<MyBaseManager> mManager;
+
+        public MyWifiCommTest(MyBaseManager manager, TestMode mode) {
+            super(mode);
+            mManager = new WeakReference<>(manager);
+        }
+
+        @Override
+        protected void fillSendBufferForThroughput() {
+            for (int i = 0; i < buffLen; i++) {
+                if (i % 2 == 0) {
+                    mSendBuffer[i] = (byte) 0x55;
+                }
+                else {
+                    // ASCII has no 0xAA!
+                    mSendBuffer[i] = (byte) 0x2A;
+                }
+            }
+        }
+
+        @Override
+        public void send(byte[] buffer) {
+
+            if (mManager.get() == null) {
+                return;
+            }
+
+            String msg = "";
+            if (mTestMode == TestMode.LATENCY) {
+                msg = "test:ltc:" + buffer[0];
+            }
+            else if (mTestMode == TestMode.THROUGHPUT) {
+                String buffStr = new String(buffer, StandardCharsets.US_ASCII);
+                msg = "test:tp:" + buffStr;
+            }
+            MyMessages.MsgWireless msgWl = new MsgWireless(MsgWireless.WirelessCommand.CMD_WORD, msg);
+
+            if (mManager.get() != null) {
+                mManager.get().onMessageReceived(msgWl);
+            }
+        }
+
+        @Override
+        public void reportResults(String msg) {
+
+            if (mManager.get() == null) {
+                return;
+            }
+            MyBaseManager manager = mManager.get();
+
+            if (manager.mBackgroundJobListener != null) {
+                manager.mBackgroundJobListener.getUiHandler().post(() ->
+                        manager.publishMessage(new MyMessages.MsgLogging(msg, "logging")));
+            }
+        }
+
+        protected void processWlInput(MsgWireless msg) {
+
+            MyBaseManager manager = mManager.get();
+            String msgStr = msg.toString();
+            String[] msgParts = msgStr.split(":");
+
+            if (msgStr.contains("rp") && msgParts.length > 3) {
+                int res = Integer.parseInt(msgParts[3]);
+                    updateState(res);
+                }
+            else if (msgParts.length > 2) {
+                // When WlManager acts as a server
+                String newMsgStr = "test:ltc:rp:" + msgParts[2];
+                if (msgStr.contains("test:tp")) {
+                    newMsgStr = "test:tp:rp:" + countCodeFields(msgParts[2]);
+                }
+                MsgWireless msgWl = new MsgWireless(MsgWireless.WirelessCommand.CMD_WORD, newMsgStr);
+                if (manager != null) {
+                    manager.onMessageReceived(msgWl);
+                }
+            }
+        }
+
+        private int countCodeFields(String msg) {
+            int i = 0;
+            int cnt = 0;
+            for (char c : msg.toCharArray()) {
+                if (i % 2 == 0) {
+                    if (c == 0x55) {
+                        cnt++;
+                    }
+                }
+                else {
+                    if (c == 0x2A) {
+                        cnt++;
+                    }
+                }
+                i++;
+            }
+            return cnt;
+        }
+
+        protected static boolean isCommTestRequest(MsgWireless msg) {
+
+            String msgStr = msg.toString();
+            return MsgWireless.WirelessCommand.CMD_WORD.equals(msg.getCmd()) &&
+                    (msgStr.contains("test:ltc") || msgStr.contains("test:tp"));
         }
     }
 }
