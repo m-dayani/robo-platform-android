@@ -58,6 +58,9 @@ public class MyDrvUsb {
         byte[] cmdBytes = it.interpret(command);
         byte[] cmdBytesEncoded = encodeUsbCommand(cmdBytes);
         usbMsg.setRawBuffer(cmdBytesEncoded);
+        if (cmdBytesEncoded[1] == 1) {
+            usbMsg.setCmd(UsbCommand.CMD_UPDATE_OUTPUT);
+        }
 
         return usbMsg;
     }
@@ -190,9 +193,7 @@ public class MyDrvUsb {
         output[0] = (byte) cmdBytesLen;
         output[1] = 1;
 
-        if (cmdBytesLen > 2) {
-            System.arraycopy(cmdBytes, 0, output, 2, output.length - 2);
-        }
+        System.arraycopy(cmdBytes, 0, output, 2, output.length - 2);
 
         return output;
     }

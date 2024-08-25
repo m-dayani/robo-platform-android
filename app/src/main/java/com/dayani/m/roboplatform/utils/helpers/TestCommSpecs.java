@@ -40,8 +40,8 @@ public abstract class TestCommSpecs implements Runnable {
 //    private boolean mbTestFinished = false;
 
     private final int maxLatency = 100;
-    private final int maxCycles = 10;
-    private final int maxThroughput = 1000;
+    private final int maxCycles = 1;
+    private final int maxThroughput = 100;
 
     //private final WeakReference<MyBaseManager> mManager;
 

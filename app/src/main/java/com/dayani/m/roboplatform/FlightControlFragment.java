@@ -1,52 +1,46 @@
 package com.dayani.m.roboplatform;
 
-import android.content.Intent;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.os.Bundle;
-import android.os.Handler;
+import android.util.Log;
 
-import androidx.activity.result.IntentSenderRequest;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.dayani.m.roboplatform.drivers.MyDrvUsb;
-import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.managers.MyBaseManager.LifeCycleState;
-import com.dayani.m.roboplatform.managers.MyBluetoothManager;
 import com.dayani.m.roboplatform.managers.MySensorManager;
-import com.dayani.m.roboplatform.managers.MyUSBManager;
-import com.dayani.m.roboplatform.managers.MyWifiManager;
 import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
-import com.dayani.m.roboplatform.utils.helpers.MyScreenOperations;
-import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
-import com.dayani.m.roboplatform.utils.interfaces.MyBackgroundExecutor;
+import com.dayani.m.roboplatform.utils.helpers.QuadController;
 import com.dayani.m.roboplatform.utils.interfaces.MyChannels;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgUsb;
+import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgUsb.UsbCommand;
 import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
 
-import java.util.concurrent.Executor;
-
+import java.util.Arrays;
 
 
 public class FlightControlFragment extends
         ManualControlFragment implements
         MyChannels.ChannelTransactions {
 
-    //private static final String TAG = FlightControlFragment.class.getSimpleName();
+    private static final String TAG = FlightControlFragment.class.getSimpleName();
 
 //        private static final String KEY_STARTED_STATE = AppGlobals.PACKAGE_BASE_NAME
 //                +'.'+TAG+".KEY_STARTED_STATE";
 
     private MySensorManager mSenManager;
-    private boolean mbDisableSt = false;
+//    private boolean mbDisableSt = true;
+
+    private final QuadController mQcController;
 
 
     public FlightControlFragment() {
         // Required empty public constructor
+        mQcController = new QuadController();
     }
 
     /**
@@ -110,52 +104,6 @@ public class FlightControlFragment extends
         super.stop();
     }
 
-    private byte[] processSensorMsg(MyMessages.MsgSensor msg) {
-
-        //Log.d(TAG, "Sensor message received: " + msg);
-        SensorEvent sensorEvent = msg.getSensorEvent();
-        if (sensorEvent != null && sensorEvent.sensor.getType() == Sensor.TYPE_GRAVITY) {
-            float[] gVec = sensorEvent.values;
-            float gx = gVec[0];
-            float gy = gVec[1];
-            float gz = gVec[2];
-            double g_abs = Math.sqrt(Math.pow(gx, 2) + Math.pow(gy, 2) + Math.pow(gz, 2));
-            double gx_n = gx / g_abs;
-            double gy_n = gy / g_abs;
-            //private boolean mIsStarted = false;
-            double gScale = 1.0;
-            double gx_s = gx_n * gScale;
-            double gy_s = gy_n * gScale;
-
-            String wMsg_x = "0", wMsg_y = "0";
-
-            if (gx_s > 0.01) {
-                wMsg_x = "w";
-            }
-            else if (gx_s < -0.01) {
-                wMsg_x = "s";
-            }
-
-            if (gy_s > 0.01) {
-                wMsg_y = "a";
-            }
-            else if (gy_s < -0.01) {
-                wMsg_y = "d";
-            }
-
-            byte[] out_x = this.interpret(wMsg_x);
-            byte[] out_y = this.interpret(wMsg_y);
-            byte[] out = new byte[Math.min(out_x.length, out_y.length)];
-
-            for (int i = 0; i < out_x.length && i < out_y.length; i++) {
-                out[i] = (byte) (out_x[i] | out_y[i]);
-            }
-
-            return out;
-        }
-        return null;
-    }
-
     @Override
     public byte[] interpret(String msg) {
 
@@ -165,7 +113,7 @@ public class FlightControlFragment extends
 
         // set pins of an 8 pin port
         byte[] output = new byte[1];
-        mbDisableSt = true;
+//       mbDisableSt = true;
 
         // 6-DoF command
         switch (msg) {
@@ -174,7 +122,7 @@ public class FlightControlFragment extends
                 // forward
                 // increase channels A, B
                 // decrease channels C, D
-                output[0] |= 0xA5;
+                output[0] |= (byte) 0xA5;
                 break;
             case "s":
             case "down":
@@ -186,51 +134,140 @@ public class FlightControlFragment extends
                 // left
                 // increase A, D
                 // decrease B, C
-                output[0] |= 69;
+                output[0] |= 0x69;
                 break;
             case "d":
             case "right":
                 // right
-                output[0] |= 96;
+                output[0] |= (byte) 0x96;
                 break;
             case "e":
             case "fly":
                 // up
                 // increase all
                 output[0] |= 0x55;
-                mbDisableSt = false;
+//                mbDisableSt = false;
                 break;
             case "q":
             case "land":
                 // down
                 // decrease all
-                output[0] |= 0xAA;
-                mbDisableSt = false;
+                output[0] |= (byte) 0xAA;
+//                mbDisableSt = false;
                 break;
             case "0":
             default:
-                mbDisableSt = false;
+//                mbDisableSt = false;
                 break;
         }
+        Log.v(TAG, "interpret: send command: " + Arrays.toString(output));
         return output;
     }
 
+    private float[] cmd2input(String msg) {
+
+        // Input: [throttle, roll, pitch, yaw]
+        float[] input = new float[4];
+        float scale = 1.f;
+
+        switch (msg) {
+            case "w":
+            case "up":
+                // forward
+                input[2] = scale;
+                break;
+            case "s":
+            case "down":
+                // backward
+                input[2] = -scale;
+                break;
+            case "a":
+            case "left":
+                // left
+                input[1] = scale;
+                break;
+            case "d":
+            case "right":
+                // right
+                input[1] = -scale;
+                break;
+            case "e":
+            case "fly":
+                // up
+                input[0] = scale;
+                break;
+            case "q":
+            case "land":
+                // down
+                input[0] = -scale;
+                break;
+            case "r":
+            case "turn_cw":
+                // clockwise yaw
+                input[3] = scale;
+                break;
+            case "f":
+            case "turn_ccw":
+                // ccw yaw
+                input[3] = -scale;
+                break;
+            case "0":
+            default:
+                break;
+        }
+
+        return input;
+    }
 
     /* ------------------------------- Channel Transactions --------------------------------- */
 
     @Override
     public void onMessageReceived(MyMessages.MyMessage msg) {
 
-        super.onMessageReceived(msg);
+        if (msg instanceof MyMessages.MsgWireless) {
+            //Log.v(TAG, "Wireless message received: " + msg);
+            if (mUsb != null) {
 
-        if (msg instanceof MyMessages.MsgSensor) {
-            //Log.d(TAG, "Sensor message received: " + msg);
-            if (!mbDisableSt) {
-                byte[] out = this.processSensorMsg((MyMessages.MsgSensor) msg);
-                if (mUsb != null) {
-                    mUsb.onMessageReceived(MyDrvUsb.getCommandMessage(out));
+                MyMessages.MsgWireless wMsg = (MyMessages.MsgWireless) msg;
+                MyMessages.MsgWireless.WirelessCommand wCmd = wMsg.getCmd();
+
+                if (wCmd.equals(MyMessages.MsgWireless.WirelessCommand.CMD_CHAR) ||
+                        wCmd.equals(MyMessages.MsgWireless.WirelessCommand.CMD_DIR)) {
+
+                    mQcController.updateInput(cmd2input(msg.toString()));
                 }
             }
+        }
+        else if (msg instanceof MyMessages.MsgSensor) {
+//            Log.v(TAG, "Sensor message received: " + msg);
+            MyMessages.MsgSensor msgSen = (MyMessages.MsgSensor) msg;
+            SensorEvent sensorEvent = msgSen.getSensorEvent();
+            if (sensorEvent != null && sensorEvent.sensor.getType() == Sensor.TYPE_GRAVITY) {
+                mQcController.updateSensor(sensorEvent.values);
+            }
+        }
+        else if (msg instanceof MsgUsb) {
+//            Log.d(TAG, "USB message received: " + msg);
+            MsgUsb msgUsb = (MsgUsb) msg;
+            if (msgUsb.getCmd().equals(UsbCommand.CMD_GET_CMD_RES)) {
+                byte[] resBuff = msgUsb.getRawBuffer();
+                mQcController.updateState(resBuff);
+            }
+        }
+//        else if (msg.getChTag() != null && msg.getChTag().equals("usb-response")) {
+//            byte[] resBuff = msg.toString().getBytes(StandardCharsets.US_ASCII);
+//            mQcController.updateState(resBuff);
+//        }
+//        else {
+//            Log.d(TAG, "Unknown message received: " + msg);
+//        }
+
+        if (mUsb != null && mQcController.isReady()) {
+            byte[] transBuff = mQcController.getLastState();
+            MsgUsb outMsg = MyDrvUsb.getCommandMessage(UsbCommand.CMD_UPDATE_OUTPUT, "0");
+            byte[] buffer = MyDrvUsb.encodeUsbCommand(transBuff);
+            outMsg.setRawBuffer(buffer);
+            mUsb.onMessageReceived(outMsg);
         }
     }
 }

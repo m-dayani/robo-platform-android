@@ -692,7 +692,8 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
         // todo: find a better way for this check
         String prodName = mDevice.getProductName();
         Log.i(TAG, "openDevice, product name: " + prodName);
-        mbIsSerial = prodName == null || prodName.equals("USB Serial");
+        mbIsSerial = prodName == null || prodName.equals("USB Serial") ||
+                prodName.equals("Arduino Due Prog. Port");
         if (mbIsSerial) {
             if (mSerialManager == null) {
                 mSerialManager = new TinySerialManager(this);
@@ -1174,10 +1175,13 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
                 return;
             }
 
+            if (mSerialBuffer.length == 0) {
+                return;
+            }
             int buffSize = mSerialBuffer[0]+2;
             arg0 = new byte[buffSize];
             System.arraycopy(mSerialBuffer, 0, arg0, 0, buffSize);
-//            printTransferredBytes("Received Bytes", arg0);
+            printTransferredBytes("Received Bytes", arg0);
 
             int code = arg0[1];
             arg0[1] = 0;
@@ -1308,7 +1312,7 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
                 byte[] outbytes = msg.getRawBuffer();//MyDrvUsb.encodeUsbCommand(msg.getRawBuffer());
                 if (outbytes.length > 1) {
                     outbytes[1] = (byte) msg.getCmdFlag();
-//                    printTransferredBytes("Sent buffer", outbytes);
+                    printTransferredBytes("Sent buffer", outbytes);
                     serialPort.write(outbytes);
                 }
             }
