@@ -218,7 +218,7 @@ public class ManualControlFragment extends Fragment
         }
     }
 
-    private void updateAvailabilityUI() {
+    protected void updateAvailabilityUI() {
 
         boolean bUsb = false, bWifi = false, bBt = false;
 
@@ -241,7 +241,6 @@ public class ManualControlFragment extends Fragment
 
         mBtnWifi.setEnabled(!hasWirelessConn);
         mBtnBt.setEnabled(!hasWirelessConn);
-
         mBtnStart.setEnabled(bUsb && hasWirelessConn);
     }
 

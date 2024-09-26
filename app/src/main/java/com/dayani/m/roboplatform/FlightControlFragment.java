@@ -4,7 +4,9 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.FragmentActivity;
 import androidx.lifecycle.ViewModelProvider;
@@ -12,7 +14,7 @@ import androidx.lifecycle.ViewModelProvider;
 import com.dayani.m.roboplatform.drivers.MyDrvUsb;
 import com.dayani.m.roboplatform.managers.MyBaseManager.LifeCycleState;
 import com.dayani.m.roboplatform.managers.MySensorManager;
-import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
+import com.dayani.m.roboplatform.utils.data_types.MySensorGroup.SensorType;
 import com.dayani.m.roboplatform.utils.helpers.QuadController;
 import com.dayani.m.roboplatform.utils.interfaces.MyChannels;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages;
@@ -36,11 +38,12 @@ public class FlightControlFragment extends
 //    private boolean mbDisableSt = true;
 
     private final QuadController mQcController;
+    private final boolean mTestMode = true;
 
 
     public FlightControlFragment() {
         // Required empty public constructor
-        mQcController = new QuadController();
+        mQcController = new QuadController(180);
     }
 
     /**
@@ -69,7 +72,11 @@ public class FlightControlFragment extends
                 context, mVM_Sensors, MySensorManager.class.getSimpleName());
         // Setup the required sensors:
         mSenManager.uncheckAllSensors();
-        mSenManager.updateCheckedByType(MySensorGroup.SensorType.TYPE_MOTION, Sensor.TYPE_GRAVITY, true);
+        boolean res = mSenManager.updateCheckedByType(SensorType.TYPE_MOTION, Sensor.TYPE_GRAVITY, true);
+        if (!res) {
+            mSenManager.updateCheckedByType(SensorType.TYPE_IMU, Sensor.TYPE_ACCELEROMETER, true);
+        }
+        mSenManager.updateCheckedByType(SensorType.TYPE_IMU, Sensor.TYPE_GYROSCOPE, true);
 
         // establish connections
         // this module acts as the middle man between everything
@@ -79,6 +86,32 @@ public class FlightControlFragment extends
         mSenManager.registerChannel(this);
 
         mSenManager.execute(context, LifeCycleState.ACT_CREATED);
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        if (mTestMode) {
+            if (mBtnUsb != null) {
+                mBtnUsb.setEnabled(false);
+            }
+            if (mBtnWifi != null) {
+                mBtnWifi.setEnabled(false);
+            }
+            if (mBtnBt != null) {
+                mBtnBt.setEnabled(false);
+            }
+            if (mBtnStart != null) {
+                mBtnStart.setEnabled(true);
+            }
+        }
+    }
+
+    @Override
+    protected void updateAvailabilityUI() {
+        if (!mTestMode) {
+            super.updateAvailabilityUI();
+        }
     }
 
     @Override
@@ -242,9 +275,7 @@ public class FlightControlFragment extends
 //            Log.v(TAG, "Sensor message received: " + msg);
             MyMessages.MsgSensor msgSen = (MyMessages.MsgSensor) msg;
             SensorEvent sensorEvent = msgSen.getSensorEvent();
-            if (sensorEvent != null && sensorEvent.sensor.getType() == Sensor.TYPE_GRAVITY) {
-                mQcController.updateSensor(sensorEvent.values);
-            }
+            mQcController.updateSensor(sensorEvent);
         }
         else if (msg instanceof MsgUsb) {
 //            Log.d(TAG, "USB message received: " + msg);
@@ -267,6 +298,7 @@ public class FlightControlFragment extends
             MsgUsb outMsg = MyDrvUsb.getCommandMessage(UsbCommand.CMD_UPDATE_OUTPUT, "0");
             byte[] buffer = MyDrvUsb.encodeUsbCommand(transBuff);
             outMsg.setRawBuffer(buffer);
+            Log.d(TAG, Arrays.toString(buffer));
             mUsb.onMessageReceived(outMsg);
         }
     }

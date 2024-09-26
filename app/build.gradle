@@ -40,12 +40,12 @@ android {
         exclude 'META-INF/proguard/androidx-annotations.pro'
         exclude("META-INF/*.kotlin_module")
     }
-//    externalNativeBuild {
-//        cmake {
-//            path file('src/main/cpp/CMakeLists.txt')
-//            version '3.22.1'
-//        }
-//    }
+    externalNativeBuild {
+        cmake {
+            path file('src/main/cpp/CMakeLists.txt')
+            version '3.30.3'
+        }
+    }
     namespace 'com.dayani.m.roboplatform'
     ndkVersion '27.0.12077973'
     buildToolsVersion '35.0.0'
@@ -119,4 +119,5 @@ dependencies {
     // To use constraintlayout in compose
     implementation "androidx.constraintlayout:constraintlayout-compose:1.0.1"
 
+    implementation project(':opencv')
 }

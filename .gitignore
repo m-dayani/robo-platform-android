@@ -21,4 +21,9 @@ app/.cxx/
 .idea/migrations.xml
 .idea/workspace.xml~
 
+*build*
+opencv/build
+opencv/.cxx
+opencv
+
 

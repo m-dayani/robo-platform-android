@@ -8,6 +8,8 @@ add_library(native-lib SHARED
 
 find_library(log-lib log)
 
+add_subdirectory(thirdparty/apriltag)
+
 #find_library(lib-boost lboost)
 
 #add_library(lib-g2o SHARED IMPORTED)

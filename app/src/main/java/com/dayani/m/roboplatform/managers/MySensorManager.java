@@ -135,7 +135,7 @@ public class MySensorManager extends MyBaseManager {
     /* ----------------------------------- Setters/Getters -------------------------------------- */
 
     @Override
-    public void updateCheckedByType(SensorType grpType, int senType, boolean state) {
+    public boolean updateCheckedByType(SensorType grpType, int senType, boolean state) {
         for (MySensorGroup sensorGroup : mlSensorGroup) {
             if (sensorGroup.getType() == grpType) {
                 for (MySensorInfo sensorInfo : sensorGroup.getSensors()) {
@@ -143,16 +143,19 @@ public class MySensorManager extends MyBaseManager {
                         MotionSensor motionSensor = (MotionSensor) sensorInfo;
                         if (motionSensor.getSensor().getType() == senType) {
                             motionSensor.setChecked(state);
+                            return true;
                         }
                     }
                     else {
                         if (sensorInfo.getId() == senType) {
                             sensorInfo.setChecked(state);
+                            return true;
                         }
                     }
                 }
             }
         }
+        return false;
     }
 
     /* ------------------------------------ Init. Sensors --------------------------------------- */

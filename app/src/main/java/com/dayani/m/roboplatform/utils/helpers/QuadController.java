@@ -1,6 +1,12 @@
 package com.dayani.m.roboplatform.utils.helpers;
 
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
 import android.os.SystemClock;
+import android.util.Log;
+
+import java.util.ArrayList;
+import java.util.Arrays;
 
 public class QuadController {
 
@@ -24,8 +30,9 @@ public class QuadController {
     private float[] mSenState = new float[STATE_LEN];
     private float mSenWeight = 0.f;
     private char mMaxMa = 3;
-    private float[] mLast_g_vec = new float[3];
-    private char mMaCnt = 0;
+    ArrayList<float[]> mGravityArr = new ArrayList<>();
+
+    private final float s_rx = 0.25f, s_ry = 0.25f, s_rz = 0.25f;
 
     // Input params
     private final float s_t = 0.25f, s_r = 0.25f, s_p = 0.25f, s_y = 0.25f;
@@ -39,9 +46,9 @@ public class QuadController {
         mMaxStrength = 255.f;
     }
 
-//    public QuadController(float maxStrength_) {
-//        mMaxStrength = maxStrength_;
-//    }
+    public QuadController(float maxStrength_) {
+        mMaxStrength = maxStrength_;
+    }
 
     public synchronized void updateState(byte[] state) {
 
@@ -53,16 +60,33 @@ public class QuadController {
         }
     }
 
-    public synchronized void updateSensor(float[] g_vec) {
+    public synchronized void updateSensor(SensorEvent sensorEvent) {
 
-        if (mMaCnt < mMaxMa) {
-            mLast_g_vec = add_float_arr(mLast_g_vec, g_vec);
-            mMaCnt++;
+        if (sensorEvent == null) {
+            Log.w(TAG, "Detected null sensor event");
+            return;
         }
-        if (mMaCnt >= mMaxMa) {
-            mLast_g_vec = scale_float_arr(mLast_g_vec, 1.f/mMaxMa);
-            mSenState = calc_sensor(mLast_g_vec);
-            mMaCnt = 1;
+
+        int sensorType = sensorEvent.sensor.getType();
+        float[] sensorValues = sensorEvent.values;
+
+        if (sensorType == Sensor.TYPE_GRAVITY || sensorType == Sensor.TYPE_ACCELEROMETER) {
+            if (mGravityArr.size() < mMaxMa) {
+                mGravityArr.add(sensorValues);
+            }
+            else {
+                float[] g_vec = mean_float_arr(mGravityArr);
+                mSenState = add_float_arr(mSenState, calc_gravity(g_vec));
+                mGravityArr.clear();
+            }
+        }
+
+        if (sensorType == Sensor.TYPE_GYROSCOPE) {
+            mSenState = add_float_arr(mSenState, calc_gyro(sensorValues));
+        }
+
+        if (norm(mSenState) > 10) {
+            Log.v(TAG, "last sensor state: " + Arrays.toString(mSenState));
         }
     }
 
@@ -87,6 +111,8 @@ public class QuadController {
         }
         mError = add_float_arr(scale_float_arr(mSenState, senWeight), mInputState);
         mState = normalizeThrottle(calc_state(mState, mError));
+        // reset sensor state to avoid accumulation of error
+        mSenState = new float[STATE_LEN];
 
         // convert state to bytes array
         byte[] outBuff = new byte[STATE_LEN];
@@ -156,7 +182,7 @@ public class QuadController {
             return mInputState;
         }
 
-        float[] out = new float[4];
+        float[] out = new float[STATE_LEN];
 
         out[0] = s_t * input[0] - s_r * input[1] - s_p * input[2] + s_y * input[3];
         out[1] = s_t * input[0] + s_r * input[1] - s_p * input[2] - s_y * input[3];
@@ -166,10 +192,10 @@ public class QuadController {
         return out;
     }
 
-    private float[] calc_sensor(float[] g_vec) {
+    private float[] calc_gravity(float[] g_vec) {
 
         if (g_vec == null || g_vec.length < 3) {
-            return mSenState;
+            return new float[STATE_LEN];
         }
 
         float[] out = new float[STATE_LEN];
@@ -193,6 +219,22 @@ public class QuadController {
         out[1] = - s_gx * gx_n + s_gy * gy_n + s_gz * gz_n + s_gn * g_n;
         out[2] =   s_gx * gx_n + s_gy * gy_n + s_gz * gz_n + s_gn * g_n;
         out[3] =   s_gx * gx_n - s_gy * gy_n + s_gz * gz_n + s_gn * g_n;
+
+        return out;
+    }
+
+    private float[] calc_gyro(float[] gyro_mea) {
+
+        if (gyro_mea == null || gyro_mea.length < 3) {
+            return new float[STATE_LEN];
+        }
+
+        float[] out = new float[STATE_LEN];
+
+        out[0] = - s_rx * gyro_mea[0] + s_ry * gyro_mea[1] - s_rz * gyro_mea[2];
+        out[1] =   s_rx * gyro_mea[0] + s_ry * gyro_mea[1] + s_rz * gyro_mea[2];
+        out[2] =   s_rx * gyro_mea[0] - s_ry * gyro_mea[1] - s_rz * gyro_mea[2];
+        out[3] = - s_rx * gyro_mea[0] - s_ry * gyro_mea[1] + s_rz * gyro_mea[2];
 
         return out;
     }
@@ -223,19 +265,19 @@ public class QuadController {
         return out;
     }
 
-//    public static float norm(float[] a) {
-//        if (a == null) {
-//            return 0.f;
-//        }
-//
-//        int len = a.length;
-//        float n = 0.f;
-//        for (float ai : a) {
-//            n += (ai * ai);
-//        }
-//
-//        return Math.round(Math.sqrt(n)/len);
-//    }
+    public static float norm(float[] a) {
+        if (a == null) {
+            return 0.f;
+        }
+
+        int len = a.length;
+        float n = 0.f;
+        for (float ai : a) {
+            n += (ai * ai);
+        }
+
+        return Math.round(Math.sqrt(n)/len);
+    }
 
     public static float mean_float_arr(float[] a) {
         if (a == null) {
@@ -246,6 +288,25 @@ public class QuadController {
             mu += v;
         }
         return mu / (a.length);
+    }
+
+    public static float[] mean_float_arr(ArrayList<float[]> arrFloats) {
+
+        float[] out = null;
+        char cnt = 0;
+        for (float[] f_arr : arrFloats) {
+            if (out == null) {
+                out = f_arr;
+            }
+            else {
+                out = add_float_arr(out, f_arr);
+            }
+            cnt++;
+        }
+        if (cnt != 0) {
+            return scale_float_arr(out, 1.f / cnt);
+        }
+        return out;
     }
 
     public static float clip_float(float v, float min_v, float max_v) {

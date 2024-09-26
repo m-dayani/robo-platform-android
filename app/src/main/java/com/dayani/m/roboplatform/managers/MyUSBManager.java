@@ -1195,8 +1195,8 @@ public class MyUSBManager extends MyBaseManager implements ActivityRequirements.
                 mbPassedConnTest = true;
                 //handleTest(null);
                 updateUsbAvailabilityState();
-                if (mRequirementResponseListener != null)
-                    mRequirementResponseListener.onAvailabilityStateChanged(mUsbManager.get());
+//                if (mRequirementResponseListener != null)
+//                    mRequirementResponseListener.onAvailabilityStateChanged(mUsbManager.get());
             }
             else {
                 if (code == UsbCommand.CMD_TEST_LTC.ordinal() || code == UsbCommand.CMD_TEST_TP.ordinal()) {

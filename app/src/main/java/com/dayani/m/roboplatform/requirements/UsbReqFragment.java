@@ -210,7 +210,9 @@ public class UsbReqFragment extends Fragment implements View.OnClickListener,
         if (manager != null) {
             //manager.updateAvailabilityAndCheckedSensors(requireActivity());
             if (manager.isAvailable()) {
-                reportTxt.setText(R.string.test_successful);
+//                if (reportTxt != null) {
+//                    reportTxt.setText(R.string.test_successful);
+//                }
                 this.permit();
             }
         }

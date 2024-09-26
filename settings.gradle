@@ -1,3 +1,4 @@
 include ':app'
 include ':pseudorange'
 include ':usbserial'
+include ':opencv'
