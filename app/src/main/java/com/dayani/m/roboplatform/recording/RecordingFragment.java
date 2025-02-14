@@ -1,4 +1,4 @@
-package com.dayani.m.roboplatform;
+package com.dayani.m.roboplatform.recording;
 
 import android.content.Context;
 import android.content.res.Configuration;
@@ -25,6 +25,7 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.dayani.m.roboplatform.R;
 import com.dayani.m.roboplatform.managers.CameraFlyVideo;
 import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.utils.cutom_views.AutoFitTextureView;

@@ -1,4 +1,4 @@
-package com.dayani.m.roboplatform;
+package com.dayani.m.roboplatform.tests;
 
 import android.os.Bundle;
 import android.util.Log;
@@ -14,6 +14,7 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.dayani.m.roboplatform.R;
 import com.dayani.m.roboplatform.drivers.MyDrvUsb;
 import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.managers.MyUSBManager;

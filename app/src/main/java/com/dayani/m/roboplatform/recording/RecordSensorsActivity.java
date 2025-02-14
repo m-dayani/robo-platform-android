@@ -1,4 +1,4 @@
-package com.dayani.m.roboplatform;
+package com.dayani.m.roboplatform.recording;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -13,6 +13,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.dayani.m.roboplatform.MainActivity;
+import com.dayani.m.roboplatform.R;
 import com.dayani.m.roboplatform.managers.CameraFlyVideo;
 import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.managers.MyLocationManager;

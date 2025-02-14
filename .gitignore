@@ -26,4 +26,6 @@ opencv/build
 opencv/.cxx
 opencv
 
+opencv1/
+sdk/.cxx
 

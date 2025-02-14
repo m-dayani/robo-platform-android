@@ -106,4 +106,17 @@
     <string name="native_test">Native Test</string>
     <string name="enter_message">Enter Message</string>
     <string name="cp_test">CP Test</string>
+    <string name="controller_client">Controller Client</string>
+    <string name="controller_server">Controller Server</string>
+    <string name="record_sensors">Record Sensors</string>
+    <string name="test_joystick">Test JoyStick</string>
+    <string name="conn_wi_fi">Wi-Fi</string>
+    <string name="conn_blth">BLTH</string>
+    <string name="conn_refresh">Refresh</string>
+    <string name="cmd_pb0">PB0</string>
+    <string name="cmd_sw">SW</string>
+    <string name="btn_connect">Connect</string>
+    <string name="not_connected_no_preview">Not Connectedr\nPreview Not Available</string>
+    <string name="cmd_wi_fi">Wi-Fi</string>
+    <string name="conn_usb">USB</string>
 </resources>

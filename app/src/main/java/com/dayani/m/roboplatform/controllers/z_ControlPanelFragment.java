@@ -1,4 +1,4 @@
-package com.dayani.m.roboplatform;
+package com.dayani.m.roboplatform.controllers;
 
 import android.annotation.SuppressLint;
 import android.os.Bundle;
@@ -14,6 +14,7 @@ import android.widget.TextView;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.dayani.m.roboplatform.R;
 import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.managers.MyBluetoothManager;
 import com.dayani.m.roboplatform.managers.MyUSBManager;
@@ -27,10 +28,10 @@ import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
 
 /**
  * A simple {@link Fragment} subclass.
- * Use the {@link ControlPanelFragment#newInstance} factory method to
+ * Use the {@link z_ControlPanelFragment#newInstance} factory method to
  * create an instance of this fragment.
  */
-public class ControlPanelFragment extends Fragment implements View.OnClickListener,
+public class z_ControlPanelFragment extends Fragment implements View.OnClickListener,
         MyChannels.ChannelTransactions, View.OnTouchListener {
 
 
@@ -45,12 +46,12 @@ public class ControlPanelFragment extends Fragment implements View.OnClickListen
     TextView chatBox;
 
 
-    public ControlPanelFragment() {
+    public z_ControlPanelFragment() {
         // Required empty public constructor
     }
 
-    public static ControlPanelFragment newInstance(String managerName) {
-        ControlPanelFragment fragment = new ControlPanelFragment();
+    public static z_ControlPanelFragment newInstance(String managerName) {
+        z_ControlPanelFragment fragment = new z_ControlPanelFragment();
         Bundle args = new Bundle();
         args.putString(KEY_MANAGER_NAME, managerName);
         fragment.setArguments(args);
@@ -92,7 +93,7 @@ public class ControlPanelFragment extends Fragment implements View.OnClickListen
                              Bundle savedInstanceState) {
 
         // Inflate the layout for this fragment
-        View view = inflater.inflate(R.layout.fragment_control_panel, container, false);
+        View view = inflater.inflate(R.layout.z_fragment_control_panel, container, false);
 
         view.findViewById(R.id.btnCtrlQ).setOnTouchListener(this);
         view.findViewById(R.id.btnCtrlW).setOnTouchListener(this);

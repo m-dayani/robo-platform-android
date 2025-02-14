@@ -1,4 +1,4 @@
-package com.dayani.m.roboplatform;
+package com.dayani.m.roboplatform.controllers;
 
 import androidx.activity.result.IntentSenderRequest;
 import androidx.appcompat.app.AppCompatActivity;
@@ -6,29 +6,36 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import android.content.Intent;
+import android.hardware.Sensor;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
 
+import com.dayani.m.roboplatform.ConnectionListFragment;
+import com.dayani.m.roboplatform.MainActivity;
+import com.dayani.m.roboplatform.R;
+import com.dayani.m.roboplatform.managers.CameraFlyVideo;
 import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.managers.MyBluetoothManager;
+import com.dayani.m.roboplatform.managers.MyLocationManager;
+import com.dayani.m.roboplatform.managers.MySensorManager;
 import com.dayani.m.roboplatform.managers.MyUSBManager;
 import com.dayani.m.roboplatform.managers.MyWifiManager;
+import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
 import com.dayani.m.roboplatform.utils.helpers.MyScreenOperations;
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements;
 import com.dayani.m.roboplatform.utils.interfaces.MyBackgroundExecutor;
 import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
 
+import java.util.List;
 import java.util.concurrent.Executor;
 
 public class RoboControllerActivity extends AppCompatActivity
         implements MyBackgroundExecutor.JobListener, ActivityRequirements.RequirementResolution {
 
     public enum ControllerType {
-        SERVER_WL,
-        SERVER_CP,
-        CLIENT_CAR,
-        CLIENT_FC,
+        CTRL_CLIENT,
+        CTRL_SERVER
     }
 
     private static final String TAG = RoboControllerActivity.class.getSimpleName();
@@ -54,42 +61,24 @@ public class RoboControllerActivity extends AppCompatActivity
         // instantiate sensors view model
         mVM_Sensors = new ViewModelProvider(this).get(SensorsViewModel.class);
 
-        initManagers();
+        initConnectivityManagers();
 
         mBackgroundExecutor = new MyBackgroundExecutor();
         mBackgroundExecutor.initWorkerThread(TAG);
 
         Class<? extends Fragment> controllerFragment = ConnectionListFragment.class;
-        if (ControllerType.CLIENT_CAR == controllerType) {
-            controllerFragment = ManualControlFragment.class;
+        if (ControllerType.CTRL_CLIENT == controllerType) {
+            controllerFragment = ControllerClientFragment.class;
         }
-        else if (ControllerType.CLIENT_FC == controllerType) {
-            controllerFragment = FlightControlFragment.class;
-        }
-        else if (ControllerType.SERVER_CP == controllerType) {
-            controllerFragment = UsbControllerFragment.class;
+        else if (ControllerType.CTRL_SERVER == controllerType) {
+            controllerFragment = ControllerServerFragment.class;
+            initSensorManagers();
         }
 
         if (savedInstanceState == null) {
             getSupportFragmentManager().beginTransaction().setReorderingAllowed(true)
-                    .add(R.id.fragment_container_view, controllerFragment, null, "car-front-panel")
+                    .add(R.id.fragment_container_view, controllerFragment, null, "controller")
                     .commit();
-        }
-    }
-
-    private void initManagers() {
-
-        //SensorsViewModel.getOrCreateManager(this, mVM_Sensors, MySensorManager.class.getSimpleName());
-
-        SensorsViewModel.getOrCreateManager(this, mVM_Sensors, MyUSBManager.class.getSimpleName());
-
-        SensorsViewModel.getOrCreateManager(this, mVM_Sensors, MyWifiManager.class.getSimpleName());
-
-        SensorsViewModel.getOrCreateManager(this, mVM_Sensors, MyBluetoothManager.class.getSimpleName());
-
-        //Register receivers
-        for (MyBaseManager manager : mVM_Sensors.getAllManagers()) {
-            manager.execute(this, MyBaseManager.LifeCycleState.ACT_CREATED);
         }
     }
 
@@ -109,6 +98,50 @@ public class RoboControllerActivity extends AppCompatActivity
         if (hasFocus) {
             MyScreenOperations.setFullScreen(this);
         }
+    }
+
+    private void initConnectivityManagers() {
+
+        SensorsViewModel.getOrCreateManager(this, mVM_Sensors, MyUSBManager.class.getSimpleName());
+
+        SensorsViewModel.getOrCreateManager(this, mVM_Sensors, MyWifiManager.class.getSimpleName());
+
+        SensorsViewModel.getOrCreateManager(this, mVM_Sensors, MyBluetoothManager.class.getSimpleName());
+
+        //Register receivers
+        for (MyBaseManager manager : mVM_Sensors.getAllManagers()) {
+            manager.execute(this, MyBaseManager.LifeCycleState.ACT_CREATED);
+        }
+    }
+
+    private void initSensorManagers() {
+
+        // IMU
+        MySensorManager sensorManager = (MySensorManager) SensorsViewModel.getOrCreateManager(
+                this, mVM_Sensors, MySensorManager.class.getSimpleName());
+        // select default sensors
+        sensorManager.uncheckAllSensors();
+        sensorManager.updateCheckedByType(MySensorGroup.SensorType.TYPE_IMU,
+                Sensor.TYPE_ACCELEROMETER, true);
+        sensorManager.updateCheckedByType(MySensorGroup.SensorType.TYPE_IMU,
+                Sensor.TYPE_GYROSCOPE, true);
+        sensorManager.updateCheckedByType(MySensorGroup.SensorType.TYPE_MAGNET,
+                Sensor.TYPE_MAGNETIC_FIELD, true);
+
+        // GPS
+        MyLocationManager gpsManager = (MyLocationManager) SensorsViewModel.getOrCreateManager(
+                this, mVM_Sensors, MyLocationManager.class.getSimpleName());
+//        gpsManager.updateAvailabilityAndCheckedSensors(this);
+        gpsManager.updateCheckedByType(MySensorGroup.SensorType.TYPE_GNSS,
+                MyLocationManager.SensorIds.FUSED, true);
+
+        // Camera
+        CameraFlyVideo camManager = (CameraFlyVideo) SensorsViewModel.getOrCreateManager(
+                this, mVM_Sensors, CameraFlyVideo.class.getSimpleName());
+        // select cam0
+        camManager.updateCheckedByType(MySensorGroup.SensorType.TYPE_CAMERA, 0, true);
+
+        // todo: use a server settings tab in settings to manage all these options
     }
 
     /* ---------------------------------- Request Resolutions ----------------------------------- */

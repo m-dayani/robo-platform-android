@@ -1,4 +1,4 @@
-package com.dayani.m.roboplatform;
+package com.dayani.m.roboplatform.controllers;
 
 import android.os.Bundle;
 import android.util.Log;
@@ -13,11 +13,10 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.lifecycle.ViewModelProvider;
 
-import com.dayani.m.roboplatform.drivers.MyDrvUsb;
-import com.dayani.m.roboplatform.managers.MyBluetoothManager;
+import com.dayani.m.roboplatform.MainActivity;
+import com.dayani.m.roboplatform.R;
 import com.dayani.m.roboplatform.managers.MyStateManager;
 import com.dayani.m.roboplatform.managers.MyUSBManager;
-import com.dayani.m.roboplatform.managers.MyWifiManager;
 import com.dayani.m.roboplatform.utils.AppGlobals;
 import com.dayani.m.roboplatform.utils.helpers.MyScreenOperations;
 import com.dayani.m.roboplatform.utils.interfaces.MyBackgroundExecutor;
@@ -25,31 +24,29 @@ import com.dayani.m.roboplatform.utils.interfaces.MyChannels;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages;
 import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
 
+public class z_UsbControllerFragment extends Fragment
+        implements View.OnClickListener, MyChannels.ChannelTransactions {
 
-public class ManualControlFragment extends Fragment
-        implements View.OnClickListener, MyDrvUsb.UsbCmdInterpreter,
-        MyChannels.ChannelTransactions {
-
-    private static final String TAG = ManualControlFragment.class.getSimpleName();
+    private static final String TAG = z_UsbControllerFragment.class.getSimpleName();
 
     private static final String KEY_STARTED_STATE = AppGlobals.PACKAGE_BASE_NAME
-            +'.'+TAG+".KEY_STARTED_STATE";
+            + '.' + TAG + ".KEY_STARTED_STATE";
 
     protected Button mBtnStart;
-    protected Button mBtnWifi;
-    protected Button mBtnBt;
+//    protected Button mBtnWifi;
+//    protected Button mBtnBt;
     protected Button mBtnUsb;
 
     protected boolean mIsStarted = false;
 
     protected MyUSBManager mUsb;
-    protected MyWifiManager mWifiManager;
-    protected MyBluetoothManager mBtManager;
+//    protected MyWifiManager mWifiManager;
+//    protected MyBluetoothManager mBtManager;
 
     protected MyBackgroundExecutor.JobListener mBackgroundHandler;
 
 
-    public ManualControlFragment() {
+    public z_UsbControllerFragment() {
         // Required empty public constructor
     }
 
@@ -59,9 +56,9 @@ public class ManualControlFragment extends Fragment
      *
      * @return A new instance of fragment FrontPanelFragment.
      */
-    public static ManualControlFragment newInstance() {
+    public static z_UsbControllerFragment newInstance() {
 
-        ManualControlFragment fragment = new ManualControlFragment();
+        z_UsbControllerFragment fragment = new z_UsbControllerFragment();
         Bundle args = new Bundle();
         fragment.setArguments(args);
         return fragment;
@@ -78,15 +75,15 @@ public class ManualControlFragment extends Fragment
         mUsb = (MyUSBManager) SensorsViewModel.getOrCreateManager(
                 context, mVM_Sensors, MyUSBManager.class.getSimpleName());
 
-        mWifiManager = (MyWifiManager) SensorsViewModel.getOrCreateManager(
-                context, mVM_Sensors, MyWifiManager.class.getSimpleName());
-
-        mBtManager = (MyBluetoothManager) SensorsViewModel.getOrCreateManager(
-                context, mVM_Sensors, MyBluetoothManager.class.getSimpleName());
-
-        // establish connections
-        mWifiManager.registerChannel(this);
-        mBtManager.registerChannel(this);
+//        mWifiManager = (MyWifiManager) SensorsViewModel.getOrCreateManager(
+//                context, mVM_Sensors, MyWifiManager.class.getSimpleName());
+//
+//        mBtManager = (MyBluetoothManager) SensorsViewModel.getOrCreateManager(
+//                context, mVM_Sensors, MyBluetoothManager.class.getSimpleName());
+//
+//        // establish connections
+//        mWifiManager.registerChannel(this);
+//        mBtManager.registerChannel(this);
         mUsb.registerChannel(this);
 
         if (context instanceof MyBackgroundExecutor.JobListener) {
@@ -99,14 +96,10 @@ public class ManualControlFragment extends Fragment
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
 
-        View view = inflater.inflate(R.layout.activity_car_manual_control, container, false);
+        View view = inflater.inflate(R.layout.z_activity_usb_controller, container, false);
 
         mBtnUsb = view.findViewById(R.id.btnCheckUsb);
         mBtnUsb.setOnClickListener(this);
-        mBtnWifi = view.findViewById(R.id.btnCheckWifi);
-        mBtnWifi.setOnClickListener(this);
-        mBtnBt = view.findViewById(R.id.btnCheckBlth);
-        mBtnBt.setOnClickListener(this);
         mBtnStart = view.findViewById(R.id.startProcess);
         mBtnStart.setOnClickListener(this);
 
@@ -120,16 +113,16 @@ public class ManualControlFragment extends Fragment
         super.onStart();
 
         mIsStarted = MyStateManager.getBoolPref(requireActivity(), KEY_STARTED_STATE, false);
-        updateProcessUI(mIsStarted);
+        //updateProcessUI(mIsStarted);
         // Connect to a wifi network
         //mWifiManager.setWifiState(true);
     }
 
     @Override
     public void onStop() {
-        if (mIsStarted) {
-            stop();
-        }
+//        if (mIsStarted) {
+//            stop();
+//        }
         //mWifiManager.setWifiState(false);
         super.onStop();
     }
@@ -152,26 +145,26 @@ public class ManualControlFragment extends Fragment
                 mUsb.resolveAvailability(context);
             }
         }
-        else if (id == R.id.btnCheckWifi) {
-
-            if (!mWifiManager.isAvailable()) {
-                mWifiManager.resolveAvailability(context);
-            }
-        }
-        else if (id == R.id.btnCheckBlth) {
-
-            if (mBtManager != null && !mBtManager.isAvailable()) {
-                mBtManager.resolveAvailability(context);
-            }
-        }
+//        else if (id == R.id.btnCheckWifi) {
+//
+//            if (!mWifiManager.isAvailable()) {
+//                mWifiManager.resolveAvailability(context);
+//            }
+//        }
+//        else if (id == R.id.btnCheckBlth) {
+//
+//            if (mBtManager != null && !mBtManager.isAvailable()) {
+//                mBtManager.resolveAvailability(context);
+//            }
+//        }
         else if (view.getId() == R.id.startProcess) {
 
-            if (mIsStarted) {
-                stop();
-            }
-            else {
+//            if (mIsStarted) {
+//                stop();
+//            }
+//            else {
                 start();
-            }
+//            }
         }
     }
 
@@ -188,10 +181,16 @@ public class ManualControlFragment extends Fragment
         mIsStarted = true;
         MyStateManager.setBoolPref(context, KEY_STARTED_STATE, true);
         // UI
-        updateProcessUI(mIsStarted);
+//        updateProcessUI(mIsStarted);
+        if (mIsStarted) {
+            Log.i(TAG, "starting control panel fragment");
+            Fragment frag = z_ControlPanelFragment.newInstance(mUsb.getClass().getSimpleName());
+            MainActivity.startNewFragment(getParentFragmentManager(),
+                    R.id.fragment_container_view, frag, "control-panel");
+        }
     }
 
-    protected void stop() {
+    /*protected void stop() {
 
         FragmentActivity context = requireActivity();
 
@@ -205,9 +204,9 @@ public class ManualControlFragment extends Fragment
         MyStateManager.setBoolPref(context, KEY_STARTED_STATE, false);
         // UI
         updateProcessUI(mIsStarted);
-    }
+    }*/
 
-    private void updateProcessUI(boolean state) {
+    /*private void updateProcessUI(boolean state) {
         if (state) {
             mBtnStart.setText(R.string.btn_txt_stop);
             //mButtonVideo.setImageResource(R.drawable.ic_action_pause_over_video);
@@ -216,35 +215,36 @@ public class ManualControlFragment extends Fragment
             mBtnStart.setText(R.string.btn_txt_start);
             //mButtonVideo.setImageResource(R.drawable.ic_action_play_over_video);
         }
-    }
+    }*/
 
-    protected void updateAvailabilityUI() {
+    private void updateAvailabilityUI() {
 
-        boolean bUsb = false, bWifi = false, bBt = false;
+        boolean bUsb = false;//, bWifi = false, bBt = false;
 
         if (mUsb != null && mUsb.isAvailable()) {
             bUsb = true;
             mBtnUsb.setEnabled(false);
         }
 
-        if (mWifiManager != null && mWifiManager.isAvailable()) {
-            bWifi = true;
-            //mBtnWifi.setEnabled(false);
-        }
+//        if (mWifiManager != null && mWifiManager.isAvailable()) {
+//            bWifi = true;
+//            //mBtnWifi.setEnabled(false);
+//        }
+//
+//        if (mBtManager != null && mBtManager.isAvailable()) {
+//            bBt = true;
+//            //mBtnBt.setEnabled(false);
+//        }
 
-        if (mBtManager != null && mBtManager.isAvailable()) {
-            bBt = true;
-            //mBtnBt.setEnabled(false);
-        }
+//        boolean hasWirelessConn = (bWifi || bBt);
+//
+//        mBtnWifi.setEnabled(!hasWirelessConn);
+//        mBtnBt.setEnabled(!hasWirelessConn);
 
-        boolean hasWirelessConn = (bWifi || bBt);
-
-        mBtnWifi.setEnabled(!hasWirelessConn);
-        mBtnBt.setEnabled(!hasWirelessConn);
-        mBtnStart.setEnabled(bUsb && hasWirelessConn);
+        mBtnStart.setEnabled(bUsb);// && hasWirelessConn);
     }
 
-    @Override
+    /*@Override
     public byte[] interpret(String msg) {
         // This toy car has a single ON/OFF directional control
         // and a digital tri-state enable pin (ON/OFF/No Change)
@@ -272,7 +272,7 @@ public class ManualControlFragment extends Fragment
                 break;
         }
         return output;
-    }
+    }*/
 
     @Override
     public void registerChannel(MyChannels.ChannelTransactions channel) {
@@ -295,22 +295,21 @@ public class ManualControlFragment extends Fragment
         if (msg instanceof MyMessages.MsgUsb) {
             Log.d(TAG, "USB message received: " + msg);
         }
-        else if (msg instanceof MyMessages.MsgWireless) {
-            //Log.v(TAG, "Wireless message received: " + msg);
-            if (mUsb != null) {
-                MyMessages.MsgWireless wMsg = (MyMessages.MsgWireless) msg;
-                MyMessages.MsgWireless.WirelessCommand wCmd = wMsg.getCmd();
-
-                if (wCmd.equals(MyMessages.MsgWireless.WirelessCommand.CMD_CHAR) ||
-                        wCmd.equals(MyMessages.MsgWireless.WirelessCommand.CMD_DIR)) {
-
-                    mUsb.onMessageReceived(MyDrvUsb.getCommandMessage(this, wMsg.toString()));
-                }
-            }
-        }
+//        else if (msg instanceof MyMessages.MsgWireless) {
+//            //Log.v(TAG, "Wireless message received: " + msg);
+//            if (mUsb != null) {
+//                MyMessages.MsgWireless wMsg = (MyMessages.MsgWireless) msg;
+//                MyMessages.MsgWireless.WirelessCommand wCmd = wMsg.getCmd();
+//
+//                if (wCmd.equals(MyMessages.MsgWireless.WirelessCommand.CMD_CHAR) ||
+//                        wCmd.equals(MyMessages.MsgWireless.WirelessCommand.CMD_DIR)) {
+//
+//                    mUsb.onMessageReceived(MyDrvUsb.getCommandMessage(this, wMsg.toString()));
+//                }
+//            }
+//        }
         else {
             Log.d(TAG, "Unknown message received: " + msg);
         }
     }
 }
-

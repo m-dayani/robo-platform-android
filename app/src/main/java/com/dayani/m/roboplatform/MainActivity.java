@@ -1,3 +1,24 @@
+/**
+ * There is no separate manual controllers or sensor recording in the newest version
+ * 1. Record Sensors records all sensors -> if USB is not available, it's not recorded
+ * 2. Controller client ->
+ *      Represent a joystick above camera preview from the beginning
+ *      Show "No Preview Available" if camera is not available
+ *      Register to sensors over a (wireless) connection and show them
+ *      Get commands from the joystick and send them to the controller server
+ *      No connection? -> disable functionalities
+ *      The complexity can be chosen in the settings (which sensors to record, camera res, ...)
+ * 3. Controller server ->
+ *      Send sensors (including images) to connected devices (wireless)
+ *      Receive external commands
+ *      Communicate with a microcontroller (USB or Wireless)
+ *      Can show a panel similar to sensor record app
+ *      If a connection is not available, disable related functionalities
+ *      No requirements entry
+ * 4. Tests: USB -> experiment with USB
+ * 5. Tests: Native -> to be extended to a native autonomous app
+ */
+
 package com.dayani.m.roboplatform;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -8,6 +29,12 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+
+import com.dayani.m.roboplatform.controllers.RoboControllerActivity;
+import com.dayani.m.roboplatform.recording.RecordSensorsActivity;
+import com.dayani.m.roboplatform.tests.JoystickActivity;
+import com.dayani.m.roboplatform.tests.NativeTestActivity;
+import com.dayani.m.roboplatform.tests.TestActivity;
 
 
 /**
@@ -26,12 +53,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         findViewById(R.id.startRecordAll).setOnClickListener(this);
         findViewById(R.id.startTest).setOnClickListener(this);
-        findViewById(R.id.startCarManualCtrl).setOnClickListener(this);
-        findViewById(R.id.startRecordSensors).setOnClickListener(this);
-        findViewById(R.id.startController).setOnClickListener(this);
+        findViewById(R.id.startControllerClient).setOnClickListener(this);
+        findViewById(R.id.startControllerServer).setOnClickListener(this);
         findViewById(R.id.nativeTest).setOnClickListener(this);
-        findViewById(R.id.startFlightManualCtrl).setOnClickListener(this);
-        findViewById(R.id.cpTest).setOnClickListener(this);
+//        findViewById(R.id.joystickTest).setOnClickListener(this);
     }
 
     @Override
@@ -41,45 +66,26 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Intent intent = null;
 
         int id = view.getId();
-        if (id == R.id.startRecordAll || id == R.id.startRecordSensors) {
+        if (id == R.id.startRecordAll) {
 
             intent = new Intent(this, RecordSensorsActivity.class);
             String extraKey = RecordSensorsActivity.EXTRA_KEY_RECORD_EXTERNAL;
-
-            if (id == R.id.startRecordAll) {
-                intent.putExtra(extraKey, true);
-                Log.d(TAG, "startRecordAllActivity");
-            }
-            else {
-                intent.putExtra(extraKey, false);
-                Log.d(TAG, "startRecordSensors");
-            }
+            intent.putExtra(extraKey, true);
+            Log.d(TAG, "startRecordAllActivity");
         }
-        else if (id == R.id.startCarManualCtrl || id == R.id.startFlightManualCtrl ||
-                id == R.id.startController || id == R.id.cpTest) {
+        else if (id == R.id.startControllerClient) {
 
             intent = new Intent(this, RoboControllerActivity.class);
+            Log.d(TAG, "startControllerClient");
+            intent.putExtra(RoboControllerActivity.EXTRA_KEY_CONTROLLER_TYPE,
+                    RoboControllerActivity.ControllerType.CTRL_CLIENT);
+        }
+        else if (id == R.id.startControllerServer) {
 
-            if (id == R.id.startCarManualCtrl) {
-                Log.d(TAG, "startCarManualCtrl");
-                intent.putExtra(RoboControllerActivity.EXTRA_KEY_CONTROLLER_TYPE,
-                        RoboControllerActivity.ControllerType.CLIENT_CAR);
-            }
-            else if (id == R.id.startFlightManualCtrl) {
-                Log.d(TAG, "startFlightManualCtrl");
-                intent.putExtra(RoboControllerActivity.EXTRA_KEY_CONTROLLER_TYPE,
-                        RoboControllerActivity.ControllerType.CLIENT_FC);
-            }
-            else if (id == R.id.startController) {
-                Log.d(TAG, "start controller server");
-                intent.putExtra(RoboControllerActivity.EXTRA_KEY_CONTROLLER_TYPE,
-                        RoboControllerActivity.ControllerType.SERVER_WL);
-            }
-            else {
-                Log.d(TAG, "cpTest");
-                intent.putExtra(RoboControllerActivity.EXTRA_KEY_CONTROLLER_TYPE,
-                        RoboControllerActivity.ControllerType.SERVER_CP);
-            }
+            intent = new Intent(this, RoboControllerActivity.class);
+            Log.d(TAG, "start controller server");
+            intent.putExtra(RoboControllerActivity.EXTRA_KEY_CONTROLLER_TYPE,
+                    RoboControllerActivity.ControllerType.CTRL_SERVER);
         }
         else if (id == R.id.startTest) {
 
@@ -91,6 +97,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             Log.d(TAG, "nativeTest");
             intent = new Intent(this, NativeTestActivity.class);
         }
+//        else if (id == R.id.joystickTest) {
+//
+//            Log.d(TAG, "Joystick Test");
+//            intent = new Intent(this, JoystickActivity.class);
+//        }
 
         // Launch the desired activity
         if (intent != null) {

@@ -67,7 +67,7 @@ public class ConnectionListFragment extends Fragment
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
 
-        View view = inflater.inflate(R.layout.activity_controller_server, container, false);
+        View view = inflater.inflate(R.layout.z_activity_controller_server, container, false);
 
         view.findViewById(R.id.btnWifiServer).setOnClickListener(this);
         view.findViewById(R.id.btnBluetoothServer).setOnClickListener(this);

@@ -68,7 +68,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
-import com.dayani.m.roboplatform.RecordingFragment;
+import com.dayani.m.roboplatform.recording.RecordingFragment;
 import com.dayani.m.roboplatform.utils.AppGlobals;
 import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
 import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;
@@ -155,7 +155,7 @@ public class MyLocationManager extends MyBaseManager implements MeasurementListe
     public static final int ANDROID_GNSS_INTER_SIG_BIAS_VERSION = Build.VERSION_CODES.R;
     public static final int ANDROID_GNSS_TYPE_CODE_VERSION = Build.VERSION_CODES.Q;
 
-    private static final class SensorIds {
+    public static final class SensorIds {
 
         public static final int GPS = 0;
         public static final int FUSED = 1;

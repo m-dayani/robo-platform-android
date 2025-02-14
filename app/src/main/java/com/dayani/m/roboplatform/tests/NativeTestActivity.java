@@ -1,9 +1,11 @@
-package com.dayani.m.roboplatform;
+package com.dayani.m.roboplatform.tests;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.Bundle;
 import android.widget.TextView;
+
+import com.dayani.m.roboplatform.R;
 
 public class NativeTestActivity extends AppCompatActivity {
 

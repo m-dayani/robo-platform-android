@@ -27,6 +27,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CaptureResult;
+import android.hardware.camera2.DngCreator;
+import android.media.Image;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.WifiConfiguration;
@@ -49,10 +53,15 @@ import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.HandleEna
 import com.dayani.m.roboplatform.utils.interfaces.ActivityRequirements.Requirement;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgWireless;
+import com.google.firebase.crashlytics.buildtools.reloc.org.apache.commons.io.output.WriterOutputStream;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationTargetException;
@@ -66,6 +75,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -120,6 +130,7 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
     private Socket mConnSocket;
 
     private PrintWriter output;
+    private OutputStream mOutputStream;
     private BufferedReader input;
 
     //private ServerTask mServerTask;
@@ -516,6 +527,7 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
         if (mPort < 0) {
             mPort = DEFAULT_PORT;
         }
+        Log.i(TAG, "Server Port: "+ mPort);
 
         doInBackground(new ServerTask(this, mPort));
     }
@@ -581,7 +593,8 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
 
         if (msg == null) {
             // init. test & send the test command
-            doInBackground(new OutputTask(output, MyDrvWireless.getTestRequest()));
+            doInBackground(new OutputTask(mOutputStream,
+                    MyDrvWireless.getTestRequest().getBytes(StandardCharsets.US_ASCII)));
             // get the response elsewhere and check
         }
         else if (msg instanceof MsgWireless){
@@ -591,7 +604,8 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
             if (MyDrvWireless.matchesTestRequest(wlMsg)) {
                 MsgWireless res = new MsgWireless(MsgWireless.WirelessCommand.TEST,
                         MyDrvWireless.DEFAULT_TEST_RESPONSE);
-                doInBackground(new OutputTask(output, MyDrvWireless.encodeMessage(res)));
+                doInBackground(new OutputTask(mOutputStream,
+                        MyDrvWireless.encodeMessage(res).getBytes(StandardCharsets.US_ASCII)));
             }
             else if (MyDrvWireless.matchesTestResponse(wlMsg)) {
 
@@ -641,6 +655,9 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
             //input.close();
             input = null;
         }
+        if (mOutputStream != null) {
+            mOutputStream = null;
+        }
 
         mbIsWifiAvailable = false;
         updateSettingsEnabled();
@@ -649,14 +666,25 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
     @Override
     public void onMessageReceived(MyMessages.MyMessage msg) {
 
-        if (msg == null) {
+        if (msg == null || mOutputStream == null) {
             return;
         }
 
         // send module's messages to the remote server
         if (msg instanceof MsgWireless) {
-            doInBackground(new OutputTask(output, MyDrvWireless.encodeMessage((MsgWireless) msg)));
+            MsgWireless msgWl = (MsgWireless) msg;
+            byte[] msgBytes;
+            if (msgWl.getData() != null) {
+                msgBytes = MyDrvWireless.encodeMessageBytes(msgWl);
+            }
+            else {
+                msgBytes = MyDrvWireless.encodeMessage(msgWl).getBytes(StandardCharsets.US_ASCII);
+            }
+            doInBackground(new OutputTask(mOutputStream, msgBytes));
         }
+//        else if (msg instanceof MyMessages.MsgImage) {
+//            doInBackground(new OutputTask(output, msg));
+//        }
     }
 
     /* ======================================== Helpers ========================================= */
@@ -746,7 +774,8 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
 
                 mConnSocket = mServerSocket.accept();
 
-                output = new PrintWriter(mConnSocket.getOutputStream());
+                mOutputStream = mConnSocket.getOutputStream();
+                output = new PrintWriter(mOutputStream);
                 input = new BufferedReader(new InputStreamReader(mConnSocket.getInputStream()));
 
                 String mClientIp = mConnSocket.getRemoteSocketAddress().toString();
@@ -785,6 +814,7 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
 
                 mConnSocket = new Socket(connIp, connPort);
 
+                mOutputStream = mConnSocket.getOutputStream();
                 output = new PrintWriter(mConnSocket.getOutputStream());
                 input = new BufferedReader(new InputStreamReader(mConnSocket.getInputStream()));
 
@@ -896,14 +926,15 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
         }
     }
 
+//    private static boolean logOnce = true;
     public static class OutputTask implements Runnable {
 
-        private final PrintWriter mOutput;
-        private final String message;
+        private final OutputStream mOutput;
+        private final byte[] msgBytes;
 
-        OutputTask(PrintWriter output, String message) {
-            mOutput = output;
-            this.message = message;
+        OutputTask(OutputStream output, byte[] message) {
+            this.mOutput = output;
+            this.msgBytes = message;
         }
 
         @Override
@@ -911,13 +942,20 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
 
             if (mOutput == null) {
                 //close();
+//                Log.d(TAG, "No output stream is available");
                 return;
             }
 
-            //Log.i(TAG, "Output service started successfully.");
-            mOutput.write(message);
-            mOutput.flush();
-            //Log.i(TAG, "message: "+message+" sent successfully.");
+            if (msgBytes != null) {
+                try {
+                    mOutput.write(msgBytes);
+                    mOutput.flush();
+                }
+                catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+//            Log.i(TAG, "message: "+message+" sent successfully.");
         }
     }
 
@@ -1075,7 +1113,7 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
 
     private static class MyWifiCommTest extends TestCommSpecs {
 
-        private WeakReference<MyBaseManager> mManager;
+        private final WeakReference<MyBaseManager> mManager;
 
         public MyWifiCommTest(MyBaseManager manager, TestMode mode) {
             super(mode);
@@ -1178,6 +1216,24 @@ public class MyWifiManager extends MyBaseManager implements HandleEnableSettings
             String msgStr = msg.toString();
             return MsgWireless.WirelessCommand.CMD_WORD.equals(msg.getCmd()) &&
                     (msgStr.contains("test:ltc") || msgStr.contains("test:tp"));
+        }
+    }
+
+    public static class WifiDataClient {
+        // connect to remote server, get data (image, sensor), deserialize, publish
+        private final WeakReference<MyBaseManager> mManager;
+
+        public WifiDataClient(MyBaseManager manager) {
+            mManager = new WeakReference<>(manager);
+        }
+    }
+
+    public static class WifiDataServer {
+        // create data server sockets, get data from providers, serialize, send
+        private final WeakReference<MyBaseManager> mManager;
+
+        public WifiDataServer(MyBaseManager manager) {
+            mManager = new WeakReference<>(manager);
         }
     }
 }

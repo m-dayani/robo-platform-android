@@ -24,7 +24,7 @@ import android.util.Pair;
 
 import androidx.activity.result.ActivityResult;
 
-import com.dayani.m.roboplatform.RecordingFragment;
+import com.dayani.m.roboplatform.recording.RecordingFragment;
 import com.dayani.m.roboplatform.utils.AppGlobals;
 import com.dayani.m.roboplatform.utils.data_types.MySensorGroup;
 import com.dayani.m.roboplatform.utils.data_types.MySensorInfo;

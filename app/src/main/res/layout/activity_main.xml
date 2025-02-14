@@ -11,37 +11,19 @@
         android:id="@+id/startRecordAll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/labelStartRecordAll" />
+        android:text="@string/record_sensors" />
 
     <Button
-        android:id="@+id/startRecordSensors"
+        android:id="@+id/startControllerClient"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/start_record_sensors" />
+        android:text="@string/controller_client" />
 
     <Button
-        android:id="@+id/startCarManualCtrl"
+        android:id="@+id/startControllerServer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/labelStartCarManual" />
-
-    <Button
-        android:id="@+id/startFlightManualCtrl"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/labelStartFlightCtrl" />
-
-    <Button
-        android:id="@+id/startController"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/txt_robo_controller_server" />
-
-    <Button
-        android:id="@+id/cpTest"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/cp_test" />
+        android:text="@string/controller_server" />
 
     <Button
         android:id="@+id/startTest"
@@ -54,6 +36,12 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/native_test" />
+
+    <!--Button
+        android:id="@+id/joystickTest"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/test_joystick" /-->
 
     <TextView
         android:id="@+id/fpReportText"

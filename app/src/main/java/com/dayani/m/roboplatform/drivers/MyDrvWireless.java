@@ -6,6 +6,9 @@ import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgWireless;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgUsb;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgWireless.WirelessCommand;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -20,7 +23,43 @@ public class MyDrvWireless {
 
     public static String encodeMessage(MsgWireless msg) {
 
-        return cmdToString(msg.getCmd())+CMD_SEPARATOR_CHAR+msg+"\n";
+        char sep_char = CMD_SEPARATOR_CHAR.charAt(0);
+        char end_char = '\n';
+        if (msg.getCmd() == WirelessCommand.SENSOR) {
+            sep_char = ':';
+            end_char = ';';
+        }
+
+        return cmdToString(msg.getCmd())+sep_char+msg+end_char;
+    }
+
+    public static byte[] encodeMessageBytes(MsgWireless msg) {
+
+        char sep_char = CMD_SEPARATOR_CHAR.charAt(0);
+        char end_char = '\n';
+        if (msg.getCmd() == WirelessCommand.SENSOR) {
+            sep_char = ':';
+            end_char = ';';
+        }
+
+        String dataHead = cmdToString(msg.getCmd())+sep_char;
+        byte[] msgBytes = msg.getData();
+//        if (msg.getCmd() == WirelessCommand.SENSOR) {
+//            dataHead += (msgBytes.length + ",0,0:");
+//        }
+        byte[] headBytes = dataHead.getBytes(StandardCharsets.US_ASCII);
+        int lenOut = headBytes.length + msgBytes.length + 1;
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        try {
+            outputStream.write(headBytes);
+            outputStream.write(msgBytes);
+            outputStream.write(end_char);
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        return outputStream.toByteArray();
     }
 
     public static MsgWireless decodeMessage(String msg) {
@@ -68,7 +107,7 @@ public class MyDrvWireless {
             case TEST:
                 return "test";
             case SENSOR:
-                return "sensor";
+                return "data";
             case CHAT:
                 return "chat";
             case BROADCAST:
@@ -89,6 +128,7 @@ public class MyDrvWireless {
             case "test":
                 return WirelessCommand.TEST;
             case "sensor":
+            case "data":
                 return WirelessCommand.SENSOR;
             case "chat":
                 return WirelessCommand.CHAT;

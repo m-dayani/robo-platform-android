@@ -54,6 +54,10 @@ android {
 dependencies {
     implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.5.0'
     implementation 'com.google.android.material:material:1.6.1'
+    implementation 'com.google.firebase:firebase-crashlytics-buildtools:3.0.2'
+    implementation project(':opencv')
+    implementation project(':opencv')
+    implementation project(':opencv')
     def preference_version = "1.2.0"
     def lifecycle_version = "2.5.0"
     def arch_version = "2.1.0"
@@ -120,4 +124,6 @@ dependencies {
     implementation "androidx.constraintlayout:constraintlayout-compose:1.0.1"
 
     implementation project(':opencv')
+
+//    implementation 'io.github.controlwear:virtualjoystick:1.9.2'
 }

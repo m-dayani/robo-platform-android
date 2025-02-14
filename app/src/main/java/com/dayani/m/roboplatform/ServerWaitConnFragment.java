@@ -1,9 +1,7 @@
 package com.dayani.m.roboplatform;
 
-import android.content.Context;
 import android.os.Bundle;
 
-import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.lifecycle.ViewModelProvider;
@@ -12,8 +10,8 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
 
+import com.dayani.m.roboplatform.controllers.z_ControlPanelFragment;
 import com.dayani.m.roboplatform.managers.MyBaseManager;
 import com.dayani.m.roboplatform.managers.MyBluetoothManager;
 import com.dayani.m.roboplatform.managers.MyWifiManager;
@@ -137,7 +135,7 @@ public class ServerWaitConnFragment extends Fragment implements View.OnClickList
 
         if (bIsConnected) {
             Log.i(TAG, "starting control panel fragment");
-            Fragment frag = ControlPanelFragment.newInstance(mManager.getClass().getSimpleName());
+            Fragment frag = z_ControlPanelFragment.newInstance(mManager.getClass().getSimpleName());
             MainActivity.startNewFragment(getParentFragmentManager(),
                     R.id.fragment_container_view, frag, "control-panel");
         }

@@ -675,16 +675,27 @@ public interface MyMessages {
             CMD_WORD,
             SENSOR,
             TEST,
-            CHAT
+            CHAT,
+            DATA
         }
 
         private final WirelessCommand mCmd;
+        private byte[] mData = null;
 
         public MsgWireless(WirelessCommand cmd, String msg) {
 
             super(ChannelType.DATA, null, msg);
             mCmd = cmd;
         }
+
+        public MsgWireless(WirelessCommand cmd, byte[] msg) {
+
+            super(ChannelType.DATA, null, "");
+            mCmd = cmd;
+            mData = msg;
+        }
+
+        public byte[] getData() { return mData; }
 
         public WirelessCommand getCmd() { return mCmd; }
     }

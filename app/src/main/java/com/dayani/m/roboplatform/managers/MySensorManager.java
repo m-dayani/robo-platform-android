@@ -529,7 +529,7 @@ public class MySensorManager extends MyBaseManager {
 
     /*======================================== Data Types ========================================*/
 
-    private static class MotionSensor extends MySensorInfo {
+    public static class MotionSensor extends MySensorInfo {
 
         public MotionSensor(int id, String name) {
 

@@ -1,4 +1,4 @@
-package com.dayani.m.roboplatform;
+package com.dayani.m.roboplatform.recording;
 
 import android.os.Bundle;
 
@@ -8,6 +8,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+
+import com.dayani.m.roboplatform.R;
 
 /**
  * A simple {@link Fragment} subclass.

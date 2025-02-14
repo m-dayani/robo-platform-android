@@ -72,7 +72,14 @@ import com.dayani.m.roboplatform.utils.interfaces.MyMessages;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.MsgConfig;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageConfig;
 import com.dayani.m.roboplatform.utils.interfaces.MyMessages.StorageInfo;
+import com.google.firebase.crashlytics.buildtools.reloc.org.apache.http.HttpResponse;
+import com.google.firebase.crashlytics.buildtools.reloc.org.apache.http.client.ClientProtocolException;
+import com.google.firebase.crashlytics.buildtools.reloc.org.apache.http.client.HttpClient;
+import com.google.firebase.crashlytics.buildtools.reloc.org.apache.http.client.methods.HttpPost;
+import com.google.firebase.crashlytics.buildtools.reloc.org.apache.http.entity.ByteArrayEntity;
+import com.google.firebase.crashlytics.buildtools.reloc.org.apache.http.impl.client.DefaultHttpClient;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -970,7 +977,7 @@ public class CameraFlyVideo extends MyBaseManager {
 
         // for image reader
         ImageReader imageReader = ImageReader.newInstance(outputSize.getWidth(), outputSize.getHeight(),
-                outputFormat, FRAME_BUFF_COUNT);
+                outputFormat, FRAME_BUFF_COUNT + 2);
         imageReader.setOnImageAvailableListener(getOnImAvailableCallback(camera.getId()), null);
 
         return imageReader;
@@ -1341,6 +1348,7 @@ public class CameraFlyVideo extends MyBaseManager {
 
             try {
                 // Replace the existing repeating request with one with updated 3A triggers.
+                // changed from .capture to .setRepeatingRequest
                 mCaptureSession.capture(mPreviewRequest.build(), mPreCaptureCallback, getBgHandler());
             }
             catch (CameraAccessException e) {
@@ -1387,6 +1395,26 @@ public class CameraFlyVideo extends MyBaseManager {
         }
     }
 
+    long cnt = 0;
+    long cnt_avg = 0;
+    double period_avg = 0.0;
+    long lastTs = -1;
+
+    private void timeCap(long imageTs) {
+
+        if (lastTs >= 0) {
+            double tsDiff = imageTs - lastTs;
+            period_avg += Math.abs(tsDiff);
+            cnt_avg += 1;
+        }
+        lastTs = imageTs;
+        cnt += 1;
+        if (cnt % 10 == 0) {
+            double avg = period_avg / cnt_avg * 1e-6;
+            Log.d(TAG, "Average capture period: " + avg + " ms");
+        }
+    }
+
     private void processCapturedImage(int sensorId, Image image) {
 
         synchronized (mCameraStateLock) {
@@ -1408,6 +1436,10 @@ public class CameraFlyVideo extends MyBaseManager {
             String filePath = PATH_BASE_IMAGES + "/" + fileName;
             //Log.v(TAG, "New image: " + fileName);
 
+            // Timing (unoptimized frame rate is around 400 ms)
+            // todo: make this faster!
+            timeCap(imageTs);
+
             MyResourceIdentifier resId = new MyResourceIdentifier(sensorId, 0);
 
             // image message
@@ -1425,8 +1457,9 @@ public class CameraFlyVideo extends MyBaseManager {
                 ByteBuffer buffer = image.getPlanes()[0].getBuffer();
                 byte[] bytes = new byte[buffer.remaining()];
                 buffer.get(bytes);
-
                 imageMsg.setData(bytes);
+
+                //sendOverNetwork(bytes);
             }
             else if (imageFormat == ImageFormat.RAW_SENSOR) {
 
@@ -1451,13 +1484,52 @@ public class CameraFlyVideo extends MyBaseManager {
             }
         }
 
+        image.close();
         if (isProcessing()) { // recursive loop
 
-            image.close();
+//            image.close();
             runCaptureLoop();
         }
-        else {
-            image.close();
+//        else {
+//            image.close();
+//        }
+    }
+
+    private boolean mNetworkWorking = false;
+
+    private void sendOverNetwork(byte[] data) {
+        String mBroadcastUrl = "http://192.168.1.101:27015";
+
+        if (!mNetworkWorking){
+            Thread thread = new Thread(){
+                @Override
+                public void run(){
+
+                    mNetworkWorking = true;
+
+                    HttpResponse response = null;
+                    HttpClient client = new DefaultHttpClient();
+                    HttpPost post = new HttpPost(mBroadcastUrl);
+                    post.setEntity(new ByteArrayEntity(data));
+
+                    try {
+                        response = client.execute(post);
+                    } catch (ClientProtocolException e) {
+                        //if (BuildConfig.LOCAL_LOG)
+                        Log.w(TAG, "ClientProtocolException: "+e.getMessage());
+                    } catch (IOException e) {
+                        //if (BuildConfig.LOCAL_LOG)
+                        Log.w(TAG, "IOException: "+e.getMessage());
+                    }
+
+                    mNetworkWorking = false;
+
+                }
+            };
+
+            thread.setName("networkThread");
+            thread.setPriority(Thread.MAX_PRIORITY);
+            thread.start();
         }
     }
 
@@ -1769,6 +1841,14 @@ public class CameraFlyVideo extends MyBaseManager {
             }
             if (mPhysicalOutConfig != null && !mPhysicalOutConfig.isEmpty()) {
                 lAllOutConfigs.addAll(mPhysicalOutConfig);
+            }
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                long streamUseCase = CameraMetadata
+                        .SCALER_AVAILABLE_STREAM_USE_CASES_PREVIEW_VIDEO_STILL;
+                for (OutputConfiguration outConfig : lAllOutConfigs) {
+                    outConfig.setStreamUseCase(streamUseCase);
+                }
             }
 
             return lAllOutConfigs;

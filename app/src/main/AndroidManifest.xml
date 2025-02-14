@@ -55,48 +55,55 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity
-            android:name=".DroneRacingActivity"
-            android:exported="false" />
+            android:name=".tests.JoystickActivity"
+            android:exported="false"
+            android:screenOrientation="landscape" />
         <activity
+            android:name=".controllers.z_DroneRacingActivity"
+            android:exported="false" />
+        <!--activity
             android:name=".UsbControllerActivity"
             android:exported="false">
             <meta-data
                 android:name="android.app.lib_name"
                 android:value="" />
-        </activity>
+        </activity-->
         <activity
-            android:name=".RoboControllerActivity"
+            android:name=".controllers.RoboControllerActivity"
             android:exported="false">
-            <meta-data
+            <!--meta-data
                 android:name="android.app.lib_name"
-                android:value="" />
+                android:value="" /-->
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".MainActivity" />
         </activity>
-        <activity
+        <!--activity
             android:name=".FlightControlActivity"
             android:exported="false">
             <meta-data
                 android:name="android.app.lib_name"
                 android:value="" />
-        </activity>
+        </activity-->
         <activity
-            android:name=".NativeTestActivity"
+            android:name=".tests.NativeTestActivity"
             android:exported="false">
             <meta-data
                 android:name="android.app.lib_name"
                 android:value="" />
         </activity>
         <activity
-            android:name=".ControllerServerActivity"
-            android:exported="false" /> <!-- android:requestLegacyExternalStorage="true" -->
-        <activity
-            android:name=".RecordSensorsActivity"
+            android:name=".recording.RecordSensorsActivity"
             android:exported="false" />
-        <activity android:name=".CarManualControlActivity">
+        <!--activity
+            android:name=".ControllerServerActivity"
+            android:exported="false" /--> <!-- android:requestLegacyExternalStorage="true" -->
+        <!--activity android:name=".CarManualControlActivity">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value=".MainActivity" />
-        </activity>
-        <activity android:name=".TestActivity">
+        </activity-->
+        <activity android:name=".tests.TestActivity">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value=".MainActivity" />

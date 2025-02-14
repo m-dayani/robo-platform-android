@@ -187,8 +187,9 @@ public class WiNetReqFragment extends Fragment
 
         Bundle bundle = new Bundle();
         bundle.putBoolean(ActivityRequirements.KEY_REQUIREMENT_PASSED, true);
+
         getParentFragmentManager()
-                .setFragmentResult(ActivityRequirements.KEY_REQUIREMENT_PASSED_REQUEST, bundle);
+            .setFragmentResult(ActivityRequirements.KEY_REQUIREMENT_PASSED_REQUEST, bundle);
 
         // remove current fragment and go back to last
         getParentFragmentManager().popBackStack();
@@ -198,8 +199,9 @@ public class WiNetReqFragment extends Fragment
     public void onAvailabilityStateChanged(MyBaseManager manager) {
 
         Log.i(TAG, "Wifi availability is changed");
-        if (manager != null) {
+        if (manager != null && isAdded()) {
             manager.updateAvailabilityAndCheckedSensors(requireActivity());
+            Log.d(TAG, "Updated manager's availability");
             if (manager.isAvailable()) {
                 this.permit();
             }

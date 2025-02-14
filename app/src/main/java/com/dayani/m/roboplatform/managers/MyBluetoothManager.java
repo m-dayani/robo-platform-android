@@ -123,6 +123,7 @@ public class MyBluetoothManager extends MyBaseManager implements HandleEnableSet
     private BluetoothSocket mSocket = null;
 
     private MyWifiManager.InputTask mInputTask;
+    private OutputStream mOutputStream;
     private PrintWriter output;
     private BufferedReader input;
 
@@ -654,9 +655,11 @@ public class MyBluetoothManager extends MyBaseManager implements HandleEnableSet
         if (mServerSocket != null) {
             try {
                 mServerSocket.close();
-            } catch (IOException e) {
+            }
+            catch (IOException e) {
                 e.printStackTrace();
-            } finally {
+            }
+            finally {
                 mServerSocket = null;
             }
         }
@@ -705,6 +708,9 @@ public class MyBluetoothManager extends MyBaseManager implements HandleEnableSet
             //input.close();
             input = null;
         }
+        if (mOutputStream != null) {
+            mOutputStream = null;
+        }
 
         mbIsBtAvailable = false;
         updateSettingsEnabled();
@@ -725,7 +731,8 @@ public class MyBluetoothManager extends MyBaseManager implements HandleEnableSet
 
         if (msg == null) {
             // init. test & send the test command
-            doInBackground(new MyWifiManager.OutputTask(output, MyDrvWireless.getTestRequest()));
+            doInBackground(new MyWifiManager.OutputTask(mOutputStream,
+                    MyDrvWireless.getTestRequest().getBytes(StandardCharsets.US_ASCII)));
             // get the response elsewhere and check
         }
         else if (msg instanceof MyMessages.MsgWireless){
@@ -735,7 +742,8 @@ public class MyBluetoothManager extends MyBaseManager implements HandleEnableSet
             if (MyDrvWireless.matchesTestRequest(wlMsg)) {
                 MyMessages.MsgWireless res = new MyMessages.MsgWireless(
                         MyMessages.MsgWireless.WirelessCommand.TEST, DEFAULT_TEST_RESPONSE);
-                doInBackground(new MyWifiManager.OutputTask(output, MyDrvWireless.encodeMessage(res)));
+                doInBackground(new MyWifiManager.OutputTask(mOutputStream,
+                        MyDrvWireless.encodeMessage(res).getBytes(StandardCharsets.US_ASCII)));
             }
             else if (MyDrvWireless.matchesTestResponse(wlMsg)) {
 
@@ -758,13 +766,15 @@ public class MyBluetoothManager extends MyBaseManager implements HandleEnableSet
     @Override
     public void onMessageReceived(MyMessages.MyMessage msg) {
 
-        if (msg == null) {
+        if (msg == null || mOutputStream == null) {
             return;
         }
 
         // send module's messages to the remote server
         if (msg instanceof MyMessages.MsgWireless) {
-            doInBackground(new MyWifiManager.OutputTask(output, MyDrvWireless.encodeMessage((MyMessages.MsgWireless) msg)));
+            doInBackground(new MyWifiManager.OutputTask(mOutputStream,
+                    MyDrvWireless.encodeMessage((MyMessages.MsgWireless) msg).
+                            getBytes(StandardCharsets.US_ASCII)));
         }
     }
 
@@ -814,7 +824,8 @@ public class MyBluetoothManager extends MyBaseManager implements HandleEnableSet
                 try {
                     mSocket = mServerSocket.accept();
 
-                    output = new PrintWriter(mSocket.getOutputStream());
+                    mOutputStream = mSocket.getOutputStream();
+                    output = new PrintWriter(mOutputStream);
                     input = new BufferedReader(new InputStreamReader(mSocket.getInputStream()));
 
                     // read data from the server
@@ -887,6 +898,7 @@ public class MyBluetoothManager extends MyBaseManager implements HandleEnableSet
                 // until it succeeds or throws an exception.
                 mSocket.connect();
 
+                mOutputStream = mSocket.getOutputStream();
                 output = new PrintWriter(mSocket.getOutputStream());
                 input = new BufferedReader(new InputStreamReader(mSocket.getInputStream()));
 

@@ -1,4 +1,4 @@
-package com.dayani.m.roboplatform;
+package com.dayani.m.roboplatform.controllers;
 
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -25,11 +25,11 @@ import com.dayani.m.roboplatform.utils.view_models.SensorsViewModel;
 import java.util.Arrays;
 
 
-public class FlightControlFragment extends
-        ManualControlFragment implements
+public class z_FlightControlFragment extends
+        z_ManualControlFragment implements
         MyChannels.ChannelTransactions {
 
-    private static final String TAG = FlightControlFragment.class.getSimpleName();
+    private static final String TAG = z_FlightControlFragment.class.getSimpleName();
 
 //        private static final String KEY_STARTED_STATE = AppGlobals.PACKAGE_BASE_NAME
 //                +'.'+TAG+".KEY_STARTED_STATE";
@@ -41,7 +41,7 @@ public class FlightControlFragment extends
     private final boolean mTestMode = true;
 
 
-    public FlightControlFragment() {
+    public z_FlightControlFragment() {
         // Required empty public constructor
         mQcController = new QuadController(180);
     }
@@ -52,9 +52,9 @@ public class FlightControlFragment extends
      *
      * @return A new instance of fragment FrontPanelFragment.
      */
-    public static FlightControlFragment newInstance() {
+    public static z_FlightControlFragment newInstance() {
 
-        FlightControlFragment fragment = new FlightControlFragment();
+        z_FlightControlFragment fragment = new z_FlightControlFragment();
         Bundle args = new Bundle();
         fragment.setArguments(args);
         return fragment;

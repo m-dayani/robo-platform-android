@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/relativeLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFFFFF">
+
+    <com.dayani.m.roboplatform.utils.cutom_views.AutoFitTextureView
+        android:id="@+id/texture"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintDimensionRatio="16:9"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/cmd_btn_container"
+        android:layout_width="0dp"
+        android:layout_height="200dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintLeft_toRightOf="@+id/texture"
+        android:orientation="vertical"
+        tools:layout_editor_absoluteX="732dp"
+        tools:layout_editor_absoluteY="1dp">
+
+        <Button
+            android:id="@+id/connWifi"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/conn_wi_fi" />
+
+        <Button
+            android:id="@+id/connBt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/conn_blth" />
+
+        <Button
+            android:id="@+id/startCtrlClient"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/start" />
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/txtReport"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="#80000000"
+        android:padding="8dp"
+        android:text="@string/not_connected_no_preview"
+        android:textColor="#000000"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/cmd_btn_container"
+        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintStart_toEndOf="@+id/texture" />
+
+    <com.dayani.m.thirdparty.virtual_joystick.JoystickView
+        android:id="@+id/joystickViewLeft"
+        android:layout_width="280dp"
+        android:layout_height="280dp"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentBottom="true"
+        android:alpha="0.65"
+        app:JV_backgroundColor="#009688"
+        app:JV_borderColor="#00796B"
+        app:JV_borderWidth="8dp"
+        app:JV_buttonColor="#FF6E40"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.797" />
+
+    <com.dayani.m.thirdparty.virtual_joystick.JoystickView
+        android:id="@+id/joystickViewRight"
+        android:layout_width="280dp"
+        android:layout_height="280dp"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentBottom="true"
+        android:alpha="0.65"
+        app:JV_backgroundColor="#009688"
+        app:JV_borderColor="#00796B"
+        app:JV_borderWidth="8dp"
+        app:JV_buttonColor="#FF6E40"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="@+id/texture"
+        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintStart_toEndOf="@+id/joystickViewLeft"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.797" />
+
+    <LinearLayout
+        style="?android:attr/buttonBarStyle"
+        android:layout_width="140dp"
+        android:layout_height="32dp"
+        android:layout_marginTop="32dp"
+        android:orientation="horizontal"
+        app:layout_constraintEnd_toEndOf="@+id/texture"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/texture">
+
+        <ImageButton
+            android:id="@+id/cmd_pb0"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_weight="1"
+            android:alpha="0.5"
+            android:contentDescription="@string/cmd_pb0"
+            android:src="@drawable/ic_action_stop_dark" />
+
+        <ImageButton
+            android:id="@+id/cmd_sw0"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_weight="1"
+            android:alpha="0.5"
+            android:contentDescription="@string/cmd_sw"
+            android:src="@drawable/ic_action_stop_dark" />
+
+        <ImageButton
+            android:id="@+id/cmd_sw1"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_weight="1"
+            android:alpha="0.5"
+            android:contentDescription="@string/cmd_sw"
+            android:src="@drawable/ic_action_stop_dark" />
+
+        <ImageButton
+            android:id="@+id/cmd_sw2"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_weight="1"
+            android:alpha="0.5"
+            android:contentDescription="@string/cmd_sw"
+            android:src="@drawable/ic_action_stop_dark" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
